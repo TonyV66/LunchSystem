@@ -1,0 +1,37 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "chrome",
+            "request": "launch",
+            "name": "Cafeteria Client",
+            "url": "http://localhost:3000",
+           "webRoot": "${workspaceFolder}/cafeteria-client"
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Cafeteria Server",
+            "cwd": "${workspaceFolder}/cafeteria-backend",
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "program": "${workspaceFolder}/cafeteria-backend/dist/server.js",
+            "preLaunchTask": "tsc: watch - cafeteria-backend/tsconfig.json"
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Cafeteria Dev Server",
+            "runtimeExecutable": "nodemon",
+            "program": "${workspaceRoot}/cafeteria-backend/dist/server.js",
+            "preLaunchTask": "tsc: watch - cafeteria-backend/tsconfig.json",
+            "restart": true,
+            "console": "integratedTerminal",
+            "internalConsoleOptions": "neverOpen"
+        }
+    ]
+}
