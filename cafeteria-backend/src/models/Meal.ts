@@ -1,10 +1,8 @@
-import { Column, Entity, Index, PrimaryGeneratedColumn } from "typeorm";
-import { DecimalTransformer } from "../entity/DecimalTransformer";
+import { MealItem } from "./Menu";
 
 export default class Meal {
-  @PrimaryGeneratedColumn()
   id: number;
-  @Index()
-  @Column()
+  studentId: number;
   date: string;
+  items: MealItem[];
 }

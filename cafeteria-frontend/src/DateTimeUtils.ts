@@ -192,6 +192,7 @@ export class DateTimeUtils {
       return new Date(dateParts.year, dateParts.month - 1, dateParts.date);
     }
     date = date as Date;
+
     return new Date(date.getFullYear(), date.getMonth(), date.getDate());
   }
 

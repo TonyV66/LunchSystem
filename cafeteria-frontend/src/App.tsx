@@ -1,5 +1,5 @@
 import * as React from "react";
-import CalendarPage from "./CalendarPage";
+import CalendarPage from "./components/mealplan/CalendarPage";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import MainAppPanel, {
   ACCOUNT_URL,
@@ -7,18 +7,19 @@ import MainAppPanel, {
   MEALS_URL,
   CALENDAR_URL,
 } from "./MainAppPanel";
-import ShoppingCartPage from "./ShoppingCartPage";
-import OrderedMealsPage from "./OrderedMealsPage";
+import ShoppingCartPage from "./components/shoppingcart/ShoppingCartPage";
+import OrderedMealsPage from "./components/meals/OrderedMealsPage";
 import { useContext } from "react";
 import { AppContext } from "./AppContextProvider";
 import LoginPanel from "./components/LoginPanel";
 import { Role } from "./models/User";
-import NotificationsPage from "./NotificationsPage";
-import AdminSettingsPage from "./AdminSettingsPage";
-import OrderHistoryPage from "./components/OrderHistoryPage";
-import PlannerPage from "./PlannerPage";
-import UsersPage from "./UsersPage";
-import OrderHistory from "./components/OrderHistory";
+import NotificationsPage from "./components/notifications/NotificationsPage";
+import OrderHistoryPage from "./components/orders/OrderHistoryPage";
+import PlannerPage from "./components/mealplan/PlannerPage";
+import UsersPage from "./components/users/UsersPage";
+import StudentsPage from "./components/users/StudentsPage";
+import AdminSettingsPage from "./components/settings/AdminSettingsPage";
+import ChangePasswordPage from "./components/settings/ChangePasswordPage";
 
 const App: React.FC = () => {
   const { user } = useContext(AppContext);
@@ -62,16 +63,20 @@ const App: React.FC = () => {
         >
           {user.role === Role.PARENT ? (
             <>
+              <Route path="calendar" element={<CalendarPage></CalendarPage>} />
               <Route
-                path="calendar"
-                element={<CalendarPage></CalendarPage>}
+                path="meals"
+                element={<OrderedMealsPage></OrderedMealsPage>}
               />
-              <Route path="meals" element={<OrderedMealsPage></OrderedMealsPage>} />
-              <Route path="orders" element={<OrderHistory></OrderHistory>} />
+              <Route
+                path="orders"
+                element={<OrderHistoryPage purchaser={user}></OrderHistoryPage>}
+              />
               <Route
                 path="cart"
                 element={<ShoppingCartPage></ShoppingCartPage>}
               />
+              <Route path="account" element={<ChangePasswordPage />} />
             </>
           ) : (
             <></>
@@ -80,10 +85,12 @@ const App: React.FC = () => {
             <>
               <Route path="calendar" element={<PlannerPage></PlannerPage>} />
               <Route path="users" element={<UsersPage></UsersPage>} />
+              <Route path="students" element={<StudentsPage></StudentsPage>} />
               <Route
                 path="orders"
                 element={<OrderHistoryPage></OrderHistoryPage>}
               />
+              <Route path="account" element={<AdminSettingsPage />} />
             </>
           ) : (
             <></>
@@ -91,10 +98,8 @@ const App: React.FC = () => {
 
           {user.role === Role.CAFETERIA ? (
             <>
-              <Route
-                path="calendar"
-                element={<CalendarPage></CalendarPage>}
-              />
+              <Route path="calendar" element={<CalendarPage></CalendarPage>} />
+              <Route path="account" element={<ChangePasswordPage />} />
             </>
           ) : (
             <></>
@@ -102,15 +107,13 @@ const App: React.FC = () => {
 
           {user.role === Role.TEACHER ? (
             <>
-              <Route
-                path="calendar"
-                element={<CalendarPage></CalendarPage>}
-              />
+              <Route path="calendar" element={<CalendarPage></CalendarPage>} />
+              <Route path="account" element={<ChangePasswordPage />} />
             </>
           ) : (
             <></>
           )}
-          <Route path="account" element={<AdminSettingsPage />} />
+
           <Route path="notifications" element={<NotificationsPage />} />
         </Route>
       </Routes>

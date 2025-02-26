@@ -3,7 +3,8 @@ import { Order } from "./Order";
 import Student from "./Student";
 import User from "./User";
 import { Notification } from "./Notification";
-import SystemDefaults from "./SystemDefaults";
+import School from "./School";
+import SchoolYear from "./SchoolYear";
 
 export default interface SessionInfo {
   users: User[];
@@ -14,5 +15,6 @@ export default interface SessionInfo {
   scheduledMenus: DailyMenu[];
   pantryItems: PantryItem[];
   notifications: Notification[];
-  systemDefaults: SystemDefaults;
+  schoolSettings: School;
+  schoolYear: SchoolYear;
 }

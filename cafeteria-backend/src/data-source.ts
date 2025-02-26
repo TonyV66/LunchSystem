@@ -12,15 +12,19 @@ import { OrderEntity } from "./entity/OrderEntity";
 import StudentEntity from "./entity/StudentEntity";
 import UserEntity from "./entity/UserEntity";
 import NotificationEntity from "./entity/NotificationEntity";
-import SystemDefaultsEntity from "./entity/SystemDefaultsEntity";
+import SchoolEntity from "./entity/SchoolEntity";
+import SchoolYearEntity from "./entity/SchoolYearEntity";
+import SchoolLunchTimeEntity from "./entity/SchoolLunchTimeEntity";
+import TeacherLunchTimeEntity from "./entity/TeacherLunchTimeEntity";
+import StudentLunchTimeEntity from "./entity/StudentLunchTimeEntity";
 
 export const AppDataSource = new DataSource({
   type: "mysql",
-  host: "localhost",
-  port: 3306,
-  username: "root",
-  password: "jellybeanboy321",
-  database: "cafeteria",
+  host: process.env.DB_HOST,
+  port: parseInt(process.env.DB_PORT ?? '3306'),
+  username: process.env.DB_USER,
+  password: process.env.DB_PWD,
+  database: process.env.DB_NAME,
   synchronize: true,
   logging: false,
   entities: [
@@ -35,7 +39,11 @@ export const AppDataSource = new DataSource({
     StudentEntity,
     UserEntity,
     NotificationEntity,
-    SystemDefaultsEntity,
+    SchoolEntity,
+    SchoolYearEntity,
+    SchoolLunchTimeEntity,
+    TeacherLunchTimeEntity,
+    StudentLunchTimeEntity,
   ],
   migrations: [],
   subscribers: [],

@@ -6,13 +6,66 @@ import {
   Select,
   SelectChangeEvent,
 } from "@mui/material";
+import { DateTimeUtils } from "../DateTimeUtils";
+
+const ALL_TIMES = [
+  "00:00",
+  "00:30",
+  "01:00",
+  "01:30",
+  "02:00",
+  "02:30",
+  "03:00",
+  "03:30",
+  "04:00",
+  "04:30",
+  "05:00",
+  "05:30",
+  "06:00",
+  "06:30",
+  "07:00",
+  "07:30",
+  "08:00",
+  "08:30",
+  "09:00",
+  "09:30",
+  "10:00",
+  "10:30",
+  "11:00",
+  "11:30",
+  "12:00",
+  "12:30",
+  "13:00",
+  "13:30",
+  "14:00",
+  "14:30",
+  "15:00",
+  "15:30",
+  "16:00",
+  "16:30",
+  "17:00",
+  "17:30",
+  "18:00",
+  "18:30",
+  "19:00",
+  "19:30",
+  "20:00",
+  "20:30",
+  "21:00",
+  "21:30",
+  "22:00",
+  "22:30",
+  "23:00",
+  "23:30",
+];
 
 const PlainSelector: React.FC<{
   label: string;
   time: string;
+  availTimes?: string[];
   labelId?: string;
   onTimeChanged: (time: string) => void;
-}> = ({ time, onTimeChanged, label, labelId }) => {
+}> = ({ time, onTimeChanged, label, labelId, availTimes }) => {
   const [selectedTime, setSelectedTime] = useState(time);
 
   function handleTimeChanged(value: string): void {
@@ -31,54 +84,11 @@ const PlainSelector: React.FC<{
       }
       sx={{ width: "100px" }}
     >
-      <MenuItem value={"00:00"}>12:00 AM</MenuItem>
-      <MenuItem value={"00:30"}>12:30 AM</MenuItem>
-      <MenuItem value={"01:00"}>1:00 AM</MenuItem>
-      <MenuItem value={"01:30"}>1:30 AM</MenuItem>
-      <MenuItem value={"02:00"}>2:00 AM</MenuItem>
-      <MenuItem value={"02:30"}>2:30 AM</MenuItem>
-      <MenuItem value={"03:00"}>3:00 AM</MenuItem>
-      <MenuItem value={"03:30"}>3:30 AM</MenuItem>
-      <MenuItem value={"04:00"}>4:00 AM</MenuItem>
-      <MenuItem value={"04:30"}>4:30 AM</MenuItem>
-      <MenuItem value={"05:00"}>5:00 AM</MenuItem>
-      <MenuItem value={"05:30"}>5:30 AM</MenuItem>
-      <MenuItem value={"06:00"}>6:00 AM</MenuItem>
-      <MenuItem value={"06:30"}>6:30 AM</MenuItem>
-      <MenuItem value={"07:00"}>7:00 AM</MenuItem>
-      <MenuItem value={"07:30"}>7:30 AM</MenuItem>
-      <MenuItem value={"08:00"}>8:00 AM</MenuItem>
-      <MenuItem value={"08:30"}>8:30 AM</MenuItem>
-      <MenuItem value={"09:00"}>9:00 AM</MenuItem>
-      <MenuItem value={"09:30"}>9:30 AM</MenuItem>
-      <MenuItem value={"10:00"}>10:00 AM</MenuItem>
-      <MenuItem value={"10:30"}>10:30 AM</MenuItem>
-      <MenuItem value={"11:00"}>11:00 AM</MenuItem>
-      <MenuItem value={"11:30"}>11:30 AM</MenuItem>
-      <MenuItem value={"12:00"}>12:00 PM</MenuItem>
-      <MenuItem value={"12:30"}>12:30 PM</MenuItem>
-      <MenuItem value={"13:00"}>1:00 PM</MenuItem>
-      <MenuItem value={"13:30"}>1:30 PM</MenuItem>
-      <MenuItem value={"14:00"}>2:00 PM</MenuItem>
-      <MenuItem value={"14:30"}>2:30 PM</MenuItem>
-      <MenuItem value={"15:00"}>3:00 PM</MenuItem>
-      <MenuItem value={"15:30"}>3:30 PM</MenuItem>
-      <MenuItem value={"16:00"}>4:00 PM</MenuItem>
-      <MenuItem value={"16:30"}>4:30 PM</MenuItem>
-      <MenuItem value={"17:00"}>5:00 PM</MenuItem>
-      <MenuItem value={"17:30"}>5:30 PM</MenuItem>
-      <MenuItem value={"18:00"}>6:00 PM</MenuItem>
-      <MenuItem value={"18:30"}>6:30 PM</MenuItem>
-      <MenuItem value={"19:00"}>7:00 PM</MenuItem>
-      <MenuItem value={"19:30"}>7:30 PM</MenuItem>
-      <MenuItem value={"20:00"}>8:00 PM</MenuItem>
-      <MenuItem value={"20:30"}>8:30 PM</MenuItem>
-      <MenuItem value={"21:00"}>9:00 PM</MenuItem>
-      <MenuItem value={"21:30"}>9:30 PM</MenuItem>
-      <MenuItem value={"22:00"}>10:00 PM</MenuItem>
-      <MenuItem value={"22:30"}>10:30 PM</MenuItem>
-      <MenuItem value={"23:00"}>11:00 PM</MenuItem>
-      <MenuItem value={"23:30"}>11:30 PM</MenuItem>
+      {(availTimes ?? ALL_TIMES).sort().map((time) => (
+        <MenuItem key={time} value={time}>
+          {DateTimeUtils.toTwelveHourTime(time)}
+        </MenuItem>
+      ))}
     </Select>
   );
 };
@@ -87,8 +97,9 @@ const TimeSelector: React.FC<{
   label: string;
   time: string;
   wrapInFormControl?: boolean;
+  availTimes?: string[];
   onTimeChanged: (time: string) => void;
-}> = ({ time, onTimeChanged, label, wrapInFormControl }) => {
+}> = ({ time, onTimeChanged, label, wrapInFormControl, availTimes }) => {
   const labelId = label.toLowerCase().split(" ").join("-") + "-label";
   return wrapInFormControl ? (
     <FormControl>
@@ -97,6 +108,7 @@ const TimeSelector: React.FC<{
         time={time}
         label={label}
         labelId={labelId}
+        availTimes={(availTimes)}
         onTimeChanged={onTimeChanged}
       />
     </FormControl>

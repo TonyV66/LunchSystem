@@ -14,20 +14,12 @@
         {
             "type": "node",
             "request": "launch",
-            "name": "Cafeteria Server",
-            "cwd": "${workspaceFolder}/cafeteria-backend",
-            "skipFiles": [
-                "<node_internals>/**"
-            ],
-            "program": "${workspaceFolder}/cafeteria-backend/dist/server.js",
-            "preLaunchTask": "tsc: watch - cafeteria-backend/tsconfig.json"
-        },
-        {
-            "type": "node",
-            "request": "launch",
             "name": "Cafeteria Dev Server",
             "runtimeExecutable": "nodemon",
             "program": "${workspaceRoot}/cafeteria-backend/dist/server.js",
+            "env": {
+                "CAFETERIA_PORT": "4000"
+            },
             "preLaunchTask": "tsc: watch - cafeteria-backend/tsconfig.json",
             "restart": true,
             "console": "integratedTerminal",

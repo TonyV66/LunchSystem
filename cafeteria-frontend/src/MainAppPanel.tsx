@@ -35,6 +35,7 @@ export const LOGIN_URL = "/login";
 export const CART_URL = "/cart";
 export const CALENDAR_URL = "/calendar";
 export const ORDERS_URL = "/orders";
+export const STUDENTS_URL = "/students";
 
 export const NOTIFICATIONS_URL = "/notifications";
 
@@ -224,7 +225,7 @@ const AdminSidebar: React.FC<SidebarProps> = ({ onLogout }) => {
       setSelection(SidebarSelection.ACCOUNT);
     } else if (matchRoutes([{ path: MEALS_URL }], location.pathname)) {
       setSelection(SidebarSelection.MEALS);
-    } else if (matchRoutes([{ path: USERS_URL }], location.pathname)) {
+    } else if (matchRoutes([{ path: USERS_URL }, { path: STUDENTS_URL }], location.pathname)) {
       setSelection(SidebarSelection.USERS);
     } else if (matchRoutes([{ path: CART_URL }], location.pathname)) {
       setSelection(SidebarSelection.CART);
@@ -250,7 +251,7 @@ const AdminSidebar: React.FC<SidebarProps> = ({ onLogout }) => {
         pb: 1,
         backgroundColor: primaryColor,
         borderStyle: "solid",
-        borderWidth: 1,
+        borderRightWidth: 1,
         borderColor: primaryColor,
       }}
     >
@@ -346,7 +347,7 @@ const ParentSidebar: React.FC<SidebarProps> = ({ onLogout }) => {
         pb: 1,
         backgroundColor: primaryColor,
         borderStyle: "solid",
-        borderWidth: 1,
+        borderRightWidth: 1,
         borderColor: primaryColor,
       }}
     >
@@ -437,7 +438,7 @@ const CafeteriaSidebar: React.FC<SidebarProps> = ({ onLogout }) => {
         pb: 1,
         backgroundColor: primaryColor,
         borderStyle: "solid",
-        borderWidth: 1,
+        borderRightWidth: 1,
         borderColor: primaryColor,
       }}
     >
@@ -516,7 +517,7 @@ const TeacherSidebar: React.FC<SidebarProps> = ({ onLogout }) => {
         pb: 1,
         backgroundColor: primaryColor,
         borderStyle: "solid",
-        borderWidth: 1,
+        borderRightWidth: 1,
         borderColor: primaryColor,
       }}
     >
@@ -546,7 +547,6 @@ const TeacherSidebar: React.FC<SidebarProps> = ({ onLogout }) => {
 const Sidebar: React.FC = () => {
   const {
     user,
-    setJwtToken,
     setUser,
     setUsers,
     setMenus,
@@ -558,7 +558,7 @@ const Sidebar: React.FC = () => {
   const navigate = useNavigate();
 
   const handleLogout = () => {
-    setJwtToken(null);
+    localStorage.removeItem("jwtToken");
     setUser(NULL_USER);
     setUsers([]);
     setMenus([]);
@@ -606,9 +606,6 @@ const MainAppPanel: React.FC = () => {
       sx={{
         width: "100%",
         height: "100%",
-        borderStyle: "solid",
-        borderWidth: 1,
-        borderColor: "grey.500",
         display: "flex",
         flexDirection: "row",
         alignItems: "stretch",

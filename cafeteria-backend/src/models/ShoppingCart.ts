@@ -4,6 +4,7 @@ export interface ShoppingCart {
 
 export interface ShoppingCartItem {
   studentId: number;
+  teacherId: number;
   dailyMenuId: number;
   isDrinkOnly: boolean;
   selectedMenuItemIds: number[];

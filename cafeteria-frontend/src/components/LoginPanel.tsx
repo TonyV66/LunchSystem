@@ -15,8 +15,9 @@ import {
   login,
   register,
   resetPassword,
-} from "../services/AdminClientServices";
+} from "../api/CafeteriaClient";
 import { AppContext } from "../AppContextProvider";
+import { AxiosError } from "axios";
 
 type Mode = "register" | "reset" | "forgot" | "login";
 
@@ -28,8 +29,16 @@ interface CredentialsPanelProps {
 }
 
 const CredentialsPanel: React.FC<CredentialsPanelProps> = (props) => {
-  const { setJwtToken, setPantryItems: setMenuItems, setMenus, setUser, setUsers, setScheduledMenus, setOrders, setStudents, setNotifications } =
-  useContext(AppContext);
+  const {
+    setPantryItems: setMenuItems,
+    setMenus,
+    setUser,
+    setUsers,
+    setScheduledMenus,
+    setOrders,
+    setStudents,
+    setNotifications,
+  } = useContext(AppContext);
 
   const { userName, onUserNameChanged, onModeChanged } = props;
 
@@ -37,27 +46,39 @@ const CredentialsPanel: React.FC<CredentialsPanelProps> = (props) => {
   const [errorMsg, setErrorMsg] = useState<string>();
 
   const handleLogin = async () => {
-    const loginResponse = await login(userName, password) as LoginResponse;
-    setUser(loginResponse.user);
-    setUsers(loginResponse.users);
-    setStudents(loginResponse.students);
-    setOrders(loginResponse.orders);
-    setMenus(loginResponse.menus);
-    setScheduledMenus(loginResponse.scheduledMenus);
-    setNotifications(loginResponse.notifications);
-    setMenuItems(loginResponse.pantryItems);
-    setJwtToken(loginResponse.jwtToken);
+    try {
+      const loginResponse = await login(userName, password);
+      setUser(loginResponse.user);
+      setUsers(loginResponse.users);
+      setStudents(loginResponse.students);
+      setOrders(loginResponse.orders);
+      setMenus(loginResponse.menus);
+      setScheduledMenus(loginResponse.scheduledMenus);
+      setNotifications(loginResponse.notifications);
+      setMenuItems(loginResponse.pantryItems);
+      localStorage.setItem("jwtToken", loginResponse.jwtToken);
+    } catch (error) {
+      const axiosError = error as AxiosError;
+      if (axiosError.status === 401) {
+        setErrorMsg("Invalid username or password");
+      } else {
+        setErrorMsg(
+          "Unable to login: " +
+          (axiosError.response?.data?.toString() ?? axiosError.response?.statusText ?? "Unknown server error")
+        );
+      }
+    }
   };
 
   const handleCloseSnackbar = async () => {
     setErrorMsg(undefined);
   };
 
-const handleKeyPressed = async (event: KeyboardEvent<HTMLDivElement>) => {
-  if (event.key === 'Enter') {
-    await handleLogin();
-  }
-}
+  const handleKeyPressed = async (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === "Enter") {
+      await handleLogin();
+    }
+  };
 
   return (
     <>
@@ -477,9 +498,6 @@ const LoginPanel: React.FC<LoginPanelProps> = (props) => {
       sx={{
         width: "100%",
         height: "100%",
-        borderStyle: "solid",
-        borderWidth: 1,
-        borderColor: "grey.500",
         display: "flex",
         flexDirection: "row",
         alignItems: "stretch",

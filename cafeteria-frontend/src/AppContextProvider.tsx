@@ -12,23 +12,17 @@ import {
 } from "@mui/material";
 import InfoDialog from "./components/InfoDialog";
 import { AxiosError, AxiosResponse, InternalAxiosRequestConfig } from "axios";
-import { fetchSessionInfo, http } from "./services/AdminClientServices";
+import { fetchSessionInfo, http } from "./api/CafeteriaClient";
 import { Order } from "./models/Order";
 import Student from "./models/Student";
 import { Notification } from "./models/Notification";
-import SystemDefaults from "./models/SystemDefaults";
+import School from "./models/School";
 import { ShoppingCart } from "./models/ShoppingCart";
-
-interface ApiError {
-  status: string;
-  message: string;
-  errors: string[];
-}
+import SchoolYear from "./models/SchoolYear";
 
 export interface AppContextType extends SessionInfo {
-  shoppingCart: ShoppingCart,
+  shoppingCart: ShoppingCart;
   setShoppingCart: (shoppingCart: ShoppingCart) => void;
-  setJwtToken: (token: string | null) => void;
   setSnackbarMsg: (msg: string | undefined) => void;
   setSnackbarErrorMsg: (msg: string | undefined) => void;
   setStatusMsg: (msg: string | undefined) => void;
@@ -41,27 +35,35 @@ export interface AppContextType extends SessionInfo {
   setScheduledMenus: (menus: DailyMenu[]) => void;
   setPantryItems: (pantryItems: PantryItem[]) => void;
   setNotifications: (notifications: Notification[]) => void;
-  setSystemDefaults: (SystemDefaults: SystemDefaults) => void;
+  setSystemDefaults: (SystemDefaults: School) => void;
+  setSchoolYear: (schoolYear: SchoolYear) => void;
 }
 
-const DEFAULT_SYSTEM_DEFAULTS: SystemDefaults = {
+const DEFAULT_SCHOOL_YEAR: SchoolYear = {
+  id: 0,
+  startDate: "2000-01-01",
+  endDate: "2001-01-01",
+  lunchTimes: [],
+};
+
+const DEFAULT_SYSTEM_DEFAULTS: School = {
   id: 0,
   orderStartPeriodCount: 2,
   orderStartPeriodType: 0,
   orderStartRelativeTo: 0,
-  orderStartTime: '00:00',
+  orderStartTime: "00:00",
   orderEndPeriodCount: 1,
   orderEndPeriodType: 0,
   orderEndRelativeTo: 0,
-  orderEndTime: '00:00',
-  mealPrice: 0.00,
-  drinkOnlyPrice: 0.00,
-  squareAppId: '',
-  squareLocationId: ''
-}
+  orderEndTime: "00:00",
+  mealPrice: 0.0,
+  drinkOnlyPrice: 0.0,
+  squareAppId: "",
+  squareLocationId: "",
+};
 
 export const INITIAL_APP_CONTEXT: AppContextType = {
-  shoppingCart: {items: []},
+  shoppingCart: { items: [] },
   users: [],
   user: NULL_USER,
   menus: [],
@@ -70,9 +72,9 @@ export const INITIAL_APP_CONTEXT: AppContextType = {
   scheduledMenus: [],
   pantryItems: [],
   notifications: [],
-  systemDefaults: DEFAULT_SYSTEM_DEFAULTS,
+  schoolSettings: DEFAULT_SYSTEM_DEFAULTS,
+  schoolYear: DEFAULT_SCHOOL_YEAR,
   setShoppingCart: () => {},
-  setJwtToken: () => {},
   setStatusMsg: () => {},
   setSnackbarMsg: () => {},
   setSnackbarErrorMsg: () => {},
@@ -86,18 +88,18 @@ export const INITIAL_APP_CONTEXT: AppContextType = {
   setPantryItems: () => {},
   setNotifications: () => {},
   setSystemDefaults: () => {},
+  setSchoolYear: () => {},
 };
 
 export const AppContext = createContext<AppContextType>(INITIAL_APP_CONTEXT);
 
 const AppContextProvider: React.FC<React.PropsWithChildren> = (props) => {
-  const [shoppingCart, setShoppingCart] = useState<ShoppingCart>({items: []})
+  const [shoppingCart, setShoppingCart] = useState<ShoppingCart>({ items: [] });
   const [pantryItems, setPantryItems] = useState<PantryItem[]>([]);
   const [menus, setMenus] = useState<Menu[]>([]);
   const [scheduledMenus, setScheduledMenus] = useState<DailyMenu[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [user, setUser] = useState<User>(NULL_USER);
-  const [jwtToken, setJwtToken] = useState(localStorage.getItem("jwtToken"));
   const [users, setUsers] = useState<User[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
@@ -108,7 +110,53 @@ const AppContextProvider: React.FC<React.PropsWithChildren> = (props) => {
   >();
   const [showGlassPane, setShowGlassPane] = useState<boolean>(false);
   const [isInitialized, setIsInitialized] = useState<boolean>(false);
-  const [systemDefaults, setSystemDefaults] = useState<SystemDefaults>(DEFAULT_SYSTEM_DEFAULTS);
+  const [schoolSettings, setSchoolSettings] = useState<School>(
+    DEFAULT_SYSTEM_DEFAULTS
+  );
+  const [schoolYear, setSchoolYear] = useState<SchoolYear>(DEFAULT_SCHOOL_YEAR);
+
+  const requestOkInterceptor = (
+    
+    config:
+      | InternalAxiosRequestConfig<unknown>
+      | Promise<InternalAxiosRequestConfig<unknown>>
+  ) => {
+    const jwtToken = localStorage.getItem("jwtToken");
+
+    setSnackbarErrorMsg(undefined);
+    setSnackbarMsg(undefined);
+    setShowGlassPane(true);
+
+    console.log(
+      jwtToken ? "using jwtToken = " + jwtToken : "no jwtToken found"
+    );
+
+    if (jwtToken) {
+      (config as InternalAxiosRequestConfig).headers.Authorization =
+        "Bearer " + jwtToken;
+    }
+    return config;
+  };
+
+  const requestErrorInterceptor = (error: unknown) => {
+    setShowGlassPane(false);
+    return Promise.reject(error);
+  };
+
+  const responseOkInterceptor = (
+    response:
+      | AxiosResponse<unknown, unknown>
+      | Promise<AxiosResponse<unknown, unknown>>
+  ) => {
+    setShowGlassPane(false);
+    return response;
+  };
+
+  const responseErrorInterceptor = (error: AxiosError) => {
+    setShowGlassPane(false);
+    return Promise.reject(error);
+  };
+
 
   const handleCloseSnackbar = (
     event?: React.SyntheticEvent | Event,
@@ -122,62 +170,22 @@ const AppContextProvider: React.FC<React.PropsWithChildren> = (props) => {
   };
 
   useEffect(() => {
-    const requestOkInterceptor = (
-      config:
-        | InternalAxiosRequestConfig<unknown>
-        | Promise<InternalAxiosRequestConfig<unknown>>
-    ) => {
-      setSnackbarErrorMsg(undefined);
-      setSnackbarMsg(undefined);
-      if (user.id) {
-        setShowGlassPane(true);
-      }
-      console.log(jwtToken ? ("using jwtToken = " + jwtToken) : "no jwtToken found");
-
-      if (jwtToken) {
-        (config as InternalAxiosRequestConfig).headers.Authorization =
-          "Bearer " + jwtToken;
-      }
-      return config;
-    };
-
-    const requestErrorInterceptor = (error: unknown) => {
-      setShowGlassPane(false);
-      setSnackbarErrorMsg("Unable to send request.");
-      return Promise.reject(error);
-    };
-
-    const responseOkInterceptor = (
-      response:
-        | AxiosResponse<unknown, unknown>
-        | Promise<AxiosResponse<unknown, unknown>>
-    ) => {
-      setShowGlassPane(false);
-      return response;
-    };
-
-    const responseErrorInterceptor = (error: AxiosError) => {
-      const apiError = error.response?.data as ApiError;
-      setShowGlassPane(false);
-      if (user.id) {
-        setSnackbarErrorMsg(apiError?.message || "Unknown server error");
-      }
-      return Promise.reject(error);
-    };
-
     const responseInterceptor = http.interceptors.response.use(
       responseOkInterceptor,
       responseErrorInterceptor
     );
+
     const requestInterceptor = http.interceptors.request.use(
       requestOkInterceptor,
       requestErrorInterceptor
     );
 
     const initSession = async () => {
-      const sessionInfo = await fetchSessionInfo();
-      sessionInfo?.students.sort((s1, s2) => s1.name.toLowerCase().localeCompare(s2.name.toLowerCase()))
-      if (sessionInfo) {
+      try {
+        const sessionInfo = await fetchSessionInfo();
+        sessionInfo.students.sort((s1, s2) =>
+          s1.name.toLowerCase().localeCompare(s2.name.toLowerCase())
+        );
         setUser(sessionInfo.user);
         setUsers(sessionInfo.users);
         setStudents(sessionInfo.students);
@@ -186,28 +194,34 @@ const AppContextProvider: React.FC<React.PropsWithChildren> = (props) => {
         setScheduledMenus(sessionInfo.scheduledMenus);
         setPantryItems(sessionInfo.pantryItems);
         setNotifications(sessionInfo.notifications);
-        setSystemDefaults(sessionInfo.systemDefaults);
+        setSchoolSettings(sessionInfo.schoolSettings);
+        setSchoolYear(sessionInfo.schoolYear);
+        setIsInitialized(true);
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      } catch (error) {
+        setIsInitialized(true);
       }
-      setIsInitialized(true);
     };
-  
-    initSession();
 
+    initSession();
 
     return () => {
       http.interceptors.request.eject(requestInterceptor);
       http.interceptors.response.eject(responseInterceptor);
-    };
+    }
   }, []);
 
   useEffect(() => {
-    console.log(jwtToken ? "storing jwtToken" : "deleteing jwtToken");
-    if (!jwtToken) {
-      localStorage.removeItem("jwtToken");
-    } else {
-      localStorage.setItem("jwtToken", jwtToken);
+    if (snackbarMsg) {
+      setSnackbarErrorMsg(undefined);
     }
-  }, [jwtToken]);
+  }, [snackbarMsg]);
+
+  useEffect(() => {
+    if (snackbarErrorMsg) {
+      setSnackbarMsg(undefined);
+    }
+  }, [snackbarErrorMsg]);
 
   if (!isInitialized) {
     return <></>;
@@ -225,9 +239,9 @@ const AppContextProvider: React.FC<React.PropsWithChildren> = (props) => {
         scheduledMenus,
         pantryItems,
         notifications,
-        systemDefaults,
+        schoolSettings,
+        schoolYear,
         setShoppingCart,
-        setJwtToken,
         setStatusMsg,
         setSnackbarMsg,
         setSnackbarErrorMsg,
@@ -240,10 +254,24 @@ const AppContextProvider: React.FC<React.PropsWithChildren> = (props) => {
         setMenus,
         setScheduledMenus,
         setUser,
-        setSystemDefaults,
+        setSystemDefaults: setSchoolSettings,
+        setSchoolYear,
       }}
     >
-      <Box sx={{ maxWidth: '1200px', height: "100vh", marginLeft: 'auto', marginRight: 'auto', overflow: "hidden", paddingLeft: '0px', paddingRight: '0px' }}>
+      <Box
+        sx={{
+          borderStyle: "solid",
+          borderWidth: 1,
+          borderColor: "grey.500",
+          maxWidth: "1200px",
+          height: "100vh",
+          marginLeft: "auto",
+          marginRight: "auto",
+          overflow: "hidden",
+          paddingLeft: "0px",
+          paddingRight: "0px",
+        }}
+      >
         {props.children}
         {!statusMsg ? (
           <></>

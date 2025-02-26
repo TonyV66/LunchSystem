@@ -1,10 +1,9 @@
-import { Column, PrimaryGeneratedColumn } from "typeorm";
+import Meal from "./Meal";
+import StudentLunchTime from "./StudentLunchTime";
 
 export default class Student {
-  @PrimaryGeneratedColumn()
   id: number;
-  @Column()
   studentId: string;
-  @Column()
   name: string;
+  lunchTimes: StudentLunchTime[];
 }
