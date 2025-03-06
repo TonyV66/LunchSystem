@@ -92,7 +92,7 @@ AppDataSource.initialize()
 
 
     // Set the port number for the server
-    const port = parseInt(process.env.CAFETERIA_PORT || "80");
+    const port = parseInt(process.env.CAFETERIA_PORT || "3000");
 
     app.listen(port, () => {
       console.log(`Server is running on http://localhost:${port}`);
