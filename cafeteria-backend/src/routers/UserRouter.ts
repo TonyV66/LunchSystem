@@ -1,5 +1,5 @@
 import express, { Router } from "express";
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
 import { AppDataSource } from "../data-source";
 import { DeepPartial } from "typeorm";
 import UserEntity from "../entity/UserEntity";

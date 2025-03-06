@@ -1,5 +1,5 @@
 import express, { RequestHandler, Router } from "express";
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { SessionInfo, getSessionInfo } from "./SessionRouter";
 import { AppDataSource } from "../data-source";
