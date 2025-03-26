@@ -9,32 +9,38 @@ import {
   TextField,
 } from "@mui/material";
 import { AppContext } from "../../AppContextProvider";
-import { createStudent } from "../../api/CafeteriaClient";
+import { createStudent, updateStudent } from "../../api/CafeteriaClient";
 import Student from "../../models/Student";
 import { AxiosError } from "axios";
 
 interface DialogProps {
-  onNewStudent: (student: Student) => void;
-  onClose: () => void;
+  student?: Student;
+  onClose: (student?: Student) => void;
 }
 
-const NewStudentDialog: React.FC<DialogProps> = ({ onClose, onNewStudent }) => {
+const StudentDialog: React.FC<DialogProps> = ({ onClose, student }) => {
   const { students, setStudents, setSnackbarErrorMsg } = useContext(AppContext);
 
-  const [userName, setUserName] = useState("");
+  const [updatedStudent, setUpdatedStudent] = useState<Student>(student || {
+    id: 0,
+    name: "",
+    studentId: "",
+    lunchTimes: [],
+  });
 
-  const isSaveDisabled = !userName.length;
+  const isSaveDisabled = !updatedStudent.name.length;
 
   const handleSaveStudent = async () => {
     try {
-      const newStudent = await createStudent({
-        id: 0,
-        name: userName,
-        studentId: "",
-        lunchTimes: [],
-      });
-      setStudents(students.concat(newStudent));
-      onNewStudent(newStudent);
+      if (!updatedStudent.id) {
+        const newStudent = await createStudent(updatedStudent);
+        setStudents(students.concat(newStudent));
+        onClose(newStudent);
+      } else {
+        const savedStudent = await updateStudent(updatedStudent);
+        setStudents(students.map(student => student.id === savedStudent.id ? savedStudent : student))
+        onClose(savedStudent);
+      }
     } catch (error) {
       const axiosError = error as AxiosError;
       setSnackbarErrorMsg(
@@ -47,13 +53,13 @@ const NewStudentDialog: React.FC<DialogProps> = ({ onClose, onNewStudent }) => {
   return (
     <Dialog
       open={true}
-      onClose={onClose}
+      onClose={() => onClose()}
       fullWidth={true}
       maxWidth="sm"
       aria-labelledby="alert-dialog-title"
       aria-describedby="alert-dialog-description"
     >
-      <DialogTitle>{"Add Student"}</DialogTitle>
+      <DialogTitle>{!student ? "Add Student" : "Edit Student"}</DialogTitle>
       <DialogContent>
         <Box
           sx={{
@@ -68,15 +74,15 @@ const NewStudentDialog: React.FC<DialogProps> = ({ onClose, onNewStudent }) => {
             required
             label="First & Last Name"
             variant="standard"
-            value={userName}
+            value={updatedStudent.name}
             onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
-              setUserName(event.target.value)
+              setUpdatedStudent({...updatedStudent, name: event.target.value})
             }
           />
         </Box>
       </DialogContent>
       <DialogActions>
-        <Button variant="contained" onClick={onClose}>
+        <Button variant="contained" onClick={() => onClose()}>
           Cancel
         </Button>
         <Button
@@ -91,4 +97,4 @@ const NewStudentDialog: React.FC<DialogProps> = ({ onClose, onNewStudent }) => {
   );
 };
 
-export default NewStudentDialog;
+export default StudentDialog;

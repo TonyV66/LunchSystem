@@ -9,12 +9,22 @@ import { buildUserDto, getLatestSchoolYear } from "./RouterUtils";
 const UserRouter: Router = express.Router();
 interface Empty {}
 
-UserRouter.post<Empty, User, User, Empty>("/", async (req, res) => {
+UserRouter.post<Empty, User | string, User, Empty>("/", async (req, res) => {
   const userRepository = AppDataSource.getRepository(UserEntity);
+
+  const existingUser = await userRepository.findOne({
+    where: { userName: req.body.userName.toLowerCase() },
+  });
+
+  if (existingUser) {
+      res.status(401).send("Username already exists.");
+      return;
+  }
 
   const schoolYear = getLatestSchoolYear(req.user.school);
 
   const hash = bcrypt.hashSync(req.body.pwd, 5);
+
   const user: DeepPartial<UserEntity> = {
     ...req.body,
     id: undefined,
@@ -28,8 +38,9 @@ UserRouter.post<Empty, User, User, Empty>("/", async (req, res) => {
         })),
     school: req.user.school,
   };
-  const newUser = userRepository.create(user);
-  const savedUser = await userRepository.save(newUser as UserEntity);
+  
+  user.userName = user.userName?.toLowerCase();
+  const savedUser = await userRepository.save(user);
   res.send(buildUserDto(savedUser));
 });
 

@@ -1,6 +1,7 @@
 import React from "react";
 import {
   Box,
+  Button,
   ToggleButton,
   ToggleButtonGroup,
   Typography,
@@ -23,19 +24,20 @@ const ShoppingCartPage: React.FC = () => {
     shoppingCart,
     orders,
     setOrders,
-    schoolSettings,
+    school: schoolSettings,
     setShoppingCart,
     scheduledMenus,
     students,
-    setSnackbarErrorMsg
+    setSnackbarErrorMsg,
   } = useContext(AppContext);
 
   const [paymentType, setPaymentType] = useState("creditcard");
+  const [showThankYou, setShowThankYou] = useState(false);
 
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!shoppingCart.items.length) {
+    if (!showThankYou && !shoppingCart.items.length) {
       navigate(CALENDAR_URL);
     }
   }, [shoppingCart]);
@@ -59,13 +61,14 @@ const ShoppingCartPage: React.FC = () => {
 
       setOrders(orders.concat(savedOrder));
       setShoppingCart({ items: [] });
-
-      navigate(MEALS_URL);
+      setShowThankYou(true);
     } catch (error) {
       const axiosError = error as AxiosError;
       setSnackbarErrorMsg(
         "Error occurred while checking out: " +
-        (axiosError.response?.data?.toString() ?? axiosError.response?.statusText ?? "Unknown server error")
+          (axiosError.response?.data?.toString() ??
+            axiosError.response?.statusText ??
+            "Unknown server error")
       );
     }
   };
@@ -83,6 +86,30 @@ const ShoppingCartPage: React.FC = () => {
       return item.isDrinkOnly ? menu.drinkOnlyPrice : menu.price;
     })
     .reduce((p1, p2) => p1 + p2, 0);
+
+  if (showThankYou) {
+    return (
+      <Box
+        sx={{
+          maxHeight: "100%",
+          pt: 2,
+          pb: 2,
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "center",
+          alignItems: "center",
+          gap: 2,
+        }}
+      >
+        <Typography variant="h6" fontWeight="bold">
+          Thank You For Your Order
+        </Typography>
+        <Button variant="contained" onClick={() => navigate(MEALS_URL)}>
+          Show All My Upcoming Ordered Meals
+        </Button>
+      </Box>
+    );
+  }
 
   return (
     <Box

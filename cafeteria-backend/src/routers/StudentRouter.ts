@@ -25,4 +25,25 @@ StudentRouter.post<Empty, Student, Student, Empty>(
   }
 );
 
+StudentRouter.put<Empty, Student, Student, Empty>("/", async (req, res) => {
+  const studentRepository = AppDataSource.getRepository(StudentEntity);
+
+  const student = await studentRepository.findOne({
+    where: {
+      id: req.body.id,
+    },
+  });
+
+  if (student) {
+    const updatedStudent: DeepPartial<StudentEntity> = {
+      id: student.id,
+      name: req.body.name
+    };
+
+    const savedUser = await studentRepository.save(updatedStudent);
+    res.send(savedUser);
+  }
+});
+
+
 export default StudentRouter;

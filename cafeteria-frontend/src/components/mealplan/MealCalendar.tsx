@@ -27,7 +27,6 @@ import {
   ContentPasteGo,
   ExpandMore,
   MoreVert,
-  Schedule,
   Visibility,
   VisibilityOutlined,
   VisibilityTwoTone,
@@ -110,7 +109,7 @@ const AdminMealButtons: React.FC<AdminMealButtonProps> = ({
   const {
     scheduledMenus,
     setScheduledMenus,
-    schoolSettings,
+    school: schoolSettings,
     orders,
     setSnackbarErrorMsg,
   } = useContext(AppContext);
@@ -203,7 +202,9 @@ const AdminMealButtons: React.FC<AdminMealButtonProps> = ({
       const axiosError = error as AxiosError;
       setSnackbarErrorMsg(
         "Error updating order dates: " +
-          (axiosError.response?.data?.toString() ?? axiosError.response?.statusText ?? "Unknown server error")
+          (axiosError.response?.data?.toString() ??
+            axiosError.response?.statusText ??
+            "Unknown server error")
       );
     }
   };
@@ -219,7 +220,9 @@ const AdminMealButtons: React.FC<AdminMealButtonProps> = ({
       const axiosError = error as AxiosError;
       setSnackbarErrorMsg(
         "Error removing menu from schedule: " +
-        (axiosError.response?.data?.toString() ?? axiosError.response?.statusText ?? "Unknown server error")
+          (axiosError.response?.data?.toString() ??
+            axiosError.response?.statusText ??
+            "Unknown server error")
       );
     }
   };
@@ -271,7 +274,9 @@ const AdminMealButtons: React.FC<AdminMealButtonProps> = ({
       const axiosError = error as AxiosError;
       setSnackbarErrorMsg(
         "Error scheduling menu: " +
-        (axiosError.response?.data?.toString() ?? axiosError.response?.statusText ?? "Unknown server error")
+          (axiosError.response?.data?.toString() ??
+            axiosError.response?.statusText ??
+            "Unknown server error")
       );
     }
   };
@@ -573,29 +578,22 @@ const ParentMealButtons: React.FC<ParentMealButtonProps> = ({ menuOrDate }) => {
           <VisibilityTwoTone />
         )}
       </IconButton>
-      {currentlyAcceptingOrders || !willAcceptOrderInFuture ? (
-        <IconButton
-          color="primary"
-          disabled={!currentlyAcceptingOrders}
-          onClick={() => setAddToCart(true)}
-          size="small"
-        >
-          <AddShoppingCart />
-        </IconButton>
-      ) : (
-        <></>
-      )}
-      {willAcceptOrderInFuture && !currentlyAcceptingOrders ? (
-        <IconButton
-          color="primary"
-          onClick={() => setStatusMsg("Order Dates : " + getOrderDates(menu))}
-          size="small"
-        >
-          <Schedule />
-        </IconButton>
-      ) : (
-        <></>
-      )}
+      <IconButton
+        color={
+          !currentlyAcceptingOrders && willAcceptOrderInFuture
+            ? "warning"
+            : "primary"
+        }
+        disabled={!currentlyAcceptingOrders && !willAcceptOrderInFuture}
+        onClick={
+          currentlyAcceptingOrders
+            ? () => setAddToCart(true)
+            : () => setStatusMsg("Order Dates : " + getOrderDates(menu))
+        }
+        size="small"
+      >
+        <AddShoppingCart />
+      </IconButton>
       {showOrderedMeals ? (
         <DailyMealsDialog
           onClose={() => setShowOrderedMeals(false)}
@@ -633,7 +631,11 @@ const MealPlan: React.FC<MealPlanProps> = ({
   }
 
   const date = useRef(
-    DateTimeUtils.toDate(menu?.date ?? (menuOrDate as string))
+    DateTimeUtils.toDate(
+      typeof menuOrDate === "string"
+        ? menuOrDate
+        : (menuOrDate as DailyMenu).date
+    )
   );
 
   const backgroundImage = "/" + date.current.getDate() + ".svg";

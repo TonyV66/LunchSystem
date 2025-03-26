@@ -121,6 +121,14 @@ export const createStudent = async (student: Student) => {
   return response.data;
 };
 
+export const updateStudent = async (student: Student) => {
+  const response: AxiosResponse<Student> = await http.put(
+    API_BASE_URL + "/student",
+    student
+  );
+  return response.data;
+};
+
 export const updateUser = async (user: User) => {
   const response: AxiosResponse<User> = await http.put(
     API_BASE_URL + "/user",

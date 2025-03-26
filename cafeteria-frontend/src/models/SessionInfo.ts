@@ -15,6 +15,6 @@ export default interface SessionInfo {
   scheduledMenus: DailyMenu[];
   pantryItems: PantryItem[];
   notifications: Notification[];
-  schoolSettings: School;
+  school: School;
   schoolYear: SchoolYear;
 }

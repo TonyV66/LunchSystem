@@ -26,14 +26,14 @@ import ConfirmDialog from "../ConfirmDialog";
 import { ShoppingCartItem } from "../../models/ShoppingCart";
 import User, { Role } from "../../models/User";
 import { DayOfWeek } from "../../models/DailyLunchTime";
-import NewStudentDialog from "../users/NewStudentDialog";
+import StudentDialog from "../users/StudentDialog";
 import Student from "../../models/Student";
 
 type TypeOfOrder = "meal" | "drink";
 
 interface MenuItemsSelectorProps {
   menu: Menu;
-  mealItemType: PantryItemType;
+  pantryItemType: PantryItemType;
   disabled?: boolean;
   showPrices?: boolean;
   onSelectionChanged: (selectedItems: PantryItem[]) => void;
@@ -41,7 +41,7 @@ interface MenuItemsSelectorProps {
 
 const MenuItemsSelector: React.FC<MenuItemsSelectorProps> = ({
   menu,
-  mealItemType,
+  pantryItemType,
   onSelectionChanged,
   disabled,
   showPrices,
@@ -50,19 +50,19 @@ const MenuItemsSelector: React.FC<MenuItemsSelectorProps> = ({
   const [disabledItems, setDisabledItems] = useState<PantryItem[]>([]);
 
   const numRequiredSelections =
-    mealItemType === PantryItemType.SIDE ? menu.numSidesWithMeal : 1;
+  pantryItemType === PantryItemType.SIDE ? menu.numSidesWithMeal : 1;
   const menuItems = menu.items
-    .filter((item) => item.type === mealItemType)
+    .filter((item) => item.type === pantryItemType)
     .sort((m1, m2) => m1.name.localeCompare(m2.name));
 
   useEffect(() => {
     if (disabled) {
       setSelectedItems([]);
-      setDisabledItems(menu.items.filter((item) => item.type === mealItemType));
+      setDisabledItems(menu.items.filter((item) => item.type === pantryItemType));
     } else {
       setDisabledItems([]);
     }
-  }, [disabled, menu, mealItemType]);
+  }, [disabled, menu, pantryItemType]);
 
   const handleMealItemClicked = (item: PantryItem) => {
     if (selectedItems.includes(item)) {
@@ -92,9 +92,9 @@ const MenuItemsSelector: React.FC<MenuItemsSelectorProps> = ({
   };
 
   let price = "";
-  if (showPrices && mealItemType === PantryItemType.ENTREE) {
+  if (showPrices && pantryItemType === PantryItemType.ENTREE) {
     price = " - $" + menu.price.toFixed(2);
-  } else if (showPrices && mealItemType === PantryItemType.DRINK) {
+  } else if (showPrices && pantryItemType === PantryItemType.DRINK) {
     price = " - $" + menu.drinkOnlyPrice.toFixed(2);
   }
   let availItems = (
@@ -127,7 +127,7 @@ const MenuItemsSelector: React.FC<MenuItemsSelectorProps> = ({
     instructions = "(choose " + numRequiredSelections + ")";
   }
   let itemTypeName = "Entree:";
-  switch (mealItemType) {
+  switch (pantryItemType) {
     case PantryItemType.DESSERT:
       itemTypeName = "Dessert:";
       break;
@@ -400,10 +400,11 @@ const AddToCartDialog: React.FC<DialogProps> = ({
     setSelectedDrink(menuItems.length ? menuItems[0] : undefined);
   };
 
-  const handleNewStudent = (student: Student) => {
+  const handleCloseStudentDialog = (student?: Student) => {
     setShowNewStudentDialog(false);
-    setSelectedStudentId(student.id);
-    setSelectedTeacher(undefined);
+    if (student) {
+      setSelectedStudentId(student.id);
+    }
   };
 
   useEffect(() => {
@@ -520,6 +521,7 @@ const AddToCartDialog: React.FC<DialogProps> = ({
   return (
     <Dialog
       open={true}
+      fullWidth
       onClose={onClose}
       aria-labelledby="alert-dialog-title"
       aria-describedby="alert-dialog-description"
@@ -537,13 +539,13 @@ const AddToCartDialog: React.FC<DialogProps> = ({
           }}
         >
           <FormControl variant="standard" sx={{ minWidth: "125px" }}>
-            <InputLabel id="what-to-order-label">Order</InputLabel>
+            <InputLabel id="what-to-order-label">Type Of Order</InputLabel>
 
             <Select
               labelId="what-to-order-label"
               id="what-to-order"
               value={typeOfOrder}
-              label="Order"
+              label="Type Of Order"
               onChange={(event: SelectChangeEvent) =>
                 handleTypeOfOrderSelected(event.target.value as TypeOfOrder)
               }
@@ -552,6 +554,50 @@ const AddToCartDialog: React.FC<DialogProps> = ({
               <MuiMenuItem value={"drink"}>Drink Only</MuiMenuItem>
             </Select>
           </FormControl>
+          <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: "1fr 1fr" }}>
+            <FormControl variant="standard" sx={{ minWidth: "150px" }}>
+              <InputLabel id="order-for-label">Student</InputLabel>
+              <Select
+                labelId="order-for-label"
+                id="order-for"
+                value={selectedStudentId.toString()}
+                label="Student Name"
+                onChange={(event: SelectChangeEvent) =>
+                  handleStudentSelected(parseInt(event.target.value as string))
+                }
+              >
+                {students.map((student) => (
+                  <MuiMenuItem key={student.id} value={student.id.toString()}>
+                    {student.name}
+                  </MuiMenuItem>
+                ))}
+                <MuiMenuItem color="primary" key={-1} value={"-1"}>
+                  <Typography color="primary">Add A Student</Typography>
+                </MuiMenuItem>
+              </Select>
+            </FormControl>
+            <FormControl variant="standard" sx={{ minWidth: "150px" }}>
+              <InputLabel id="order-teacher-label">
+                {SHORT_DAY_NAMES[dayOfWeek] + "."} Lunch Teacher
+              </InputLabel>
+              <Select
+                labelId="order-teacher-label"
+                id="order-teacher"
+                value={selectedTeacher?.id.toString() || "0"}
+                label="Teacher Name"
+                onChange={(event: SelectChangeEvent) =>
+                  handleTeacherSelected(parseInt(event.target.value as string))
+                }
+              >
+                {teachers.map((teacher) => (
+                  <MuiMenuItem key={teacher.id} value={teacher.id.toString()}>
+                    {teacher.name}
+                  </MuiMenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Box>
+          <Typography variant="body1" textAlign='center' fontWeight='bold'>On The Menu</Typography>
           {!entrees.length ? (
             <></>
           ) : (
@@ -560,7 +606,7 @@ const AddToCartDialog: React.FC<DialogProps> = ({
                 disabled={typeOfOrder === "drink"}
                 showPrices={true}
                 menu={menu}
-                mealItemType={PantryItemType.ENTREE}
+                pantryItemType={PantryItemType.ENTREE}
                 onSelectionChanged={handleEntreeChanged}
               ></MenuItemsSelector>
               <Divider />
@@ -573,7 +619,7 @@ const AddToCartDialog: React.FC<DialogProps> = ({
               <MenuItemsSelector
                 disabled={typeOfOrder === "drink"}
                 menu={menu}
-                mealItemType={PantryItemType.SIDE}
+                pantryItemType={PantryItemType.SIDE}
                 onSelectionChanged={handleSidesChanged}
               ></MenuItemsSelector>
               <Divider />
@@ -586,7 +632,7 @@ const AddToCartDialog: React.FC<DialogProps> = ({
               <MenuItemsSelector
                 disabled={typeOfOrder === "drink"}
                 menu={menu}
-                mealItemType={PantryItemType.DESSERT}
+                pantryItemType={PantryItemType.DESSERT}
                 onSelectionChanged={handleDessertChanged}
               ></MenuItemsSelector>
               <Divider />
@@ -598,64 +644,13 @@ const AddToCartDialog: React.FC<DialogProps> = ({
             <>
               <MenuItemsSelector
                 menu={menu}
-                mealItemType={PantryItemType.DRINK}
+                pantryItemType={PantryItemType.DRINK}
                 showPrices={typeOfOrder === "drink"}
                 onSelectionChanged={handlDrinkChanged}
               ></MenuItemsSelector>
               <Divider />
             </>
           )}
-          <Box sx={{ display: "flex", gap: 2 }}>
-            <Box>
-              <FormControl variant="standard" sx={{ minWidth: "150px" }}>
-                <InputLabel id="order-for-label">Student</InputLabel>
-                <Select
-                  labelId="order-for-label"
-                  id="order-for"
-                  value={selectedStudentId.toString()}
-                  label="Student Name"
-                  onChange={(event: SelectChangeEvent) =>
-                    handleStudentSelected(
-                      parseInt(event.target.value as string)
-                    )
-                  }
-                >
-                  {students.map((student) => (
-                    <MuiMenuItem key={student.id} value={student.id.toString()}>
-                      {student.name}
-                    </MuiMenuItem>
-                  ))}
-                  <MuiMenuItem color="primary" key={-1} value={"-1"}>
-                    <Typography color='primary'>Add A Student</Typography>
-                  </MuiMenuItem>
-                </Select>
-              </FormControl>
-            </Box>
-            <Box>
-              <FormControl variant="standard" sx={{ minWidth: "150px" }}>
-                <InputLabel id="order-teacher-label">
-                  {SHORT_DAY_NAMES[dayOfWeek] + "."} Lunch Teacher
-                </InputLabel>
-                <Select
-                  labelId="order-teacher-label"
-                  id="order-teacher"
-                  value={selectedTeacher?.id.toString() || "0"}
-                  label="Teacher Name"
-                  onChange={(event: SelectChangeEvent) =>
-                    handleTeacherSelected(
-                      parseInt(event.target.value as string)
-                    )
-                  }
-                >
-                  {teachers.map((teacher) => (
-                    <MuiMenuItem key={teacher.id} value={teacher.id.toString()}>
-                      {teacher.name}
-                    </MuiMenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Box>
-          </Box>
         </Box>
         {!confirmDialogMsg ? (
           <></>
@@ -685,9 +680,8 @@ const AddToCartDialog: React.FC<DialogProps> = ({
         </Button>
       </DialogActions>
       {showNewStudentDialog ? (
-        <NewStudentDialog
-          onClose={() => setShowNewStudentDialog(false)}
-          onNewStudent={handleNewStudent}
+        <StudentDialog
+          onClose={handleCloseStudentDialog}
         />
       ) : (
         <></>

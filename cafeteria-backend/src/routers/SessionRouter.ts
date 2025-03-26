@@ -27,7 +27,7 @@ export interface SessionInfo {
   scheduledMenus: DailyMenu[];
   pantryItems: PantryItem[];
   notifications: Notification[];
-  schoolSettings: School;
+  school: School;
 }
 
 const getParentSession = async (user: UserEntity): Promise<SessionInfo> => {
@@ -115,7 +115,7 @@ const getParentSession = async (user: UserEntity): Promise<SessionInfo> => {
     scheduledMenus,
     pantryItems: [],
     notifications: userEntity.school.notifications,
-    schoolSettings: { ...user.school, squareAppAccessToken: "" },
+    school: { ...user.school, squareAppAccessToken: "" },
     schoolYear: buildSchoolYearDto(schoolYear!),
   };
 
@@ -236,7 +236,7 @@ const getStaffSession = async (user: UserEntity): Promise<SessionInfo> => {
     ),
     pantryItems: user.role != Role.ADMIN ? [] : schoolEntity!.pantry,
     notifications: schoolEntity!.notifications,
-    schoolSettings: { ...user.school, squareAppAccessToken: "" },
+    school: { ...user.school, squareAppAccessToken: "" },
     schoolYear: buildSchoolYearDto(schoolYear!),
   };
 

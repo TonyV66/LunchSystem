@@ -97,7 +97,7 @@ const EditUserDialog: React.FC<DialogProps> = ({ user, onClose }) => {
     return /\s/g.test(s);
   }
   const isSaveDisabled =
-    !fullName.length ||
+    ((parseInt(role) === Role.TEACHER) && !fullName.length) ||
     (!user &&
       (!pwd.length ||
         !userName.length ||
@@ -109,6 +109,7 @@ const EditUserDialog: React.FC<DialogProps> = ({ user, onClose }) => {
     const updatedUser: User = {
       ...(user ?? NULL_USER),
       userName,
+      name: fullName,
       pwd,
       role: parseInt(role),
       description,
@@ -201,7 +202,7 @@ const EditUserDialog: React.FC<DialogProps> = ({ user, onClose }) => {
           />
           <TextField
             fullWidth
-            required
+            required={parseInt(role) === Role.TEACHER}
             label="First & Last Name"
             variant="standard"
             value={fullName}

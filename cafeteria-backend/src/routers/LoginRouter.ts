@@ -49,7 +49,7 @@ LoginRouter.post<Empty, LoginResponse | string, LoginRequest, Empty>(
     const loginRequest = req.body;
 
     const user = await userRepository.findOne({
-      where: { userName: loginRequest.username },
+      where: { userName: loginRequest.username.toLowerCase() },
       relations: {
         school: { schoolYears: true },
       },

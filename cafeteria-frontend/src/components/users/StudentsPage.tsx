@@ -1,7 +1,6 @@
 import React from "react";
 import {
   Box,
-  Fab,
   IconButton,
   Tab,
   Tabs,
@@ -10,7 +9,7 @@ import {
 } from "@mui/material";
 import { AppContext } from "../../AppContextProvider";
 import { useContext, useState } from "react";
-import { Add, Delete, Edit, MoreVert } from "@mui/icons-material";
+import { Edit, Fastfood, MoreVert } from "@mui/icons-material";
 import { grey } from "@mui/material/colors";
 import {
   DataGrid,
@@ -22,6 +21,7 @@ import Student from "../../models/Student";
 import StudentMealsDialog from "../meals/StudentMealsDialog";
 import { useNavigate } from "react-router-dom";
 import { USERS_URL } from "../../MainAppPanel";
+import StudentDialog from "./StudentDialog";
 
 interface Row {
   id: number;
@@ -88,7 +88,7 @@ const StudentMenu: React.FC<StudentMenuProps> = ({
         <Edit color="primary" />
       </MenuItem>
       <MenuItem onClick={onShowMeals}>
-        <Delete color="primary" />
+        <Fastfood color="primary" />
       </MenuItem>
     </PulldownMenu>
   );
@@ -98,7 +98,6 @@ type MenuAction = "edit" | "meals";
 
 const StudentsPage: React.FC = () => {
   const { students } = useContext(AppContext);
-  const [showNewUserDialog, setShowNewUserDialog] = useState(false);
   const [pulldownMenuAnchor, setPulldownMenuAnchor] =
     useState<null | HTMLElement>(null);
   const [targetStudent, setTargetStudent] = useState<null | Student>(null);
@@ -138,10 +137,9 @@ const StudentsPage: React.FC = () => {
     setPulldownMenuAnchor(null);
   };
 
-  // const handleCloseEditUserDialog = () => {
-  //   setAction(null);
-  //   setShowNewUserDialog(false);
-  // };
+  const handleCloseStudentDialog = () => {
+    setAction(null);
+  };
 
   const handleShowMeals = () => {
     setAction("meals");
@@ -173,14 +171,6 @@ const StudentsPage: React.FC = () => {
         <Tab value="users" label="Users" />
         <Tab value="students" label="Students" />
       </Tabs>
-      <Fab
-        size="small"
-        onClick={() => setShowNewUserDialog(true)}
-        color="primary"
-        sx={{marginTop: "8px"}}
-      >
-        <Add />
-      </Fab>
       <DataGrid
         sx={{
           marginBottom: "10px",
@@ -193,9 +183,8 @@ const StudentsPage: React.FC = () => {
         disableRowSelectionOnClick
         columns={columns}
       />
-      {showNewUserDialog || (action === 'edit') ? (
-        <></>
-        // <EditUserDialog student={showNewUserDialog ? undefined : targetStudent!} onClose={handleCloseEditUserDialog} />
+      {action === 'edit' ? (
+        <StudentDialog student={targetStudent!} onClose={handleCloseStudentDialog} />
       ) : (
         <></>
       )}

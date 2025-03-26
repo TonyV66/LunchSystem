@@ -156,7 +156,7 @@ const NotificationsPage: React.FC = () => {
 
   return (
     <Box sx={{ p: 2, display: "flex", flexDirection: "column", gap: 2 }}>
-      <Typography variant="h5" sx={{ textAlign: "center" }}>
+      <Typography fontWeight='bold'>
         Notifications
       </Typography>
       <Box

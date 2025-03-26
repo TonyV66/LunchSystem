@@ -61,7 +61,7 @@ const canShowDessertsAsSides = (menu: Menu) => {
 };
 
 const EditMenuDialog: React.FC<DialogProps> = ({ menu, onOk, onCancel }) => {
-  const { schoolSettings, setSnackbarErrorMsg } = useContext(AppContext);
+  const { school: schoolSettings, setSnackbarErrorMsg } = useContext(AppContext);
   const newItemRef: MutableRefObject<HTMLInputElement | undefined> =
     React.useRef();
 

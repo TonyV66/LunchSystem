@@ -30,7 +30,7 @@ interface CredentialsPanelProps {
 
 const CredentialsPanel: React.FC<CredentialsPanelProps> = (props) => {
   const {
-    setPantryItems: setMenuItems,
+    setPantryItems,
     setMenus,
     setUser,
     setUsers,
@@ -38,6 +38,8 @@ const CredentialsPanel: React.FC<CredentialsPanelProps> = (props) => {
     setOrders,
     setStudents,
     setNotifications,
+    setSchool,
+    setSchoolYear,
   } = useContext(AppContext);
 
   const { userName, onUserNameChanged, onModeChanged } = props;
@@ -55,7 +57,10 @@ const CredentialsPanel: React.FC<CredentialsPanelProps> = (props) => {
       setMenus(loginResponse.menus);
       setScheduledMenus(loginResponse.scheduledMenus);
       setNotifications(loginResponse.notifications);
-      setMenuItems(loginResponse.pantryItems);
+      setPantryItems(loginResponse.pantryItems);
+      setSchool(loginResponse.school);
+      setSchoolYear(loginResponse.schoolYear);
+
       localStorage.setItem("jwtToken", loginResponse.jwtToken);
     } catch (error) {
       const axiosError = error as AxiosError;

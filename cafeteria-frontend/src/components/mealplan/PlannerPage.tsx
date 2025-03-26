@@ -314,11 +314,11 @@ const PlannerPage: React.FC = () => {
       </Box>
       <Box
         sx={{
-          overflowX: "auto",
+          overflowY: "auto",
           backgroundColor: "lightgray",
           pb: 1,
-          pl: 2,
-          pr: 2,
+          pl: 4,
+          pr: 4,
         }}
       >
         <Box
@@ -326,7 +326,8 @@ const PlannerPage: React.FC = () => {
             display: "flex",
             gap: 1,
             alignItems: "stretch",
-            width: "fit-content",
+            flexWrap: "wrap",
+            maxHeight: '300px'
           }}
         >
           {filteredMenus.map((menu) => (

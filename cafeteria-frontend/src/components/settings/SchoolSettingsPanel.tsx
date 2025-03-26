@@ -142,31 +142,31 @@ const SaleDate: React.FC<{
 };
 
 const SchoolSettingsPanel: React.FC = () => {
-  const { schoolSettings, setSystemDefaults, setSnackbarErrorMsg } = useContext(AppContext);
+  const { school, setSchool, setSnackbarErrorMsg } = useContext(AppContext);
 
   const [orderStartTime, setOrderStartTime] = useState<RelativeDateTime>({
-    count: schoolSettings.orderStartPeriodCount,
-    period: schoolSettings.orderStartPeriodType as RelativeDateCountType,
-    targetDate: schoolSettings.orderStartRelativeTo as RelativeDateTarget,
-    time: schoolSettings.orderStartTime,
+    count: school.orderStartPeriodCount,
+    period: school.orderStartPeriodType as RelativeDateCountType,
+    targetDate: school.orderStartRelativeTo as RelativeDateTarget,
+    time: school.orderStartTime,
   });
   const [orderEndTime, setOrderEndTime] = useState<RelativeDateTime>({
-    count: schoolSettings.orderEndPeriodCount,
-    period: schoolSettings.orderEndPeriodType as RelativeDateCountType,
-    targetDate: schoolSettings.orderEndRelativeTo as RelativeDateTarget,
-    time: schoolSettings.orderEndTime,
+    count: school.orderEndPeriodCount,
+    period: school.orderEndPeriodType as RelativeDateCountType,
+    targetDate: school.orderEndRelativeTo as RelativeDateTarget,
+    time: school.orderEndTime,
   });
 
   const [mealPrice, setMealPrice] = useState(
-    schoolSettings.mealPrice.toFixed(2)
+    school.mealPrice.toFixed(2)
   );
   const [drinkOnlyPrice, setDrinkOnlyPrice] = useState(
-    schoolSettings.drinkOnlyPrice.toFixed(2)
+    school.drinkOnlyPrice.toFixed(2)
   );
 
   const handleSave = async () => {
-    const updatedDefaults: School = {
-      ...schoolSettings,
+    const updatedSchool: School = {
+      ...school,
       orderStartPeriodCount: orderStartTime.count,
       orderStartPeriodType: orderStartTime.period,
       orderStartRelativeTo: orderStartTime.targetDate,
@@ -178,9 +178,9 @@ const SchoolSettingsPanel: React.FC = () => {
       mealPrice: parseFloat(mealPrice),
       drinkOnlyPrice: parseFloat(drinkOnlyPrice),
     };
-    await updateSchoolSettings(updatedDefaults);
+    await updateSchoolSettings(updatedSchool);
     try {
-      setSystemDefaults(updatedDefaults);
+      setSchool(updatedSchool);
     } catch (error) {
       const axiosError = error as AxiosError;
       setSnackbarErrorMsg(

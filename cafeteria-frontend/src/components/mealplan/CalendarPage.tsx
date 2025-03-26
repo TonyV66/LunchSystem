@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useState } from "react";
-import { Box, Fab } from "@mui/material";
+import { Box, Fab, Typography } from "@mui/material";
 import MealCalendar from "./MealCalendar";
 import MealStatusLegend from "../MealStatusLegend";
 import { AppContext } from "../../AppContextProvider";
@@ -43,6 +43,7 @@ const CalendarPage: React.FC = () => {
           }}
         >
           <Box flexGrow={1}>
+            <Typography fontWeight="bold" mb={1}>Scheduled Meals</Typography>
             <MealStatusLegend></MealStatusLegend>
           </Box>
           <Fab

@@ -35,7 +35,7 @@ export interface AppContextType extends SessionInfo {
   setScheduledMenus: (menus: DailyMenu[]) => void;
   setPantryItems: (pantryItems: PantryItem[]) => void;
   setNotifications: (notifications: Notification[]) => void;
-  setSystemDefaults: (SystemDefaults: School) => void;
+  setSchool: (school: School) => void;
   setSchoolYear: (schoolYear: SchoolYear) => void;
 }
 
@@ -72,7 +72,7 @@ export const INITIAL_APP_CONTEXT: AppContextType = {
   scheduledMenus: [],
   pantryItems: [],
   notifications: [],
-  schoolSettings: DEFAULT_SYSTEM_DEFAULTS,
+  school: DEFAULT_SYSTEM_DEFAULTS,
   schoolYear: DEFAULT_SCHOOL_YEAR,
   setShoppingCart: () => {},
   setStatusMsg: () => {},
@@ -87,7 +87,7 @@ export const INITIAL_APP_CONTEXT: AppContextType = {
   setScheduledMenus: () => {},
   setPantryItems: () => {},
   setNotifications: () => {},
-  setSystemDefaults: () => {},
+  setSchool: () => {},
   setSchoolYear: () => {},
 };
 
@@ -110,13 +110,10 @@ const AppContextProvider: React.FC<React.PropsWithChildren> = (props) => {
   >();
   const [showGlassPane, setShowGlassPane] = useState<boolean>(false);
   const [isInitialized, setIsInitialized] = useState<boolean>(false);
-  const [schoolSettings, setSchoolSettings] = useState<School>(
-    DEFAULT_SYSTEM_DEFAULTS
-  );
+  const [school, setSchool] = useState<School>(DEFAULT_SYSTEM_DEFAULTS);
   const [schoolYear, setSchoolYear] = useState<SchoolYear>(DEFAULT_SCHOOL_YEAR);
 
   const requestOkInterceptor = (
-    
     config:
       | InternalAxiosRequestConfig<unknown>
       | Promise<InternalAxiosRequestConfig<unknown>>
@@ -157,7 +154,6 @@ const AppContextProvider: React.FC<React.PropsWithChildren> = (props) => {
     return Promise.reject(error);
   };
 
-
   const handleCloseSnackbar = (
     event?: React.SyntheticEvent | Event,
     reason?: string
@@ -194,10 +190,10 @@ const AppContextProvider: React.FC<React.PropsWithChildren> = (props) => {
         setScheduledMenus(sessionInfo.scheduledMenus);
         setPantryItems(sessionInfo.pantryItems);
         setNotifications(sessionInfo.notifications);
-        setSchoolSettings(sessionInfo.schoolSettings);
+        setSchool(sessionInfo.school);
         setSchoolYear(sessionInfo.schoolYear);
         setIsInitialized(true);
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
       } catch (error) {
         setIsInitialized(true);
       }
@@ -208,7 +204,7 @@ const AppContextProvider: React.FC<React.PropsWithChildren> = (props) => {
     return () => {
       http.interceptors.request.eject(requestInterceptor);
       http.interceptors.response.eject(responseInterceptor);
-    }
+    };
   }, []);
 
   useEffect(() => {
@@ -239,7 +235,7 @@ const AppContextProvider: React.FC<React.PropsWithChildren> = (props) => {
         scheduledMenus,
         pantryItems,
         notifications,
-        schoolSettings,
+        school: school,
         schoolYear,
         setShoppingCart,
         setStatusMsg,
@@ -254,7 +250,7 @@ const AppContextProvider: React.FC<React.PropsWithChildren> = (props) => {
         setMenus,
         setScheduledMenus,
         setUser,
-        setSystemDefaults: setSchoolSettings,
+        setSchool,
         setSchoolYear,
       }}
     >
@@ -279,7 +275,10 @@ const AppContextProvider: React.FC<React.PropsWithChildren> = (props) => {
           <InfoDialog msg={statusMsg} onOk={() => setStatusMsg(undefined)} />
         )}
         <Backdrop
-          sx={{ zIndex: (theme) => theme.zIndex.drawer + 1 }}
+          sx={{
+            zIndex: (theme) =>
+              Math.max.apply(Math, Object.values(theme.zIndex)) + 1,
+          }}
           open={showGlassPane}
           onClick={() => {}}
         >
