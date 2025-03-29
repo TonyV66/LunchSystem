@@ -1,7 +1,7 @@
 import React, { useContext, useEffect, useState } from "react";
 import { AppContext } from "../../AppContextProvider";
 import { DateTimeUtils } from "../../DateTimeUtils";
-import { DailyMenu, PantryItemType } from "../../models/Menu";
+import { DailyMenu, PantryItem, PantryItemType } from "../../models/Menu";
 import OrderedMealsTable from "../meals/OrderedMealsTable";
 import Meal from "../../models/Meal";
 import { ShoppingCart } from "../../models/ShoppingCart";
@@ -25,25 +25,23 @@ const buildOrder = (
         (sm) => sm.id === shoppingCartItem.dailyMenuId
       )!;
 
-      let entrees = dailyMenu.items.filter(
-        (item) => item.type === PantryItemType.ENTREE
-      );
-      let sides = dailyMenu.items.filter(
-        (item) => item.type === PantryItemType.SIDE
-      );
-      let desserts = dailyMenu.items.filter(
-        (item) => item.type === PantryItemType.DESSERT
-      );
-      let drinks = dailyMenu.items.filter(
-        (item) => item.type === PantryItemType.DRINK
-      );
+      let entrees: PantryItem[] = [];
+      let sides: PantryItem[] = [];
+      let desserts: PantryItem[] = [];
 
       if (!shoppingCartItem.isDrinkOnly) {
+        entrees = dailyMenu.items.filter(
+          (item) => item.type === PantryItemType.ENTREE
+        )
         if (entrees.length > 1) {
           entrees = entrees.filter((entree) =>
             shoppingCartItem.selectedMenuItemIds.includes(entree.id)
           );
         }
+
+        sides = dailyMenu.items.filter(
+          (item) => item.type === PantryItemType.SIDE
+        );
         if (
           sides.length > 1 &&
           dailyMenu.numSidesWithMeal &&
@@ -53,12 +51,21 @@ const buildOrder = (
             shoppingCartItem.selectedMenuItemIds.includes(side.id)
           );
         }
+
+        desserts = dailyMenu.items.filter(
+          (item) => item.type === PantryItemType.DESSERT
+        );
         if (desserts.length > 1) {
           desserts = desserts.filter((dessert) =>
             shoppingCartItem.selectedMenuItemIds.includes(dessert.id)
           );
         }
       }
+
+
+      let drinks = dailyMenu.items.filter(
+        (item) => item.type === PantryItemType.DRINK
+      );
       if (drinks.length > 1) {
         drinks = drinks.filter((drink) =>
           shoppingCartItem.selectedMenuItemIds.includes(drink.id)

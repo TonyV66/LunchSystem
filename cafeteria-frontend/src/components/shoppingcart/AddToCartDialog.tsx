@@ -9,8 +9,10 @@ import {
   DialogTitle,
   Divider,
   FormControl,
+  FormControlLabel,
   InputLabel,
   MenuItem as MuiMenuItem,
+  Radio,
   Select,
   SelectChangeEvent,
   Typography,
@@ -20,7 +22,7 @@ import Menu, { DailyMenu, PantryItem, PantryItemType } from "../../models/Menu";
 import {
   DateTimeFormat,
   DateTimeUtils,
-  SHORT_DAY_NAMES,
+  DAY_NAMES,
 } from "../../DateTimeUtils";
 import ConfirmDialog from "../ConfirmDialog";
 import { ShoppingCartItem } from "../../models/ShoppingCart";
@@ -50,7 +52,7 @@ const MenuItemsSelector: React.FC<MenuItemsSelectorProps> = ({
   const [disabledItems, setDisabledItems] = useState<PantryItem[]>([]);
 
   const numRequiredSelections =
-  pantryItemType === PantryItemType.SIDE ? menu.numSidesWithMeal : 1;
+    pantryItemType === PantryItemType.SIDE ? menu.numSidesWithMeal : 1;
   const menuItems = menu.items
     .filter((item) => item.type === pantryItemType)
     .sort((m1, m2) => m1.name.localeCompare(m2.name));
@@ -58,7 +60,9 @@ const MenuItemsSelector: React.FC<MenuItemsSelectorProps> = ({
   useEffect(() => {
     if (disabled) {
       setSelectedItems([]);
-      setDisabledItems(menu.items.filter((item) => item.type === pantryItemType));
+      setDisabledItems(
+        menu.items.filter((item) => item.type === pantryItemType)
+      );
     } else {
       setDisabledItems([]);
     }
@@ -464,7 +468,9 @@ const AddToCartDialog: React.FC<DialogProps> = ({
 
     setIsAddToCartEnabled(false);
     if (typeOfOrder === "drink") {
-      setIsAddToCartEnabled(selectedDrink ? true : false);
+      setIsAddToCartEnabled(
+        selectedDrink && selectedTeacher && selectedStudentId > 0 ? true : false
+      );
     } else {
       const isEntreeSelectionCompleted =
         typeOfOrder !== "meal" || !entrees.length || selectedEntree
@@ -538,22 +544,40 @@ const AddToCartDialog: React.FC<DialogProps> = ({
             textAlign: "left",
           }}
         >
-          <FormControl variant="standard" sx={{ minWidth: "125px" }}>
-            <InputLabel id="what-to-order-label">Type Of Order</InputLabel>
-
-            <Select
-              labelId="what-to-order-label"
-              id="what-to-order"
-              value={typeOfOrder}
-              label="Type Of Order"
-              onChange={(event: SelectChangeEvent) =>
-                handleTypeOfOrderSelected(event.target.value as TypeOfOrder)
-              }
+          <Box>
+            <Typography variant="body2" fontWeight="bold">
+              Type Of Order:
+            </Typography>
+            <Box
+              sx={{
+                display: "flex",
+                flexDirection: "row",
+                gap: 2,
+              }}
             >
-              <MuiMenuItem value={"meal"}>Meal & Drink</MuiMenuItem>
-              <MuiMenuItem value={"drink"}>Drink Only</MuiMenuItem>
-            </Select>
-          </FormControl>
+              <FormControlLabel
+                value="meal"
+                control={
+                  <Radio
+                    checked={typeOfOrder === "meal"}
+                    onChange={() => handleTypeOfOrderSelected("meal")}
+                  />
+                }
+                label="Meal & Drink"
+              />
+              <FormControlLabel
+                value="drink"
+                control={
+                  <Radio
+                    checked={typeOfOrder === "drink"}
+                    onChange={() => handleTypeOfOrderSelected("drink")}
+                  />
+                }
+                label="Drink Only"
+              />
+            </Box>
+          </Box>
+
           <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: "1fr 1fr" }}>
             <FormControl variant="standard" sx={{ minWidth: "150px" }}>
               <InputLabel id="order-for-label">Student</InputLabel>
@@ -566,6 +590,13 @@ const AddToCartDialog: React.FC<DialogProps> = ({
                   handleStudentSelected(parseInt(event.target.value as string))
                 }
               >
+                {!selectedStudentId ? (
+                  <MuiMenuItem disabled={true} key={0} value={"0"}>
+                    <Typography color="textDisabled">Select a student</Typography>
+                  </MuiMenuItem>
+                ) : (
+                  <></>
+                )}
                 {students.map((student) => (
                   <MuiMenuItem key={student.id} value={student.id.toString()}>
                     {student.name}
@@ -578,7 +609,7 @@ const AddToCartDialog: React.FC<DialogProps> = ({
             </FormControl>
             <FormControl variant="standard" sx={{ minWidth: "150px" }}>
               <InputLabel id="order-teacher-label">
-                {SHORT_DAY_NAMES[dayOfWeek] + "."} Lunch Teacher
+                {DAY_NAMES[dayOfWeek]} Lunchtime Teacher
               </InputLabel>
               <Select
                 labelId="order-teacher-label"
@@ -589,6 +620,14 @@ const AddToCartDialog: React.FC<DialogProps> = ({
                   handleTeacherSelected(parseInt(event.target.value as string))
                 }
               >
+                {!selectedTeacher?.id ? (
+                  <MuiMenuItem disabled={true} key={0} value={"0"}>
+                    <Typography color="textDisabled">Select a teacher</Typography>
+                  </MuiMenuItem>
+                ) : (
+                  <></>
+                )}
+
                 {teachers.map((teacher) => (
                   <MuiMenuItem key={teacher.id} value={teacher.id.toString()}>
                     {teacher.name}
@@ -597,7 +636,9 @@ const AddToCartDialog: React.FC<DialogProps> = ({
               </Select>
             </FormControl>
           </Box>
-          <Typography variant="body1" textAlign='center' fontWeight='bold'>On The Menu</Typography>
+          <Typography variant="body1" textAlign="center" fontWeight="bold">
+            On The Menu
+          </Typography>
           {!entrees.length ? (
             <></>
           ) : (
@@ -680,9 +721,7 @@ const AddToCartDialog: React.FC<DialogProps> = ({
         </Button>
       </DialogActions>
       {showNewStudentDialog ? (
-        <StudentDialog
-          onClose={handleCloseStudentDialog}
-        />
+        <StudentDialog onClose={handleCloseStudentDialog} />
       ) : (
         <></>
       )}

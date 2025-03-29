@@ -62,7 +62,7 @@ const getParentSession = async (user: UserEntity): Promise<SessionInfo> => {
   const teachers = await userRepository.find({
     where: {
       school: { id: user.school.id },
-      role: Role.TEACHER,
+      role: Role.TEACHER + 1,
     },
     relations: {
       lunchTimes: {
