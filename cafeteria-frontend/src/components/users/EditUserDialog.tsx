@@ -27,7 +27,7 @@ interface DialogProps {
 }
 
 const EditUserDialog: React.FC<DialogProps> = ({ user, onClose }) => {
-  const { users, setUsers, schoolYear, setSnackbarErrorMsg } = useContext(AppContext);
+  const { users, setUsers, lunchTimes, setSnackbarErrorMsg } = useContext(AppContext);
 
   const [role, setRole] = useState(
     user?.role.toString() ?? Role.PARENT.toString()
@@ -43,7 +43,7 @@ const EditUserDialog: React.FC<DialogProps> = ({ user, onClose }) => {
           .filter((lt) => lt.dayOfWeek === DayOfWeek.MONDAY)
           .map((lt) => lt.time)
           .sort()[0] ?? ""
-      : schoolYear.lunchTimes
+      : lunchTimes
           .filter((lt) => lt.dayOfWeek === DayOfWeek.MONDAY)
           .map((lt) => lt.time)
           .sort()[0] ?? ""
@@ -54,7 +54,7 @@ const EditUserDialog: React.FC<DialogProps> = ({ user, onClose }) => {
           .filter((lt) => lt.dayOfWeek === DayOfWeek.TUESDAY)
           .map((lt) => lt.time)
           .sort()[0] ?? ""
-      : schoolYear.lunchTimes
+      : lunchTimes
           .filter((lt) => lt.dayOfWeek === DayOfWeek.TUESDAY)
           .map((lt) => lt.time)
           .sort()[0] ?? ""
@@ -65,7 +65,7 @@ const EditUserDialog: React.FC<DialogProps> = ({ user, onClose }) => {
           .filter((lt) => lt.dayOfWeek === DayOfWeek.WEDNESDAY)
           .map((lt) => lt.time)
           .sort()[0] ?? ""
-      : schoolYear.lunchTimes
+      : lunchTimes
           .filter((lt) => lt.dayOfWeek === DayOfWeek.WEDNESDAY)
           .map((lt) => lt.time)
           .sort()[0] ?? ""
@@ -76,7 +76,7 @@ const EditUserDialog: React.FC<DialogProps> = ({ user, onClose }) => {
           .filter((lt) => lt.dayOfWeek === DayOfWeek.THURSDAY)
           .map((lt) => lt.time)
           .sort()[0] ?? ""
-      : schoolYear.lunchTimes
+      : lunchTimes
           .filter((lt) => lt.dayOfWeek === DayOfWeek.THURSDAY)
           .map((lt) => lt.time)
           .sort()[0] ?? ""
@@ -87,7 +87,7 @@ const EditUserDialog: React.FC<DialogProps> = ({ user, onClose }) => {
           .filter((lt) => lt.dayOfWeek === DayOfWeek.FRIDAY)
           .map((lt) => lt.time)
           .sort()[0] ?? ""
-      : schoolYear.lunchTimes
+      : lunchTimes
           .filter((lt) => lt.dayOfWeek === DayOfWeek.FRIDAY)
           .map((lt) => lt.time)
           .sort()[0] ?? ""
@@ -288,7 +288,7 @@ const EditUserDialog: React.FC<DialogProps> = ({ user, onClose }) => {
                   <TimeSelector
                     label="Monday"
                     time={mondayLunchTime}
-                    availTimes={schoolYear.lunchTimes
+                    availTimes={lunchTimes
                       .filter((lt) => lt.dayOfWeek === DayOfWeek.MONDAY)
                       .map((lt) => lt.time)}
                     onTimeChanged={setMondayLunchTime}
@@ -297,7 +297,7 @@ const EditUserDialog: React.FC<DialogProps> = ({ user, onClose }) => {
                   <TimeSelector
                     label="Tuesday"
                     time={tuesdayLunchTime}
-                    availTimes={schoolYear.lunchTimes
+                    availTimes={lunchTimes
                       .filter((lt) => lt.dayOfWeek === DayOfWeek.TUESDAY)
                       .map((lt) => lt.time)}
                     onTimeChanged={setTuesdayLunchTime}
@@ -306,7 +306,7 @@ const EditUserDialog: React.FC<DialogProps> = ({ user, onClose }) => {
                   <TimeSelector
                     label="Wednesday"
                     time={wednesdayLunchTime}
-                    availTimes={schoolYear.lunchTimes
+                    availTimes={lunchTimes
                       .filter((lt) => lt.dayOfWeek === DayOfWeek.WEDNESDAY)
                       .map((lt) => lt.time)}
                     onTimeChanged={setWednesdayLunchTime}
@@ -315,7 +315,7 @@ const EditUserDialog: React.FC<DialogProps> = ({ user, onClose }) => {
                   <TimeSelector
                     label="Thursday"
                     time={thursdayLunchTime}
-                    availTimes={schoolYear.lunchTimes
+                    availTimes={lunchTimes
                       .filter((lt) => lt.dayOfWeek === DayOfWeek.THURSDAY)
                       .map((lt) => lt.time)}
                     onTimeChanged={setThursdayLunchTime}
@@ -324,7 +324,7 @@ const EditUserDialog: React.FC<DialogProps> = ({ user, onClose }) => {
                   <TimeSelector
                     label="Friday"
                     time={fridayLunchTime}
-                    availTimes={schoolYear.lunchTimes
+                    availTimes={lunchTimes
                       .filter((lt) => lt.dayOfWeek === DayOfWeek.FRIDAY)
                       .map((lt) => lt.time)}
                     onTimeChanged={setFridayLunchTime}

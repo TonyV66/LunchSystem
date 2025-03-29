@@ -39,7 +39,7 @@ const CredentialsPanel: React.FC<CredentialsPanelProps> = (props) => {
     setStudents,
     setNotifications,
     setSchool,
-    setSchoolYear,
+    setLunchTimes,
   } = useContext(AppContext);
 
   const { userName, onUserNameChanged, onModeChanged } = props;
@@ -59,7 +59,7 @@ const CredentialsPanel: React.FC<CredentialsPanelProps> = (props) => {
       setNotifications(loginResponse.notifications);
       setPantryItems(loginResponse.pantryItems);
       setSchool(loginResponse.school);
-      setSchoolYear(loginResponse.schoolYear);
+      setLunchTimes(loginResponse.lunchTimes);
 
       localStorage.setItem("jwtToken", loginResponse.jwtToken);
     } catch (error) {
