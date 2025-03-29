@@ -1,10 +1,9 @@
 import React, { useContext, useEffect, useState } from "react";
-import { Box, Fab, Typography } from "@mui/material";
+import { Box, Button, Typography } from "@mui/material";
 import MealCalendar from "./MealCalendar";
 import MealStatusLegend from "../MealStatusLegend";
 import { AppContext } from "../../AppContextProvider";
 import { Role } from "../../models/User";
-import { ShoppingCart } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
 import { CART_URL } from "../../MainAppPanel";
 
@@ -43,17 +42,22 @@ const CalendarPage: React.FC = () => {
           }}
         >
           <Box flexGrow={1}>
-            <Typography fontWeight="bold" mb={1}>Scheduled Meals</Typography>
+            <Typography fontWeight="bold" mb={1}>
+              Scheduled Meals
+            </Typography>
             <MealStatusLegend></MealStatusLegend>
           </Box>
-          <Fab
-            onClick={() => navigate(CART_URL)}
-            disabled={checkoutDisabled}
-            color="primary"
-            size="small"
-          >
-            <ShoppingCart />
-          </Fab>
+          <Box>
+            <Button
+              onClick={() => navigate(CART_URL)}
+              disabled={checkoutDisabled}
+              color="primary"
+              size="small"
+              variant="contained"
+            >
+              Checkout
+            </Button>
+          </Box>
         </Box>
       ) : (
         <></>

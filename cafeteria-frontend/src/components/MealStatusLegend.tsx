@@ -1,10 +1,6 @@
 import * as React from "react";
 import { Box, Typography } from "@mui/material";
-import {
-  Visibility,
-  VisibilityOutlined,
-  VisibilityTwoTone,
-} from "@mui/icons-material";
+import { AddShoppingCart } from "@mui/icons-material";
 
 const MealStatusLegend: React.FC = () => {
   return (
@@ -15,12 +11,16 @@ const MealStatusLegend: React.FC = () => {
         gap: 1,
       }}
     >
-      <VisibilityOutlined fontSize="small" color="primary" />
-      <Typography variant="caption">In Cart</Typography>
-      <VisibilityTwoTone fontSize="small" color="primary" />
-      <Typography variant="caption">Ordered</Typography>
-      <Visibility fontSize="small" color="primary" />
-      <Typography variant="caption">Ordered & in cart</Typography>
+      <Typography variant="caption" fontWeight="bold">
+        Taking Orders:
+      </Typography>
+
+      <AddShoppingCart fontSize="small" color="disabled" />
+      <Typography variant="caption">No,</Typography>
+      <AddShoppingCart fontSize="small" color="primary" />
+      <Typography variant="caption">Yes,</Typography>
+      <AddShoppingCart fontSize="small" color="warning" />
+      <Typography variant="caption">Not Yet</Typography>
     </Box>
   );
 };

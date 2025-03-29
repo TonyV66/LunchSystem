@@ -1,12 +1,11 @@
 import React, { useContext } from "react";
-import { Box, Fab, Typography } from "@mui/material";
+import { Box, Button, Typography } from "@mui/material";
 import { AppContext } from "../../AppContextProvider";
 import MenuItemTypesLegend from "../menus/MenuItemTypesLegend";
 import { CALENDAR_URL } from "../../MainAppPanel";
 import { useNavigate } from "react-router-dom";
 import OrderedMealsTable from "./OrderedMealsTable";
 import { DateTimeUtils } from "../../DateTimeUtils";
-import { AddShoppingCart } from "@mui/icons-material";
 
 const OrderedMealsPage: React.FC = () => {
   const { orders } = useContext(AppContext);
@@ -32,16 +31,21 @@ const OrderedMealsPage: React.FC = () => {
         }}
       >
         <Box flexGrow={1}>
-          <Typography fontWeight="bold" mb={1}>Upcoming Ordered Meals</Typography>
+          <Typography fontWeight="bold" mb={1}>
+            Upcoming Ordered Meals
+          </Typography>
           <MenuItemTypesLegend />
         </Box>
-        <Fab
-          size="small"
-          onClick={handleOrder}
-          color="primary"
-        >
-          <AddShoppingCart />
-        </Fab>
+        <Box>
+          <Button
+            size="small"
+            onClick={handleOrder}
+            color="primary"
+            variant="contained"
+          >
+            Order Meals
+          </Button>
+        </Box>
       </Box>
 
       <Box sx={{ pl: 2, pr: 2, overflowX: "auto" }}>

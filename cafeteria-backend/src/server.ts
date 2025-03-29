@@ -32,36 +32,34 @@ const authorizeRequest: RequestHandler<any, any, any, any> = async (
   next
 ) => {
   const result = await validateAuthorizationToken(req);
-  if (typeof result === 'string') {
+  if (typeof result === "string") {
     res.status(401).send(result);
   } else {
-    req.user = (result as UserEntity);
+    req.user = result as UserEntity;
     next();
-
   }
 };
 
 AppDataSource.initialize()
   .then(async () => {
-
     // Create an Express application
     const app = express();
     // parse application/x-www-form-urlencoded
     app.use(express.urlencoded({ extended: true }));
     app.use(bodyParser.json());
     app.use((req, res, next) => {
-      if (
-        /(.ico|.js|.css|.jpg|.png|.map|.svg)$/i.test(req.path) ||
-        /\/api\//i.test(req.path)
-      ) {
+      if (/(.ico|.js|.css|.jpg|.png|.map|.svg)$/i.test(req.path)) {
+        res.header("Cache-Control", "max-age=31536000");
+        next();
+      } else if (/\/api\//i.test(req.path)) {
         next();
       } else {
-        res.header(
-          "Cache-Control",
-          "private, no-cache, no-store, must-revalidate"
-        );
-        res.header("Expires", "-1");
-        res.header("Pragma", "no-cache");
+        // res.header(
+        //   "Cache-Control",
+        //   "private, no-cache, no-store, must-revalidate"
+        // );
+        // res.header("Expires", "-1");
+        // res.header("Pragma", "no-cache");
         res.sendFile(
           path.join(__dirname, "../../cafeteria-frontend/build", "index.html")
         );
@@ -70,7 +68,6 @@ AppDataSource.initialize()
     app.use(
       express.static(path.join(__dirname, "../../cafeteria-frontend/build"))
     );
-
 
     app.use("/api/notification", authorizeRequest, NotificationRouter);
     app.use("/api/pantry", authorizeRequest, PantryRouter);
@@ -89,7 +86,6 @@ AppDataSource.initialize()
     // parse application/json
 
     interface Empty {}
-
 
     // Set the port number for the server
     const port = parseInt(process.env.CAFETERIA_PORT || "3000");

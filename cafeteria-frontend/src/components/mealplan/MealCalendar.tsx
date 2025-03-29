@@ -26,10 +26,8 @@ import {
   AddShoppingCart,
   ContentPasteGo,
   ExpandMore,
+  ManageSearch,
   MoreVert,
-  Visibility,
-  VisibilityOutlined,
-  VisibilityTwoTone,
 } from "@mui/icons-material";
 import Menu, { DailyMenu } from "../../models/Menu";
 import {
@@ -49,6 +47,7 @@ import { Role } from "../../models/User";
 import CafeteriaDialog from "../cafeteria/CafeteriaDialog";
 import ClassroomMealsDialog from "../meals/ClassroomMealsDialog";
 import { AxiosError } from "axios";
+import OrderDatesDialog from "./OrderDatesDialog";
 
 interface MealPlanProps {
   menuOrDate: DailyMenu | string;
@@ -454,7 +453,7 @@ const TeacherMealButtons: React.FC<CafeteriaMealButtonProps> = ({
         onClick={() => setShowReport(true)}
         size="small"
       >
-        <VisibilityOutlined />
+        <ManageSearch />
       </IconButton>
       {showReport ? (
         <ClassroomMealsDialog
@@ -507,7 +506,7 @@ const CafeteriaMealButtons: React.FC<CafeteriaMealButtonProps> = ({
         onClick={() => setShowReport(true)}
         size="small"
       >
-        <VisibilityOutlined />
+        <ManageSearch />
       </IconButton>
       {showReport ? (
         <CafeteriaDialog date={date} onClose={() => setShowReport(false)} />
@@ -519,7 +518,7 @@ const CafeteriaMealButtons: React.FC<CafeteriaMealButtonProps> = ({
 };
 
 const ParentMealButtons: React.FC<ParentMealButtonProps> = ({ menuOrDate }) => {
-  const { orders, shoppingCart, setStatusMsg } = useContext(AppContext);
+  const { orders, shoppingCart } = useContext(AppContext);
 
   const menu =
     typeof menuOrDate === "string" ? undefined : (menuOrDate as DailyMenu);
@@ -528,6 +527,7 @@ const ParentMealButtons: React.FC<ParentMealButtonProps> = ({ menuOrDate }) => {
   const [showOrderedMeals, setShowOrderedMeals] = useState(false);
   // const [showAvailability, setShowAvailability] = useState(false);
   const [addToCart, setAddToCart] = useState(false);
+  const [showOrderDates, setShowOrderDates] = useState(false);
   const [hasMealsInCart, setHasMealsInCart] = useState(
     shoppingCart.items.find((item) => item.dailyMenuId === menu?.id)
       ? true
@@ -566,17 +566,11 @@ const ParentMealButtons: React.FC<ParentMealButtonProps> = ({ menuOrDate }) => {
       </Typography>
       <IconButton
         color="primary"
-        disabled={!hasOrderedMeals}
+        disabled={!hasOrderedMeals && !hasMealsInCart}
         onClick={() => setShowOrderedMeals(true)}
         size="small"
       >
-        {!hasOrderedMeals ? (
-          <VisibilityOutlined />
-        ) : hasMealsInCart ? (
-          <Visibility />
-        ) : (
-          <VisibilityTwoTone />
-        )}
+        <ManageSearch />
       </IconButton>
       <IconButton
         color={
@@ -588,7 +582,7 @@ const ParentMealButtons: React.FC<ParentMealButtonProps> = ({ menuOrDate }) => {
         onClick={
           currentlyAcceptingOrders
             ? () => setAddToCart(true)
-            : () => setStatusMsg("Order Dates : " + getOrderDates(menu))
+            : () => setShowOrderDates(true)
         }
         size="small"
       >
@@ -607,6 +601,14 @@ const ParentMealButtons: React.FC<ParentMealButtonProps> = ({ menuOrDate }) => {
           onClose={() => setAddToCart(false)}
           onAddedToCart={handleMealAddedToCart}
           date={date}
+        />
+      ) : (
+        <></>
+      )}
+      {showOrderDates ? (
+        <OrderDatesDialog
+          onClose={() => setShowOrderDates(false)}
+          menu={menu!}
         />
       ) : (
         <></>

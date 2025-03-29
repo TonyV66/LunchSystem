@@ -24,7 +24,7 @@ const MenuItemTypesLegend: React.FC = () => {
     <Box
       sx={{
         display: "inline-grid",
-        gridTemplateColumns: {xs: "auto auto auto auto", md: "auto auto auto auto auto auto auto auto"},
+        gridTemplateColumns: "auto auto auto auto auto auto auto auto",
         gap: 1,
       }}
     > 
