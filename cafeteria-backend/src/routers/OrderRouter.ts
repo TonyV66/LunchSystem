@@ -144,7 +144,7 @@ OrderRouter.post<Empty, Order | string, CheckoutDTO, Empty>(
         );
         if (requestedLunchTime) {
           const currentLunchTime = student.lunchTimes.find(
-            (lt) => lt.id === student.id && lt.dayOfWeek === i
+            (lt) => lt.schoolYear.id === schoolYear.id && lt.dayOfWeek === i
           );
           if (!currentLunchTime) {
             await studentLunchTimeRepository.insert({
@@ -156,18 +156,11 @@ OrderRouter.post<Empty, Order | string, CheckoutDTO, Empty>(
             });
           } else if (
             requestedLunchTime.teacherId !==
-              currentLunchTime.lunchtimeTeacher.id ||
-            currentLunchTime.schoolYear.id !== schoolYear.id
+            currentLunchTime.lunchtimeTeacher.id
           ) {
-            await studentLunchTimeRepository.delete({
-              id: currentLunchTime.id,
-            });
-            await studentLunchTimeRepository.insert({
-              dayOfWeek: i,
-              schoolYear: schoolYear,
-              time: "",
+            await studentLunchTimeRepository.save({
+              ...currentLunchTime,
               lunchtimeTeacher: { id: requestedLunchTime.teacherId },
-              student: student,
             });
           }
         }
