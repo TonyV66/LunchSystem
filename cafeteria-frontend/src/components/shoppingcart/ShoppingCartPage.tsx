@@ -158,8 +158,12 @@ const ShoppingCartPage: React.FC = () => {
               applicationId={schoolSettings.squareAppId}
               locationId={schoolSettings.squareLocationId}
               cardTokenizeResponseReceived={(tokenResult, buyer) => {
-                console.log(buyer);
-                handleCheckout(tokenResult.token!);
+                if (tokenResult.status !== 'OK') {
+                  console.log("Tokenization failed")
+                } else {
+                  console.log(buyer);
+                  handleCheckout(tokenResult.token!);
+                }
               }}
             >
               {paymentType === "giftcard" ? <GiftCard /> : <CreditCard />}

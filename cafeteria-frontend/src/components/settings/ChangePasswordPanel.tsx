@@ -29,6 +29,7 @@ const ChangePasswordPanel: React.FC = () => {
         required
         fullWidth
         label="Old Password"
+        type="Password"
         variant="standard"
         value={oldPassword}
         onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
@@ -39,7 +40,7 @@ const ChangePasswordPanel: React.FC = () => {
         required
         fullWidth
         error={
-          (password.length > 0 && password.length < 8) || /\s/.test(password)
+          (password.length > 0 && password.length < 6) || /\s/.test(password)
         }
         helperText="Minimum of 8 characters. No spaces allowed."
         type="Password"
@@ -73,7 +74,7 @@ const ChangePasswordPanel: React.FC = () => {
         color="primary"
         disabled={
           !oldPassword.length ||
-          password.length < 8 ||
+          password.length < 6 ||
           /\s/.test(password) ||
           password !== confirmationPassword
         }

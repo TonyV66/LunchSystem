@@ -161,8 +161,6 @@ const getStaffSession = async (user: UserEntity): Promise<SessionInfo> => {
   const notificationRepository =
     AppDataSource.getRepository(NotificationEntity);
 
-  let lastCheckpoint = new Date();
-
   const userEntity = (await userRepository.findOne({
     where: { id: user.id },
     relations: {
@@ -170,8 +168,6 @@ const getStaffSession = async (user: UserEntity): Promise<SessionInfo> => {
     },
   })) as UserEntity;
 
-  let currentCheckpoint = new Date();
-  lastCheckpoint = currentCheckpoint;
 
   let schoolYear = getLatestSchoolYear(user.school);
 
@@ -200,9 +196,6 @@ const getStaffSession = async (user: UserEntity): Promise<SessionInfo> => {
           },
         },
       });
-
-  currentCheckpoint = new Date();
-  lastCheckpoint = currentCheckpoint;
 
   const users = await userRepository.find({
     where: { school: { id: user.school.id } },
@@ -241,9 +234,6 @@ const getStaffSession = async (user: UserEntity): Promise<SessionInfo> => {
             school: { id: user.school.id },
           },
         });
-
-  currentCheckpoint = new Date();
-  lastCheckpoint = currentCheckpoint;
 
   let students = users.flatMap((user) => user.children);
 
@@ -288,9 +278,6 @@ const getStaffSession = async (user: UserEntity): Promise<SessionInfo> => {
     school: { ...user.school, squareAppAccessToken: "" },
     lunchTimes,
   };
-
-  currentCheckpoint = new Date();
-  lastCheckpoint = currentCheckpoint;
 
   return sessionInfo;
 };
