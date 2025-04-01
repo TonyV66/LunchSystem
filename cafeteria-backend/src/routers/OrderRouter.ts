@@ -218,6 +218,7 @@ OrderRouter.post<Empty, Order | string, CheckoutDTO, Empty>(
           currency: "USD",
           amount: BigInt(price * 100),
         },
+        locationId: req.user.school.squareLocationId,
       });
       console.log(result);
     } catch (error) {
