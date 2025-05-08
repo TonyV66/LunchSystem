@@ -11,7 +11,7 @@ import ShoppingCartPage from "./components/shoppingcart/ShoppingCartPage";
 import OrderedMealsPage from "./components/meals/OrderedMealsPage";
 import { useContext } from "react";
 import { AppContext } from "./AppContextProvider";
-import LoginPanel from "./components/LoginPanel";
+import LoginPanel from "./components/users/LoginPanel";
 import { Role } from "./models/User";
 import NotificationsPage from "./components/notifications/NotificationsPage";
 import OrderHistoryPage from "./components/orders/OrderHistoryPage";
@@ -20,6 +20,11 @@ import UsersPage from "./components/users/UsersPage";
 import StudentsPage from "./components/users/StudentsPage";
 import AdminSettingsPage from "./components/settings/AdminSettingsPage";
 import ChangePasswordPage from "./components/settings/ChangePasswordPage";
+import InvitationPanel from "./components/users/InvitationPanel";
+import RegistrationPanel from "./components/users/RegistrationPanel";
+import ChangeForgottenPwdPanel from "./components/users/ChangeForgottenPwdPanel";
+import PageNotFound from "./components/PageNotFound";
+import SchoolYearsPage from "./components/schoolyear/SchoolYearsPage";
 
 const App: React.FC = () => {
   const { user } = useContext(AppContext);
@@ -43,12 +48,47 @@ const App: React.FC = () => {
   return (
     <BrowserRouter>
       <Routes>
+        {!user.id || user.role === Role.PARENT ? (
+          <>
+            <Route path="/invite/:inviteId" element={<InvitationPanel />} />
+            <Route
+              path="/register/:inviteId"
+              element={
+                user.id ? (
+                  <Navigate to={"/"} replace />
+                ) : (
+                  <RegistrationPanel />
+                )
+              }
+            />
+            <Route
+              path="/login/:inviteId"
+              element={
+                user.id ? (
+                  <Navigate to={"/"} replace />
+                ) : (
+                  <LoginPanel />
+                )
+              }
+            />
+          </>
+        ) : (
+          <></>
+        )}
+
         <Route
           path="/login"
           element={
             user.id ? <Navigate to={defaultUrl} replace /> : <LoginPanel />
           }
         />
+        <Route
+          path="/forgot/:forgottenLoginId"
+          element={
+            user.id ? <Navigate to={defaultUrl} replace /> : <ChangeForgottenPwdPanel />
+          }
+        />
+
         <Route
           path="/admin"
           element={
@@ -91,6 +131,7 @@ const App: React.FC = () => {
                 element={<OrderHistoryPage></OrderHistoryPage>}
               />
               <Route path="account" element={<AdminSettingsPage />} />
+              <Route path="years" element={<SchoolYearsPage />} />
             </>
           ) : (
             <></>
@@ -116,6 +157,7 @@ const App: React.FC = () => {
 
           <Route path="notifications" element={<NotificationsPage />} />
         </Route>
+        <Route path="*" element={<PageNotFound />} />
       </Routes>
     </BrowserRouter>
   );

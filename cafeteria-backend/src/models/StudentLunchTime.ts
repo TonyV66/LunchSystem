@@ -1,6 +1,6 @@
 export default class StudentLunchTime {
-  id: number;
+  studentId: number;
   dayOfWeek: number;
-  time: string;
+  time?: string;
   teacherId?: number;
 }

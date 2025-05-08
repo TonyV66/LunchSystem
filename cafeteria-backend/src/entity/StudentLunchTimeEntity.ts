@@ -13,7 +13,7 @@ import StudentEntity from "./StudentEntity";
 export default class StudentLunchTimeEntity {
   @PrimaryGeneratedColumn()
   id: number;
-  @Column({ type: "enum", enum: DayOfWeek })
+  @Column({ type: "enum", enum: DayOfWeek, nullable: false })
   dayOfWeek: number;
   @Column()
   time: string;
@@ -27,8 +27,9 @@ export default class StudentLunchTimeEntity {
   @ManyToOne(() => UserEntity, (teacher) => teacher.studentLunchTimes, {
     onDelete: "CASCADE",
     orphanedRowAction: "delete",
+    nullable: true
   })
-  lunchtimeTeacher: UserEntity;
+  lunchtimeTeacher: UserEntity | null;
 
   @ManyToOne(() => StudentEntity, (student) => student.lunchTimes, {
     onDelete: "CASCADE",

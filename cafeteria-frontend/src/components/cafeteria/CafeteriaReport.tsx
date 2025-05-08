@@ -8,6 +8,8 @@ import { PantryItem, DailyMenu } from "../../models/Menu";
 import { Order } from "../../models/Order";
 import Student from "../../models/Student";
 import MenuItemChip from "../meals/MenuItemChip";
+import { StudentLunchTime } from "../../models/StudentLunchTime";
+import TeacherLunchTime from "../../models/TeacherLunchTime";
 
 interface TallyRowProps {
   date: string;
@@ -62,20 +64,22 @@ const getOrderedQty = (
   orders: Order[],
   menuItem: PantryItem,
   teachers: User[],
+  teacherLunchTimes: TeacherLunchTime[],
   students: Student[],
+  studentLunchTimes: StudentLunchTime[],
   date: string,
   time?: string
 ): number => {
   const dayOfWeek = DateTimeUtils.toDate(date).getDay();
 
   const teacherIds = teachers
-    .filter((teacher) => !time || getMealTime(teacher, date) === time)
+    .filter((teacher) => !time || getMealTime(teacher, teacherLunchTimes, date) === time)
     .map((teacher) => teacher.id);
   const studentIds = students
     .filter((student) =>
-      student.lunchTimes.find(
+      studentLunchTimes.find(
         (lt) =>
-          lt.dayOfWeek === dayOfWeek && teacherIds.includes(lt.teacherId ?? 0)
+          lt.studentId === student.id && lt.dayOfWeek === dayOfWeek && teacherIds.includes(lt.teacherId ?? 0)
       )
         ? true
         : false
@@ -114,7 +118,7 @@ const TableCell: React.FC<React.PropsWithChildren> = ({ children }) => {
 };
 
 const TallyRow: React.FC<TallyRowProps> = ({ date, menuItem, mealTimes }) => {
-  const { users, students, orders } = React.useContext(AppContext);
+  const { users, students, orders, studentLunchTimes, teacherLunchTimes } = React.useContext(AppContext);
   const teachers = users.filter((user) => user.role === Role.TEACHER);
   return (
     <>
@@ -127,13 +131,13 @@ const TallyRow: React.FC<TallyRowProps> = ({ date, menuItem, mealTimes }) => {
       </TableCell>
       <TableCell>
         <Typography variant="h6">
-          {getOrderedQty(orders, menuItem, teachers, students, date)}
+          {getOrderedQty(orders, menuItem, teachers, teacherLunchTimes, students, studentLunchTimes, date)}
         </Typography>
       </TableCell>
       {mealTimes.map((time) => (
         <TableCell key={time}>
           <Typography variant="h6">
-            {getOrderedQty(orders, menuItem, teachers, students, date, time)}
+            {getOrderedQty(orders, menuItem, teachers, teacherLunchTimes, students, studentLunchTimes, date, time)}
           </Typography>
         </TableCell>
       ))}
@@ -141,10 +145,10 @@ const TallyRow: React.FC<TallyRowProps> = ({ date, menuItem, mealTimes }) => {
   );
 };
 
-const getMealTime = (teacher: User, date: string) => {
+const getMealTime = (teacher: User, teacherLunchTimes: TeacherLunchTime[], date: string) => {
   const dayOfWeek = DateTimeUtils.toDate(date).getDay();
   return (
-    teacher.lunchTimes.find((lunchTime) => lunchTime.dayOfWeek === dayOfWeek)
+    teacherLunchTimes.find((lunchTime) => lunchTime.teacherId === teacher.id && lunchTime.dayOfWeek === dayOfWeek)
       ?.time ?? "12:00"
   );
 };
@@ -152,13 +156,13 @@ const getMealTime = (teacher: User, date: string) => {
 // eslint-disable-next-line react/display-name
 const CafeteriaReport = React.forwardRef<HTMLDivElement, CafeteriaReportProps>(
   (props, ref) => {
-    const { scheduledMenus, users, orders } = React.useContext(AppContext);
+    const { scheduledMenus, users, orders, teacherLunchTimes } = React.useContext(AppContext);
 
     const mealTimes = Array.from(
       new Set(
         users
           .filter((user) => user.role === Role.TEACHER)
-          .map((teacher) => getMealTime(teacher, props.date))
+          .map((teacher) => getMealTime(teacher, teacherLunchTimes, props.date))
       )
     ).sort();
 

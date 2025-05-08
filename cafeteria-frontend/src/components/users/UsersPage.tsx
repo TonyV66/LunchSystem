@@ -13,7 +13,6 @@ import { useContext, useState } from "react";
 import { Add, Delete, Edit, MoreVert, ReceiptLong } from "@mui/icons-material";
 import User, { Role, ROLE_NAMES } from "../../models/User";
 import { grey } from "@mui/material/colors";
-import EditUserDialog from "./EditUserDialog";
 import {
   DataGrid,
   GridColDef,
@@ -21,8 +20,9 @@ import {
   GridValidRowModel,
 } from "@mui/x-data-grid";
 import { useNavigate } from "react-router-dom";
-import { STUDENTS_URL } from "../../MainAppPanel";
+import { STUDENTS_URL, USERS_URL } from "../../MainAppPanel";
 import { UserOrderHistoryDialog } from "../orders/UserOrderHistoryDialog";
+import DailyLunchTimesDialog from "../mealplan/DailyLunchTimesDialog";
 
 interface Row {
   id: number;
@@ -176,18 +176,13 @@ const UsersPage: React.FC = () => {
   });
 
 
-  const handleTabSelected = () => {
-    navigate(STUDENTS_URL);
+  const handleTabSelected = (event: React.SyntheticEvent, newValue: string) => {
+    navigate(newValue);
   };
 
   const handleEditUser = () => {
     setAction("edit");
     setPulldownMenuAnchor(null);
-  };
-
-  const handleCloseEditUserDialog = () => {
-    setAction(null);
-    setShowNewUserDialog(false);
   };
 
   const handleOrderHistory = () => {
@@ -218,12 +213,12 @@ const UsersPage: React.FC = () => {
       }}
     >
       <Tabs
-        value={'users'}
+        value={USERS_URL}
         onChange={handleTabSelected}
         aria-label="secondary tabs example"
       >
-        <Tab value="users" label="Users" />
-        <Tab value="students" label="Students" />
+        <Tab value={USERS_URL} label="Users" />
+        <Tab value={STUDENTS_URL} label="Students" />
       </Tabs>
       <Fab
         size="small"
@@ -246,7 +241,8 @@ const UsersPage: React.FC = () => {
         columns={columns}
       />
       {showNewUserDialog || (action === 'edit') ? (
-        <EditUserDialog user={showNewUserDialog ? undefined : targetUser!} onClose={handleCloseEditUserDialog} />
+        <DailyLunchTimesDialog onClose={() => setShowNewUserDialog(false)}/>
+        // <EditUserDialog user={showNewUserDialog ? undefined : targetUser!} onClose={handleCloseEditUserDialog} />
       ) : (
         <></>
       )}

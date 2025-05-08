@@ -13,6 +13,7 @@ import {
 import { AppContext } from "./AppContextProvider";
 import {
   CalendarMonth,
+  EventRepeat,
   Home,
   Logout,
   People,
@@ -28,6 +29,7 @@ import { DateTimeUtils } from "./DateTimeUtils";
 const ALT_COLOR = "#ffffff";
 
 export const REGISTRATION_URL = "/register";
+export const INVITE_URL = "/invite";
 export const ACCOUNT_URL = "/account";
 export const USERS_URL = "/users";
 export const MEALS_URL = "/meals";
@@ -36,6 +38,9 @@ export const CART_URL = "/cart";
 export const CALENDAR_URL = "/calendar";
 export const ORDERS_URL = "/orders";
 export const STUDENTS_URL = "/students";
+export const SCHOOL_YEARS_URL = "/years";
+export const SCHOOL_YEAR_URL = "/year";
+
 
 export const NOTIFICATIONS_URL = "/notifications";
 
@@ -48,6 +53,7 @@ export enum SidebarSelection {
   CALENDAR = "Calendar",
   LOGOUT = "Logout",
   NOTIFICATIONS = "Notifications",
+  YEARS = "Years",
 }
 
 const primaryColor = "primary.dark";
@@ -131,6 +137,22 @@ const UsersButton: React.FC<SidebarButtonProps> = ({ onClick, isSelected }) => {
     />
   );
 };
+
+const SchoolYearsButton: React.FC<SidebarButtonProps> = ({ onClick, isSelected }) => {
+  return (
+    <EventRepeat
+      onClick={() => onClick(SidebarSelection.YEARS)}
+      sx={{
+        cursor: !isSelected ? "pointer" : undefined,
+        p: 1,
+        backgroundColor: isSelected ? ALT_COLOR : undefined,
+        color: isSelected ? primaryColor : ALT_COLOR,
+      }}
+      fontSize="large"
+    />
+  );
+};
+
 
 const SettingsButton: React.FC<SidebarButtonProps> = ({
   onClick,
@@ -270,6 +292,10 @@ const AdminSidebar: React.FC<SidebarProps> = ({ onLogout }) => {
       <UsersButton
         onClick={() => navigate(USERS_URL)}
         isSelected={selection === SidebarSelection.USERS}
+      />
+      <SchoolYearsButton
+        onClick={() => navigate(SCHOOL_YEARS_URL)}
+        isSelected={selection === SidebarSelection.YEARS}
       />
       <Divider sx={{ borderColor: "white", width: "100%" }} />
       <SettingsButton

@@ -1,5 +1,3 @@
-import DailyLunchTime from "./DailyLunchTime";
-
 export enum Role {
   ADMIN,
   TEACHER,
@@ -14,10 +12,15 @@ export const NULL_USER: User = {
   userName: '',
   pwd: '',
   name: '',
+  firstName: '',
+  lastName: '',
+  email: '',
   description: '',
   role: Role.PARENT,
   notificationReviewDate: new Date('2020-01-01 00:00:00').toJSON(),
-  lunchTimes: [],
+  resetPwd: false,
+  forgotPwdUri: null,
+  forgotPwdDate: null
 }
 
 export default interface User {
@@ -25,8 +28,13 @@ export default interface User {
   userName: string;
   pwd: string;
   name: string;
+  firstName: string;
+  lastName: string;
+  email: string;
   description: string;
   role: Role;
   notificationReviewDate: string;
-  lunchTimes: DailyLunchTime[];
+  resetPwd: boolean;
+  forgotPwdUri: string | null;
+  forgotPwdDate: string | null;
 }

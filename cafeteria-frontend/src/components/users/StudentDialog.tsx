@@ -12,6 +12,7 @@ import { AppContext } from "../../AppContextProvider";
 import { createStudent, updateStudent } from "../../api/CafeteriaClient";
 import Student from "../../models/Student";
 import { AxiosError } from "axios";
+import { GradeLevel } from "../../models/GradeLevel";
 
 interface DialogProps {
   student?: Student;
@@ -23,9 +24,9 @@ const StudentDialog: React.FC<DialogProps> = ({ onClose, student }) => {
 
   const [updatedStudent, setUpdatedStudent] = useState<Student>(student || {
     id: 0,
+    grade: GradeLevel.PRE_K,
     name: "",
     studentId: "",
-    lunchTimes: [],
   });
 
   const isSaveDisabled = !updatedStudent.name.length;

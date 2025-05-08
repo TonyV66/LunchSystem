@@ -3,27 +3,25 @@ import { AppDataSource } from "../data-source";
 import { DeepPartial } from "typeorm";
 import StudentEntity from "../entity/StudentEntity";
 import Student from "../models/Student";
+import UserEntity from "../entity/UserEntity";
+import { randomUUID } from "crypto";
 
 const StudentRouter: Router = express.Router();
 interface Empty {}
 
-StudentRouter.post<Empty, Student, Student, Empty>(
-  "/",
-  async (req, res) => {
-    const studentRepository = AppDataSource.getRepository(StudentEntity);
+StudentRouter.post<Empty, Student, Student, Empty>("/", async (req, res) => {
+  const studentRepository = AppDataSource.getRepository(StudentEntity);
 
-    const user: DeepPartial<StudentEntity> = {
-      ...req.body,
-      id: undefined,
-      parent: req.user,
-    };
-    const newStudent = studentRepository.create(user);
-    const savedStudent = await studentRepository.save(
-      newStudent as StudentEntity
-    );
-    res.send(savedStudent as Student);
-  }
-);
+  const savedStudent = await studentRepository.save({
+    ...req.body,
+    id: undefined,
+    studentId: randomUUID(),
+    schoolId: req.user.school.id
+  });
+
+  await AppDataSource.createQueryBuilder().relation(UserEntity, 'students').of(req.user).add(savedStudent);
+  res.send(savedStudent as Student);
+});
 
 StudentRouter.put<Empty, Student, Student, Empty>("/", async (req, res) => {
   const studentRepository = AppDataSource.getRepository(StudentEntity);
@@ -37,13 +35,12 @@ StudentRouter.put<Empty, Student, Student, Empty>("/", async (req, res) => {
   if (student) {
     const updatedStudent: DeepPartial<StudentEntity> = {
       id: student.id,
-      name: req.body.name
+      name: req.body.name,
     };
 
     const savedUser = await studentRepository.save(updatedStudent);
     res.send(savedUser);
   }
 });
-
 
 export default StudentRouter;

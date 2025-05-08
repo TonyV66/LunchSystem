@@ -20,7 +20,7 @@ import {
 import Student from "../../models/Student";
 import StudentMealsDialog from "../meals/StudentMealsDialog";
 import { useNavigate } from "react-router-dom";
-import { USERS_URL } from "../../MainAppPanel";
+import { STUDENTS_URL, USERS_URL } from "../../MainAppPanel";
 import StudentDialog from "./StudentDialog";
 
 interface Row {
@@ -128,8 +128,8 @@ const StudentsPage: React.FC = () => {
     });
   });
 
-  const handleTabSelected = () => {
-    navigate(USERS_URL);
+  const handleTabSelected = (event: React.SyntheticEvent, newValue: string) => {
+    navigate(newValue);
   };
 
   const handleEditUser = () => {
@@ -164,12 +164,12 @@ const StudentsPage: React.FC = () => {
       }}
     >
       <Tabs
-        value={'students'}
+        value={STUDENTS_URL}
         onChange={handleTabSelected}
         aria-label="secondary tabs example"
       >
-        <Tab value="users" label="Users" />
-        <Tab value="students" label="Students" />
+        <Tab value={USERS_URL} label="Users" />
+        <Tab value={STUDENTS_URL} label="Students" />
       </Tabs>
       <DataGrid
         sx={{

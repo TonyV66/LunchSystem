@@ -19,17 +19,14 @@ import {
 } from "@mui/material";
 import { AppContext } from "../../AppContextProvider";
 import Menu, { DailyMenu, PantryItem, PantryItemType } from "../../models/Menu";
-import {
-  DateTimeFormat,
-  DateTimeUtils,
-  DAY_NAMES,
-} from "../../DateTimeUtils";
+import { DateTimeFormat, DateTimeUtils, DAY_NAMES } from "../../DateTimeUtils";
 import ConfirmDialog from "../ConfirmDialog";
 import { ShoppingCartItem } from "../../models/ShoppingCart";
 import User, { Role } from "../../models/User";
 import { DayOfWeek } from "../../models/DailyLunchTime";
 import StudentDialog from "../users/StudentDialog";
 import Student from "../../models/Student";
+import { StudentLunchTime } from "../../models/StudentLunchTime";
 
 type TypeOfOrder = "meal" | "drink";
 
@@ -168,12 +165,13 @@ const AddToCartDialog: React.FC<DialogProps> = ({
 }) => {
   const {
     students,
-    setStudents,
+    setStudentLunchTimes,
     orders,
     shoppingCart,
     setShoppingCart,
     scheduledMenus,
     users,
+    studentLunchTimes,
   } = useContext(AppContext);
 
   const [selectedStudentId, setSelectedStudentId] = useState<number>(0);
@@ -209,8 +207,8 @@ const AddToCartDialog: React.FC<DialogProps> = ({
 
     const student = students.find((student) => student.id === studentId)!;
     if (student && !selectedTeacher) {
-      const teacherId = student.lunchTimes.find(
-        (lt) => lt.dayOfWeek === dayOfWeek
+      const teacherId = studentLunchTimes.find(
+        (lt) => lt.studentId === student.id && lt.dayOfWeek === dayOfWeek
       )?.teacherId;
       const teacher = teachers.find((teacher) => teacher.id === teacherId);
       setSelectedTeacher(teacher ?? selectedTeacher);
@@ -344,42 +342,42 @@ const AddToCartDialog: React.FC<DialogProps> = ({
       newCartItem.selectedMenuItemIds.push(selectedDrink!.id);
     }
 
-    let updatedStudent = selectedStudent;
+    const updatedLunchTimes: StudentLunchTime[] = [];
+    const addedLunchTimes: StudentLunchTime[] = [];
     for (let i = DayOfWeek.MONDAY; i < DayOfWeek.SATURDAY; i++) {
-      if (!updatedStudent.lunchTimes.find((lt) => lt.dayOfWeek === i)) {
-        updatedStudent = {
-          ...updatedStudent,
-          lunchTimes: updatedStudent.lunchTimes.concat({
-            id: 0,
-            teacherId: selectedTeacher!.id,
-            time: "",
-            dayOfWeek: i,
-          }),
+      let studentLunchTime = studentLunchTimes.find(
+        (lt) => lt.studentId === selectedStudent.id && lt.dayOfWeek === i
+      );
+      if (!studentLunchTime) {
+        studentLunchTime = {
+          teacherId: selectedTeacher!.id,
+          studentId: selectedStudent.id,
+          time: "",
+          dayOfWeek: i,
         };
+        addedLunchTimes.push(studentLunchTime);
+      } else if (studentLunchTime.teacherId !== selectedTeacher!.id) {
+        studentLunchTime = {
+          ...studentLunchTime,
+          teacherId: selectedTeacher!.id,
+        };
+        updatedLunchTimes.push(studentLunchTime);
       }
     }
 
-    if (
-      updatedStudent.lunchTimes.find((lt) => lt.dayOfWeek === dayOfWeek)!
-        .teacherId !== selectedTeacher!.id
-    ) {
-      updatedStudent = {
-        ...updatedStudent!,
-        lunchTimes: updatedStudent.lunchTimes.map((lt) =>
-          lt.dayOfWeek !== dayOfWeek
-            ? lt
-            : { ...lt, teacherId: selectedTeacher!.id }
-        ),
-      };
-    }
-
-    if (updatedStudent !== selectedStudent) {
-      setStudents(
-        students.map((student) =>
-          student.id === updatedStudent.id ? updatedStudent : student
+    setStudentLunchTimes(
+      studentLunchTimes
+        .filter(
+          (slt) =>
+            !updatedLunchTimes.find(
+              (ult) =>
+                ult.dayOfWeek === slt.dayOfWeek &&
+                ult.studentId === slt.studentId
+            )
         )
-      );
-    }
+        .concat(updatedLunchTimes)
+        .concat(addedLunchTimes)
+    );
 
     setShoppingCart({
       ...shoppingCart,
@@ -427,8 +425,8 @@ const AddToCartDialog: React.FC<DialogProps> = ({
 
     if (students.length === 1) {
       setSelectedStudentId(students[0].id);
-      const teacherId = students[0].lunchTimes.find(
-        (lt) => lt.dayOfWeek === dayOfWeek
+      const teacherId = studentLunchTimes.find(
+        (lt) => lt.studentId === students[0].id && lt.dayOfWeek === dayOfWeek
       )?.teacherId;
       const teacher = teachers.find((teacher) => teacher.id === teacherId);
       setSelectedTeacher(teacher ?? selectedTeacher);
@@ -592,7 +590,9 @@ const AddToCartDialog: React.FC<DialogProps> = ({
               >
                 {!selectedStudentId ? (
                   <MuiMenuItem disabled={true} key={0} value={"0"}>
-                    <Typography color="textDisabled">Select a student</Typography>
+                    <Typography color="textDisabled">
+                      Select a student
+                    </Typography>
                   </MuiMenuItem>
                 ) : (
                   <></>
@@ -622,7 +622,9 @@ const AddToCartDialog: React.FC<DialogProps> = ({
               >
                 {!selectedTeacher?.id ? (
                   <MuiMenuItem disabled={true} key={0} value={"0"}>
-                    <Typography color="textDisabled">Select a teacher</Typography>
+                    <Typography color="textDisabled">
+                      Select a teacher
+                    </Typography>
                   </MuiMenuItem>
                 ) : (
                   <></>

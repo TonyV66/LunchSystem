@@ -16,14 +16,17 @@ const ClassroomMealReport: React.FC<{ date: string; teacherId: number }> = ({
   date,
   teacherId,
 }) => {
-  const { students } = React.useContext(AppContext);
+  const { students, studentLunchTimes } = React.useContext(AppContext);
 
   const dayOfWeek = DateTimeUtils.toDate(date).getDay();
 
   const sortedStudents = students
     .filter((student) =>
-      student.lunchTimes.find(
-        (lt) => lt.dayOfWeek === dayOfWeek && lt.teacherId == teacherId
+      studentLunchTimes.find(
+        (lt) =>
+          lt.studentId === student.id &&
+          lt.dayOfWeek === dayOfWeek &&
+          lt.teacherId == teacherId
       )
         ? true
         : false

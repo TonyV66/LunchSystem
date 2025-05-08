@@ -20,11 +20,12 @@ import { DateTimeUtils, DateTimeFormat } from "../../DateTimeUtils";
 import Meal from "../../models/Meal";
 import User, { Role } from "../../models/User";
 import ClassroomMealReport from "./ClassroomMealReport";
+import TeacherLunchTime from "../../models/TeacherLunchTime";
 
-const getMealTime = (teacher: User, date: Date) => {
+const getMealTime = (teacher: User, teacherLunchTimes: TeacherLunchTime[], date: Date) => {
   const dayOfWeek = DateTimeUtils.toDate(date).getDay();
   const mealTime =
-    teacher.lunchTimes.find((lunchTime) => lunchTime.dayOfWeek === dayOfWeek)
+    teacherLunchTimes.find((lunchTime) => lunchTime.teacherId === teacher.id && lunchTime.dayOfWeek === dayOfWeek)
       ?.time ?? "12:00";
   return DateTimeUtils.toTwelveHourTime(mealTime);
 };
@@ -50,7 +51,7 @@ const ClassroomMealsDialog: React.FC<DialogProps> = ({
   onClose,
 }) => {
   const dayOfWeek = DateTimeUtils.toDate(date).getDay();
-  const { students, orders, users } = React.useContext(AppContext);
+  const { students, orders, users, studentLunchTimes, teacherLunchTimes } = React.useContext(AppContext);
 
   const reportRef = React.useRef<HTMLDivElement>(null);
   const handlePrint = useReactToPrint({
@@ -109,9 +110,9 @@ const ClassroomMealsDialog: React.FC<DialogProps> = ({
           sortedTeachers.map((teacher) => {
             const studentIds = students
               .filter((student) =>
-                student.lunchTimes.find(
+                studentLunchTimes.find(
                   (lt) =>
-                    lt.dayOfWeek === dayOfWeek && lt.teacherId === teacher.id
+                    lt.studentId === student.id && lt.dayOfWeek === dayOfWeek && lt.teacherId === teacher.id
                 )
                   ? true
                   : false
@@ -137,7 +138,7 @@ const ClassroomMealsDialog: React.FC<DialogProps> = ({
                     {teacher.name +
                       (teacher.description ? " - " + teacher.description : "") +
                       " @" +
-                      getMealTime(teacher, DateTimeUtils.toDate(date))}
+                      getMealTime(teacher, teacherLunchTimes, DateTimeUtils.toDate(date))}
                   </Typography>
                 </AccordionSummary>
                 <AccordionDetails>

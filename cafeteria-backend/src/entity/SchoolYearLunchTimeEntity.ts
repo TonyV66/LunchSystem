@@ -4,12 +4,12 @@ import SchoolYearEntity from "./SchoolYearEntity";
 
 
 @Entity("school_lunch_time")
-export default class SchoolLunchTimeEntity {
+export default class SchoolYearLunchTimeEntity {
   @PrimaryGeneratedColumn()
   id: number;
   @Column({type: 'enum', enum: DayOfWeek})
   dayOfWeek: number;
-  @Column()
+  @Column({nullable: false, default: ''})
   time: string;
   @ManyToOne(() => SchoolYearEntity, (schoolYear) => schoolYear.lunchTimes, {
     onDelete: "CASCADE",

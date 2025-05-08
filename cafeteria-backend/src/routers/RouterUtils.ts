@@ -1,5 +1,5 @@
 import jwt from "jsonwebtoken";
-import { Request } from "express";
+import { Request, RequestHandler } from "express";
 import { AppDataSource } from "../data-source";
 import { DateTimeUtils } from "../DateTimeUtils";
 import MenuEntity, { DailyMenuEntity } from "../entity/MenuEntity";
@@ -19,6 +19,28 @@ export const JWT_PRIVATE_KEY = "your-secret-key";
 
 type JwtPayload = {
   userId: number;
+};
+
+declare global {
+  namespace Express {
+    interface Request {
+      user: UserEntity;
+    }
+  }
+}
+
+export const authorizeRequest: RequestHandler<any, any, any, any> = async (
+  req,
+  res,
+  next
+) => {
+  const result = await validateAuthorizationToken(req);
+  if (typeof result === "string") {
+    res.status(401).send(result);
+  } else {
+    req.user = result as UserEntity;
+    next();
+  }
 };
 
 
@@ -82,14 +104,16 @@ export const buildUserDto = (userEntity: UserEntity) => {
   const users: User[] = [userEntity].map((user) => ({
     ...user,
     pwd: "",
-    lunchTimes: userEntity.lunchTimes.map((lt) => ({
+    lunchTimes: !userEntity.lunchTimes ? [] : userEntity.lunchTimes.map((lt) => ({
       ...lt,
       teacher: undefined,
       schoolYear: undefined,
     })),
     children: undefined,
+    students: undefined,
     orders: undefined,
     school: undefined,
+    paymentSysUserId: undefined,
   }));
   return users[0] as User;
 };
@@ -100,7 +124,7 @@ export const buildStudentDto = (studentEntity: StudentEntity) => {
       ...student,
       lunchTimes: studentEntity.lunchTimes.map((lt) => ({
         ...lt,
-        teacherId: lt.lunchtimeTeacher.id,
+        teacherId: lt.lunchtimeTeacher ? lt.lunchtimeTeacher.id : undefined,
         schoolYear: undefined,
       })),
       parent: undefined,
@@ -140,31 +164,10 @@ export const validateAuthorizationToken = async (request: Request<any, any, any,
   }
 }
 
-export const getLatestSchoolYear = (school: SchoolEntity) => {
-  const today = DateTimeUtils.toString(new Date());
+export const getCurrentSchoolYear = (school: SchoolEntity) => {
   let latestSchoolYear = school!.schoolYears.find(
-    (sy) => sy.startDate <= today && sy.endDate >= today
+    (sy) => sy.isCurrent
   );
-  if (!latestSchoolYear) {
-    const upcomingSchoolYears = school!.schoolYears.filter(
-      (sy) => sy.startDate > today
-    );
-    upcomingSchoolYears.sort((s1, s2) =>
-      s1.startDate.localeCompare(s2.startDate)
-    );
-    latestSchoolYear = upcomingSchoolYears?.length
-      ? upcomingSchoolYears[0]
-      : undefined;
-  }
-  if (!latestSchoolYear) {
-    const pastSchoolYears = school!.schoolYears.filter(
-      (sy) => sy.endDate < today
-    );
-    pastSchoolYears
-      .sort((s1, s2) => s1.endDate.localeCompare(s2.endDate))
-      .reverse();
-    latestSchoolYear = pastSchoolYears?.length ? pastSchoolYears[0] : undefined;
-  }
   return latestSchoolYear;
 };
 

@@ -15,7 +15,7 @@ import {
   DateTimeFormat,
   DateTimeUtils,
   MONTH_NAMES,
-  SHORT_DAY_NAMES,
+  SHORT_MONTH_NAMES,
 } from "../../DateTimeUtils";
 import { AppContext } from "../../AppContextProvider";
 import { useContext, useEffect, useState } from "react";
@@ -99,6 +99,7 @@ const willBeAcceptingOrders = (menu?: DailyMenu) => {
   return menu && new Date(menu.orderEndTime) > now;
 };
 
+const DAILY_BACKGROUND_IMAGES = ['/s.png', '/m.png', '/t.png', '/w.png', '/t.png', '/f.png', '/s.png'];
 const AdminMealButtons: React.FC<AdminMealButtonProps> = ({
   menuOrDate,
   clipboardMenu,
@@ -289,7 +290,7 @@ const AdminMealButtons: React.FC<AdminMealButtonProps> = ({
       }}
     >
       <Typography sx={{ flexGrow: 1 }} fontWeight="bold" variant="caption">
-        {SHORT_DAY_NAMES[date.getDay()]}
+        {SHORT_MONTH_NAMES[DateTimeUtils.toDate(date).getMonth()] + " " + DateTimeUtils.toDate(date).getDate()}
       </Typography>
 
       {disabled || !menu ? (
@@ -406,7 +407,7 @@ const AdminMealButtons: React.FC<AdminMealButtonProps> = ({
 const TeacherMealButtons: React.FC<CafeteriaMealButtonProps> = ({
   menuOrDate,
 }) => {
-  const { orders, students, user } = useContext(AppContext);
+  const { orders, students, user, studentLunchTimes } = useContext(AppContext);
   const [showReport, setShowReport] = useState(false);
 
   const menu =
@@ -417,8 +418,8 @@ const TeacherMealButtons: React.FC<CafeteriaMealButtonProps> = ({
 
   const studentIds = students
     .filter((student) =>
-      student.lunchTimes.find(
-        (lt) => lt.dayOfWeek === dayOfWeek && lt.teacherId == user.id
+      studentLunchTimes.find(
+        (lt) => lt.studentId === student.id && lt.dayOfWeek === dayOfWeek && lt.teacherId == user.id
       )
         ? true
         : false
@@ -445,7 +446,7 @@ const TeacherMealButtons: React.FC<CafeteriaMealButtonProps> = ({
         fontWeight="bold"
         variant="caption"
       >
-        {SHORT_DAY_NAMES[DateTimeUtils.toDate(date).getDay()]}
+        {SHORT_MONTH_NAMES[DateTimeUtils.toDate(date).getMonth()] + " " + DateTimeUtils.toDate(date).getDate()}
       </Typography>
       <IconButton
         color="primary"
@@ -498,7 +499,7 @@ const CafeteriaMealButtons: React.FC<CafeteriaMealButtonProps> = ({
         fontWeight="bold"
         variant="caption"
       >
-        {SHORT_DAY_NAMES[DateTimeUtils.toDate(date).getDay()]}
+        {SHORT_MONTH_NAMES[DateTimeUtils.toDate(date).getMonth()] + " " + DateTimeUtils.toDate(date).getDate()}
       </Typography>
       <IconButton
         color="primary"
@@ -562,7 +563,7 @@ const ParentMealButtons: React.FC<ParentMealButtonProps> = ({ menuOrDate }) => {
         fontWeight="bold"
         variant="caption"
       >
-        {SHORT_DAY_NAMES[DateTimeUtils.toDate(date).getDay()]}
+        {SHORT_MONTH_NAMES[DateTimeUtils.toDate(date).getMonth()] + " " + DateTimeUtils.toDate(date).getDate()}
       </Typography>
       <IconButton
         color="primary"
@@ -640,7 +641,7 @@ const MealPlan: React.FC<MealPlanProps> = ({
     )
   );
 
-  const backgroundImage = "/" + date.current.getDate() + ".svg";
+  const backgroundImage = "/m.png";
   const handleMenuChanged = (menu?: DailyMenu) => {
     setMenu(menu);
   };
@@ -695,9 +696,9 @@ const MealPlan: React.FC<MealPlanProps> = ({
         className={"testname"}
         sx={{
           flexGrow: 1,
-          backgroundSize: "100px",
+          backgroundSize: '65px 65px',
           backgroundImage: backgroundImage
-            ? 'url("' + backgroundImage + '")'
+            ? 'url("' + DAILY_BACKGROUND_IMAGES[date.current.getDay()] + '")'
             : undefined,
           backgroundPosition: "center",
           backgroundRepeat: "no-repeat",

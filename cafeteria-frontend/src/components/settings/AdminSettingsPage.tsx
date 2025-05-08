@@ -20,7 +20,8 @@ export enum RelativeDateTarget {
 
 enum SelectedTab {
   PWD_TAB,
-  SYSTEM_SETTINGS_TAB
+  SYSTEM_SETTINGS_TAB,
+  SCHOOL_YEARS
 };
 
 const AdminSettingsPage: React.FC = () => {
@@ -40,8 +41,11 @@ const AdminSettingsPage: React.FC = () => {
       >
         <Tab label={<Typography variant="caption">Change Password</Typography>} />
         <Tab label={<Typography variant="caption">System Defaults</Typography>} />
+        <Tab label={<Typography variant="caption">School Years</Typography>} />
       </Tabs>
-      {selectedTab === SelectedTab.PWD_TAB ? <ChangePasswordPanel/> : <SchoolSettingsPanel/>}
+      {selectedTab === SelectedTab.PWD_TAB ? <ChangePasswordPanel/> : <></>}
+      {selectedTab === SelectedTab.SYSTEM_SETTINGS_TAB ? <SchoolSettingsPanel/> : <></>}
+      {selectedTab === SelectedTab.SCHOOL_YEARS ? <ChangePasswordPanel/> : <SchoolSettingsPanel/>}
     </Box>
   );
 };

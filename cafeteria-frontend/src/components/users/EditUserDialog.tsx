@@ -12,13 +12,13 @@ import {
   Select,
   SelectChangeEvent,
   TextField,
-  Typography,
 } from "@mui/material";
 import User, { NULL_USER, Role } from "../../models/User";
 import { AppContext } from "../../AppContextProvider";
-import TimeSelector from "../TimeSelector";
-import { createUser, updateUser } from "../../api/CafeteriaClient";
-import { DayOfWeek } from "../../models/DailyLunchTime";
+import {
+  sendInvitation,
+  updateUser,
+} from "../../api/CafeteriaClient";
 import { AxiosError } from "axios";
 
 interface DialogProps {
@@ -27,147 +27,89 @@ interface DialogProps {
 }
 
 const EditUserDialog: React.FC<DialogProps> = ({ user, onClose }) => {
-  const { users, setUsers, lunchTimes, setSnackbarErrorMsg } = useContext(AppContext);
+  const { users, setUsers, setSnackbarErrorMsg, setSnackbarMsg } =
+    useContext(AppContext);
 
   const [role, setRole] = useState(
     user?.role.toString() ?? Role.PARENT.toString()
   );
-  const [pwd, setPwd] = useState("");
-  const [confirmationPwd, setConfirmationPwd] = useState("");
-  const [fullName, setFullName] = useState(user?.name ?? "");
-  const [userName, setUserName] = useState(user?.userName ?? "");
-  const [description, setDescription] = useState(user?.description ?? "");
-  const [mondayLunchTime, setMondayLunchTime] = useState(
-    user?.role === Role.TEACHER
-      ? user.lunchTimes
-          .filter((lt) => lt.dayOfWeek === DayOfWeek.MONDAY)
-          .map((lt) => lt.time)
-          .sort()[0] ?? ""
-      : lunchTimes
-          .filter((lt) => lt.dayOfWeek === DayOfWeek.MONDAY)
-          .map((lt) => lt.time)
-          .sort()[0] ?? ""
-  );
-  const [tuesdayLunchTime, setTuesdayLunchTime] = useState(
-    user?.role === Role.TEACHER
-      ? user.lunchTimes
-          .filter((lt) => lt.dayOfWeek === DayOfWeek.TUESDAY)
-          .map((lt) => lt.time)
-          .sort()[0] ?? ""
-      : lunchTimes
-          .filter((lt) => lt.dayOfWeek === DayOfWeek.TUESDAY)
-          .map((lt) => lt.time)
-          .sort()[0] ?? ""
-  );
-  const [wednesdayLunchTime, setWednesdayLunchTime] = useState(
-    user?.role === Role.TEACHER
-      ? user.lunchTimes
-          .filter((lt) => lt.dayOfWeek === DayOfWeek.WEDNESDAY)
-          .map((lt) => lt.time)
-          .sort()[0] ?? ""
-      : lunchTimes
-          .filter((lt) => lt.dayOfWeek === DayOfWeek.WEDNESDAY)
-          .map((lt) => lt.time)
-          .sort()[0] ?? ""
-  );
-  const [thursdayLunchTime, setThursdayLunchTime] = useState(
-    user?.role === Role.TEACHER
-      ? user.lunchTimes
-          .filter((lt) => lt.dayOfWeek === DayOfWeek.THURSDAY)
-          .map((lt) => lt.time)
-          .sort()[0] ?? ""
-      : lunchTimes
-          .filter((lt) => lt.dayOfWeek === DayOfWeek.THURSDAY)
-          .map((lt) => lt.time)
-          .sort()[0] ?? ""
-  );
-  const [fridayLunchTime, setFridayLunchTime] = useState(
-    user?.role === Role.TEACHER
-      ? user.lunchTimes
-          .filter((lt) => lt.dayOfWeek === DayOfWeek.FRIDAY)
-          .map((lt) => lt.time)
-          .sort()[0] ?? ""
-      : lunchTimes
-          .filter((lt) => lt.dayOfWeek === DayOfWeek.FRIDAY)
-          .map((lt) => lt.time)
-          .sort()[0] ?? ""
-  );
+  const [firstName, setFirstName] = useState(user?.firstName ?? "");
+  const [lastName, setLastName] = useState(user?.lastName ?? "");
+  const [email, setEmail] = useState(user?.email ?? "");
 
-  function hasWhiteSpace(s: string) {
-    return /\s/g.test(s);
-  }
+  const handleRoleChanged = (roleName: string) => {
+    setRole(roleName);
+  };
   const isSaveDisabled =
-    ((parseInt(role) === Role.TEACHER) && !fullName.length) ||
-    (!user &&
-      (!pwd.length ||
-        !userName.length ||
-        hasWhiteSpace(pwd) ||
-        hasWhiteSpace(userName) ||
-        confirmationPwd !== pwd));
+    !email.length ||
+    !firstName.length ||
+    !lastName.length;
 
   const handleSaveUser = async () => {
-    const updatedUser: User = {
-      ...(user ?? NULL_USER),
-      userName,
-      name: fullName,
-      pwd,
-      role: parseInt(role),
-      description,
-    };
-
-    if (updatedUser.role === Role.TEACHER) {
-      updatedUser.lunchTimes = [
-        { id: 0, dayOfWeek: DayOfWeek.MONDAY, time: mondayLunchTime },
-        { id: 0, dayOfWeek: DayOfWeek.TUESDAY, time: tuesdayLunchTime },
-        { id: 0, dayOfWeek: DayOfWeek.WEDNESDAY, time: wednesdayLunchTime },
-        { id: 0, dayOfWeek: DayOfWeek.THURSDAY, time: thursdayLunchTime },
-        { id: 0, dayOfWeek: DayOfWeek.FRIDAY, time: fridayLunchTime },
-      ];
-    }
-
-    if (user) {
+    if (!user) {
       try {
-        const savedUser = await updateUser(updatedUser);
-        setUsers(
-          users.map((user) => (user.id === savedUser.id ? savedUser : user))
+        const invitedUser = await sendInvitation(
+          firstName,
+          lastName,
+          email,
+          parseInt(role)
         );
+        setUsers(users.concat(invitedUser));
+        setSnackbarMsg("Invitation sent");
         onClose();
       } catch (error) {
         const axiosError = error as AxiosError;
         setSnackbarErrorMsg(
           "Error updating user: " +
-          (axiosError.response?.data?.toString() ?? axiosError.response?.statusText ?? "Unknown server error")
+            (axiosError.response?.data?.toString() ??
+              axiosError.response?.statusText ??
+              "Unknown server error")
         );
       }
-    } else {
-      try {
-        const savedUser = await createUser(updatedUser);
-        setUsers(users.concat(savedUser));
-        onClose();
-      } catch (error) {
-        const axiosError = error as AxiosError;
-        setSnackbarErrorMsg(
-          "Error creating user: " +
-          (axiosError.response?.data?.toString() ?? axiosError.response?.statusText ?? "Unknown server error")
-        );
-      }
+
+      return;
+    }
+
+    const updatedUser: User = {
+      ...(user ?? NULL_USER),
+      userName: user.userName,
+      name: "",
+      firstName,
+      lastName,
+      pwd: "",
+      role: parseInt(role),
+      description: "",
+    };
+
+    try {
+      const savedUser = await updateUser(updatedUser);
+      setUsers(
+        users.map((user) => (user.id === savedUser.id ? savedUser : user))
+      );
+      setSnackbarErrorMsg("User updated");
+      onClose();
+    } catch (error) {
+      const axiosError = error as AxiosError;
+      setSnackbarErrorMsg(
+        "Error updating user: " +
+          (axiosError.response?.data?.toString() ??
+            axiosError.response?.statusText ??
+            "Unknown server error")
+      );
     }
   };
 
   const roleNames = ["System Admin.", "Teacher", "Parent", "Cafeteria"];
 
-  const availRoles: Role[] = !user
-    ? [Role.PARENT, Role.TEACHER, Role.CAFETERIA, Role.ADMIN]
-    : [];
-  if (role === Role.PARENT.toString()) {
-    availRoles.push(Role.PARENT);
-  }
-  if (role === Role.TEACHER.toString()) {
-    availRoles.push(Role.TEACHER);
-  }
-  if (role === Role.ADMIN.toString() || role === Role.CAFETERIA.toString()) {
-    availRoles.push(Role.CAFETERIA);
-    availRoles.push(Role.ADMIN);
+  const availRoles: Role[] = [
+    Role.PARENT,
+    Role.TEACHER,
+    Role.CAFETERIA,
+    Role.ADMIN,
+  ];
+  let okButtonLabel = "Save";
+  if (!user) {
+    okButtonLabel = "Email Invitation";
   }
 
   return (
@@ -179,35 +121,24 @@ const EditUserDialog: React.FC<DialogProps> = ({ user, onClose }) => {
       aria-labelledby="alert-dialog-title"
       aria-describedby="alert-dialog-description"
     >
-      <DialogTitle>{!user ? "New User" : "Edit User"}</DialogTitle>
+      <DialogTitle>{!user ? "New User" : "Edit User: " + user.userName}</DialogTitle>
       <DialogContent>
         <Box
           sx={{
             pt: 1,
             display: "grid",
-            gridTemplateColumns: "1fr 1fr auto",
+            gridTemplateColumns: "1fr 1fr",
             gap: 2,
           }}
         >
           <TextField
             fullWidth
-            required
-            disabled={user ? true : false}
-            label="Username"
+            required={true}
+            label="Email"
             variant="standard"
-            value={userName}
+            value={email}
             onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
-              setUserName(event.target.value)
-            }
-          />
-          <TextField
-            fullWidth
-            required={parseInt(role) === Role.TEACHER}
-            label="First & Last Name"
-            variant="standard"
-            value={fullName}
-            onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
-              setFullName(event.target.value)
+              setEmail(event.target.value)
             }
           />
           <FormControl fullWidth>
@@ -222,7 +153,7 @@ const EditUserDialog: React.FC<DialogProps> = ({ user, onClose }) => {
                 user?.role === Role.TEACHER || user?.role === Role.PARENT
               }
               onChange={(event: SelectChangeEvent) =>
-                setRole(event.target.value)
+                handleRoleChanged(event.target.value)
               }
             >
               {availRoles.map((ar) => (
@@ -232,110 +163,27 @@ const EditUserDialog: React.FC<DialogProps> = ({ user, onClose }) => {
               ))}
             </Select>
           </FormControl>
-          {!user ? (
-            <>
-              <TextField
-                fullWidth
-                required
-                type="Password"
-                label="Password"
-                variant="standard"
-                value={pwd}
-                onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
-                  setPwd(event.target.value)
-                }
-              />
-              <TextField
-                fullWidth
-                required
-                type="Password"
-                label="Confirm Password"
-                variant="standard"
-                value={confirmationPwd}
-                onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
-                  setConfirmationPwd(event.target.value)
-                }
-              />
-              <Box></Box>
-            </>
-          ) : (
-            <></>
-          )}
-          {role === Role.TEACHER.toString() ? (
-            <>
-              <Box sx={{ gridColumn: "span 3" }}>
-                <TextField
-                  fullWidth
-                  label="Classroom Name"
-                  variant="standard"
-                  value={description}
-                  onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
-                    setDescription(event.target.value)
-                  }
-                />
-              </Box>
 
-              <Box sx={{ gridColumn: "span 3" }}>
-                <Typography mb={1}>Lunch Times</Typography>
-                <Box
-                  sx={{
-                    display: "flex",
-                    flexDirection: "row",
-                    flexWrap: "wrap",
-                    gap: 1,
-                  }}
-                >
-                  <TimeSelector
-                    label="Monday"
-                    time={mondayLunchTime}
-                    availTimes={lunchTimes
-                      .filter((lt) => lt.dayOfWeek === DayOfWeek.MONDAY)
-                      .map((lt) => lt.time)}
-                    onTimeChanged={setMondayLunchTime}
-                    wrapInFormControl={true}
-                  />
-                  <TimeSelector
-                    label="Tuesday"
-                    time={tuesdayLunchTime}
-                    availTimes={lunchTimes
-                      .filter((lt) => lt.dayOfWeek === DayOfWeek.TUESDAY)
-                      .map((lt) => lt.time)}
-                    onTimeChanged={setTuesdayLunchTime}
-                    wrapInFormControl={true}
-                  />
-                  <TimeSelector
-                    label="Wednesday"
-                    time={wednesdayLunchTime}
-                    availTimes={lunchTimes
-                      .filter((lt) => lt.dayOfWeek === DayOfWeek.WEDNESDAY)
-                      .map((lt) => lt.time)}
-                    onTimeChanged={setWednesdayLunchTime}
-                    wrapInFormControl={true}
-                  />
-                  <TimeSelector
-                    label="Thursday"
-                    time={thursdayLunchTime}
-                    availTimes={lunchTimes
-                      .filter((lt) => lt.dayOfWeek === DayOfWeek.THURSDAY)
-                      .map((lt) => lt.time)}
-                    onTimeChanged={setThursdayLunchTime}
-                    wrapInFormControl={true}
-                  />
-                  <TimeSelector
-                    label="Friday"
-                    time={fridayLunchTime}
-                    availTimes={lunchTimes
-                      .filter((lt) => lt.dayOfWeek === DayOfWeek.FRIDAY)
-                      .map((lt) => lt.time)}
-                    onTimeChanged={setFridayLunchTime}
-                    wrapInFormControl={true}
-                  />
-                </Box>
-              </Box>
-            </>
-          ) : (
-            <></>
-          )}
+          <TextField
+            fullWidth
+            required={true}
+            label="First Name"
+            variant="standard"
+            value={firstName}
+            onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
+              setFirstName(event.target.value)
+            }
+          />
+          <TextField
+            fullWidth
+            required={true}
+            label="Last Name"
+            variant="standard"
+            value={lastName}
+            onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
+              setLastName(event.target.value)
+            }
+          />
         </Box>
       </DialogContent>
       <DialogActions>
@@ -347,7 +195,7 @@ const EditUserDialog: React.FC<DialogProps> = ({ user, onClose }) => {
           onClick={() => handleSaveUser()}
           disabled={isSaveDisabled}
         >
-          Save
+          {okButtonLabel}
         </Button>
       </DialogActions>
     </Dialog>

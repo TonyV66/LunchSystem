@@ -1,8 +1,16 @@
-import { Column, Entity, ManyToOne, OneToMany, PrimaryGeneratedColumn } from "typeorm";
+import {
+  Column,
+  Entity,
+  ManyToMany,
+  ManyToOne,
+  OneToMany,
+  PrimaryGeneratedColumn,
+} from "typeorm";
 import MealEntity from "./MealEntity";
-import UserEntity from "./UserEntity";
-import Student from "../models/Student";
 import StudentLunchTimeEntity from "./StudentLunchTimeEntity";
+import { GradeLevel } from "../models/GradeLevel";
+import SchoolEntity from "./SchoolEntity";
+import SchoolYearEntity from "./SchoolYearEntity";
 
 @Entity("student")
 export default class StudentEntity {
@@ -12,10 +20,17 @@ export default class StudentEntity {
   studentId: string;
   @Column()
   name: string;
+  @Column({ type: "enum", enum: GradeLevel, default: "" })
+  grade: GradeLevel | null;
   @OneToMany(() => MealEntity, (meal) => meal.student)
   meals: MealEntity[];
+
   @OneToMany(() => StudentLunchTimeEntity, (lunchTime) => lunchTime.student)
   lunchTimes: StudentLunchTimeEntity[];
-  @ManyToOne(() => UserEntity, (parent) => parent.children)
-  parent: UserEntity;
+
+  @ManyToMany(() => SchoolYearEntity, (schoolYear) => schoolYear.students)
+  schoolYears: SchoolYearEntity[];
+
+  @ManyToOne(() => SchoolEntity, (school) => school.students)
+  school: SchoolEntity;
 }

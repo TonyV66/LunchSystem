@@ -9,7 +9,6 @@ export enum DayOfWeek {
 }
 
 export default interface DailyLunchTime {
-  id: number;
   dayOfWeek: number;
   time: string;
 }

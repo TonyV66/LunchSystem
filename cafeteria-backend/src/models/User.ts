@@ -12,8 +12,13 @@ export default class User {
   userName: string;
   pwd: string;
   name: string;
+  firstName: string;
+  lastName: string;
+  email: string;
   description: string;
   role: Role;
   notificationReviewDate: Date;
-  lunchTimes: DailyLunchTime[];
+  resetPwd: boolean;
+  forgotPwdUri: string | null;
+  forgotPwdDate: Date;
 }

@@ -4,7 +4,7 @@ import UserEntity from "./UserEntity";
 import SchoolYearEntity from "./SchoolYearEntity";
 
 @Entity("teacher_lunch_time")
-export default class TeacherLunchTimeEntity {
+export default class _TeacherLunchTimeEntity {
   @PrimaryGeneratedColumn()
   id: number;
   @Column({ type: "enum", enum: DayOfWeek })
@@ -17,6 +17,7 @@ export default class TeacherLunchTimeEntity {
     (schoolYear) => schoolYear.teacherLunchTimes
   )
   schoolYear: SchoolYearEntity;
+
   @ManyToOne(() => UserEntity, (teacher) => teacher.lunchTimes, {
     onDelete: "CASCADE",
     orphanedRowAction: "delete",

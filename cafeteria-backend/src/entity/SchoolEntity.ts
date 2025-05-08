@@ -5,6 +5,7 @@ import MenuEntity, { DailyMenuEntity, PantryItemEntity } from "./MenuEntity";
 import School from "../models/School";
 import SchoolYearEntity from "./SchoolYearEntity";
 import { DecimalTransformer } from "./DecimalTransformer";
+import StudentEntity from "./StudentEntity";
 
 @Entity("school")
 export default class SchoolEntity extends School {
@@ -52,6 +53,8 @@ export default class SchoolEntity extends School {
   squareLocationId: string;
   @OneToMany(() => UserEntity, (user) => user.school)
   users: UserEntity[];
+  @OneToMany(() => StudentEntity, (student) => student.school)
+  students: StudentEntity[];
   @OneToMany(() => NotificationEntity, (notification) => notification.school)
   notifications: NotificationEntity[];
   @OneToMany(() => PantryItemEntity, (pantryItem) => pantryItem.school)

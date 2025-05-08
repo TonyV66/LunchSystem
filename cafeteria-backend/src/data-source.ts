@@ -14,7 +14,7 @@ import UserEntity from "./entity/UserEntity";
 import NotificationEntity from "./entity/NotificationEntity";
 import SchoolEntity from "./entity/SchoolEntity";
 import SchoolYearEntity from "./entity/SchoolYearEntity";
-import SchoolLunchTimeEntity from "./entity/SchoolLunchTimeEntity";
+import SchoolYearLunchTimeEntity from "./entity/SchoolYearLunchTimeEntity";
 import TeacherLunchTimeEntity from "./entity/TeacherLunchTimeEntity";
 import StudentLunchTimeEntity from "./entity/StudentLunchTimeEntity";
 
@@ -41,7 +41,7 @@ export const AppDataSource = new DataSource({
     NotificationEntity,
     SchoolEntity,
     SchoolYearEntity,
-    SchoolLunchTimeEntity,
+    SchoolYearLunchTimeEntity,
     TeacherLunchTimeEntity,
     StudentLunchTimeEntity,
   ],

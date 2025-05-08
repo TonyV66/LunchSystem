@@ -1,4 +1,4 @@
-import { LoginResponse } from "../components/LoginPanel";
+import { LoginResponse } from "../components/users/LoginPanel";
 import Menu, { DailyMenu, PantryItem } from "../models/Menu";
 import { Order } from "../models/Order";
 import { Notification } from "../models/Notification";
@@ -9,41 +9,71 @@ import { ShoppingCart } from "../models/ShoppingCart";
 import User from "../models/User";
 import Student from "../models/Student";
 import { StudentLunchTime } from "../models/StudentLunchTime";
+import { CreditCard } from "../models/CreditCard";
+import { GiftCard } from "../models/GiftCard";
 
 const API_BASE_URL = "/api";
 
 export const http = axios.create();
 
+interface SavedCards {
+  creditCards: CreditCard[];
+  giftCards: GiftCard[];
+}
+
 export const fetchSessionInfo = async () => {
-    const response = await http.get(API_BASE_URL + "/session");
-    const sessionInfo: SessionInfo = response.data;
-    return sessionInfo;
+  const response = await http.get(API_BASE_URL + "/session");
+  const sessionInfo: SessionInfo = response.data;
+  return sessionInfo;
 };
 
-export const register = async (username: string, password: string) => {
-  try {
-    await http.post(
-      API_BASE_URL + "/register",
-      null,
-      getRequestConfig({ username, password })
-    );
-    return true;
-  } catch {
-    return false;
-  }
+export const getInvitation = async (invitationId: string) => {
+  const response: AxiosResponse<{ user: User | null; students: Student[] }> =
+    await http.get(API_BASE_URL + "/user/invite/" + invitationId);
+  return response.data;
+};
+
+export const acceptInvitation = async (invitationId: string) => {
+  const response: AxiosResponse<Student[]> = await http.put(
+    API_BASE_URL + "/user/accept/" + invitationId
+  );
+  return response.data;
+};
+
+export const sendInvitation = async (
+  firstName: string,
+  lastName: string,
+  email: string,
+  role: number
+) => {
+  const response: AxiosResponse<User> = await http.post(
+    API_BASE_URL + "/user/invite",
+    { firstName, lastName, email, role }
+  );
+  return response.data;
+};
+
+export const register = async (
+  invitationId: string,
+  username: string,
+  firstName: string,
+  lastName: string,
+  pwd: string,
+  email: string
+) => {
+  const response: AxiosResponse<LoginResponse> = await http.post(
+    API_BASE_URL + "/user/register/" + invitationId,
+    { username, firstName, lastName, pwd, email }
+  );
+  return response.data;
 };
 
 export const forgotPassword = async (username: string) => {
-  try {
-    await http.post(
-      API_BASE_URL + "/forgotpassword",
-      null,
-      getRequestConfig({ username })
-    );
-    return true;
-  } catch {
-    return false;
-  }
+  await http.post(API_BASE_URL + "/login/forgot/pwd", { username });
+};
+
+export const forgotUserName = async (email: string) => {
+  await http.post(API_BASE_URL + "/login/forgot/username", { email });
 };
 
 export const resetPassword = async (
@@ -65,12 +95,21 @@ export const resetPassword = async (
 
 export const changePassword = async (
   oldPassword: string,
-  newPassword: string,
+  newPassword: string
 ) => {
-  await http.put(
-    API_BASE_URL + "/login/pwd",
-    {oldPassword, newPassword}
-  );
+  await http.put(API_BASE_URL + "/login/pwd", { oldPassword, newPassword });
+};
+
+export const changeForgottenPassword = async (
+  forgottenPwdId: string,
+  userName: string,
+  pwd: string
+) => {
+  await http.put(API_BASE_URL + "/login/forgottenpwd", {
+    forgottenPwdId,
+    userName,
+    pwd,
+  });
 };
 
 const getRequestConfig = (params: object) => {
@@ -93,14 +132,22 @@ export const createMenu = async (menu: Menu) => {
   return response.data;
 };
 
+export const getSavedCards = async () => {
+  const response: AxiosResponse<SavedCards> = await http.get(
+    API_BASE_URL + "/user/cards"
+  );
+  return response.data;
+};
+
 export const checkout = async (
-  paymentToken: string,
+  cardId: string,
   shoppingCart: ShoppingCart,
-  latestLunchSchedule: StudentLunchTime[]
+  latestLunchSchedule: StudentLunchTime[],
+  saveCard: boolean
 ) => {
   const response: AxiosResponse<Order> = await http.post(
     API_BASE_URL + "/order",
-    { paymentToken, shoppingCart, latestLunchSchedule }
+    { cardId, shoppingCart, latestLunchSchedule, saveCard }
   );
   return response.data;
 };
