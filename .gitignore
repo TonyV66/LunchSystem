@@ -133,3 +133,4 @@ dist
 .yarn/build-state.yml
 .yarn/install-state.gz
 .pnp.*
+cafeteria-frontend/.DS_Store
