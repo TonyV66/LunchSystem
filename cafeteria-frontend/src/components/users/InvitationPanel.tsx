@@ -15,13 +15,15 @@ export interface LoginResponse extends SessionInfo {
 }
 
 const InvitationPanel: React.FC = () => {
-  const { user, setStudents, students, setSnackbarErrorMsg } =
+  const { user, students, setStudents, setSnackbarErrorMsg } =
     useContext(AppContext);
   const { inviteId } = useParams();
   const [invitation, setInvitation] = useState<{
     user: User | null;
     students: Student[];
   }>();
+
+  const siblings = students.filter(s => s.parents.includes(user.id))
 
   const navigate = useNavigate();
 
@@ -66,7 +68,7 @@ const InvitationPanel: React.FC = () => {
     if (user.id) {
       const newStudents = invitation.students.filter(
         (invitedStudent) =>
-          !students.find((student) => {
+          !siblings.find((student) => {
             if (invitedStudent.studentId.length && student.studentId.length) {
               return invitedStudent.studentId === student.studentId;
             } else {

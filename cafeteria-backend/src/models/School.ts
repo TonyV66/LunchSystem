@@ -1,47 +1,31 @@
-import { Column, PrimaryGeneratedColumn } from "typeorm";
-import { DecimalTransformer } from "../entity/DecimalTransformer";
+import SchoolEntity from "../entity/SchoolEntity";
 
 export default class School {
-  @PrimaryGeneratedColumn()
-  id: number;
-  @Column()
-  name: string;
-  @Column()
   orderStartPeriodCount: number;
-  @Column()
   orderStartPeriodType: number;
-  @Column()
   orderStartRelativeTo: number;
-  @Column()
   orderStartTime: string;
-  @Column()
   orderEndPeriodCount: number;
-  @Column()
   orderEndPeriodType: number;
-  @Column()
   orderEndRelativeTo: number;
-  @Column()
   orderEndTime: string;
-  @Column({
-    type: "decimal",
-    precision: 5,
-    scale: 2,
-    default: 0.0,
-    transformer: new DecimalTransformer(),
-  })
   mealPrice: number;
-  @Column({
-    type: "decimal",
-    precision: 5,
-    scale: 2,
-    default: 0.0,
-    transformer: new DecimalTransformer(),
-  })
   drinkOnlyPrice: number;
-  @Column()
   squareAppId: string;
-  @Column()
-  squareAppAccessToken: string;
-  @Column()
   squareLocationId: string;
+
+  constructor(entity: SchoolEntity) {
+    this.orderStartPeriodCount = entity.orderStartPeriodCount;
+    this.orderStartPeriodType = entity.orderStartPeriodType;
+    this.orderStartRelativeTo = entity.orderStartRelativeTo;
+    this.orderStartTime = entity.orderStartTime;
+    this.orderEndPeriodCount = entity.orderEndPeriodCount;
+    this.orderEndPeriodType = entity.orderEndPeriodType;
+    this.orderEndRelativeTo = entity.orderEndRelativeTo;
+    this.orderEndTime = entity.orderEndTime;
+    this.mealPrice = entity.mealPrice;
+    this.drinkOnlyPrice = entity.drinkOnlyPrice;
+    this.squareAppId = entity.squareAppId;
+    this.squareLocationId = entity.squareLocationId;
+  }
 }

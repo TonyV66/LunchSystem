@@ -4,16 +4,19 @@ import { AppContext } from "../../AppContextProvider";
 import { Order } from "../../models/Order";
 import Student from "../../models/Student";
 import MenuItemChip from "./MenuItemChip";
-import { grey } from "@mui/material/colors";
+import { grey, yellow } from "@mui/material/colors";
 import { DateTimeFormat, DateTimeUtils } from "../../DateTimeUtils";
 import { Delete } from "@mui/icons-material";
 import Meal from "../../models/Meal";
+import User from "../../models/User";
 
 interface StudentDailyOrdersProps {
   date: string;
   orders: Order[];
-  student: Student;
+  student?: Student;
+  staffMember?: User;
   hidePrice?: boolean;
+  highlightMealsNotOrderedByMe?: boolean;
   onDelete?: (meal: Meal) => void;
 }
 
@@ -21,7 +24,8 @@ const StudentMealDescription: React.FC<{
   meal: Meal;
   hidePrice?: boolean;
   onDelete?: (meal: Meal) => void;
-}> = ({ meal, onDelete, hidePrice }) => {
+  orderedBy?: string;
+}> = ({ meal, onDelete, hidePrice, orderedBy }) => {
   return (
     <>
       <Box
@@ -38,6 +42,7 @@ const StudentMealDescription: React.FC<{
           borderBottomWidth: "1px",
           borderBottomColor: grey[400],
           borderBottomStyle: "solid",
+          backgroundColor: orderedBy ? yellow[500] : undefined,
         }}
       >
         {meal.items
@@ -101,17 +106,46 @@ const StudentMealDescription: React.FC<{
   );
 };
 
-const StudentDailyOrders: React.FC<StudentDailyOrdersProps> = ({
+const getUserName = (user?: User): string => {
+  if (!user) {
+    return "Unknown";
+  } else if (user.firstName && user.lastName) {
+    return user.firstName + " " + user.lastName;
+  }
+  return user.userName;
+};
+
+const DailyOrdersForPerson: React.FC<StudentDailyOrdersProps> = ({
   orders,
   date,
   student,
+  staffMember,
   hidePrice,
   onDelete,
+  highlightMealsNotOrderedByMe,
 }) => {
+  const { user, users } = useContext(AppContext);
+
+  const mealsOrderedBySomeoneElse = new Map<number, string>();
+  orders
+    .filter((o) => o.userId !== user.id)
+    .forEach((o) =>
+      o.meals.forEach((m) =>
+        mealsOrderedBySomeoneElse.set(
+          m.id,
+          getUserName(users.find((u) => u.id === o.userId))
+        )
+      )
+    );
+
   const meals = orders
     .flatMap((order) => order.meals)
-    .filter((meal) => meal.date === date && meal.studentId === student.id);
+    .filter((meal) => meal.date === date && ((student && meal.studentId === student.id) || (staffMember && meal.staffMemberId === staffMember.id)));
 
+  let title = student?.name ?? "Unknown";
+  if (staffMember) {
+    title = getUserName(staffMember);
+  }
   return (
     <>
       <Box
@@ -129,11 +163,16 @@ const StudentDailyOrders: React.FC<StudentDailyOrdersProps> = ({
           justifyContent: "center",
         }}
       >
-        <Typography textAlign="left">{student.name}</Typography>
+        <Typography textAlign="left">{title}</Typography>
       </Box>
 
       {meals.map((meal) => (
         <StudentMealDescription
+          orderedBy={
+            highlightMealsNotOrderedByMe
+              ? mealsOrderedBySomeoneElse.get(meal.id)
+              : undefined
+          }
           key={meal.id}
           meal={meal}
           onDelete={onDelete}
@@ -149,7 +188,14 @@ interface DailyOrdersProps {
   hideDate?: boolean;
   hidePrice?: boolean;
   orders: Order[];
+  students?: Student[]
   onDelete?: (meal: Meal) => void;
+  highlightMealsNotOrderedByMe?: boolean;
+  includeMealsForStaff?: boolean;
+}
+interface Person {
+  student?: Student;
+  staffMember?: User;
 }
 
 const DailyOrders: React.FC<DailyOrdersProps> = ({
@@ -158,17 +204,38 @@ const DailyOrders: React.FC<DailyOrdersProps> = ({
   onDelete,
   hideDate,
   hidePrice,
+  highlightMealsNotOrderedByMe,
+  includeMealsForStaff,
+  students,
 }) => {
-  const { students } = useContext(AppContext);
+  const { users, students: allStudents } = useContext(AppContext);
 
   const uniqueStudents = new Set<Student>();
+  const uniqueStaffMembers = new Set<User>();
   const meals = orders
     .flatMap((order) => order.meals)
-    .filter((meal) => meal.date === date);
+    .filter(
+      (meal) => (includeMealsForStaff || meal.studentId) && meal.date === date
+    );
 
   meals
-    .map((meal) => students.find((student) => student.id === meal.studentId)!)
+    .filter(meal => meal.studentId)
+    .map((meal) => (students || allStudents).find((student) => student.id === meal.studentId)!)
     .forEach((student) => uniqueStudents.add(student));
+
+  meals
+    .filter(meal => meal.staffMemberId)
+    .map((meal) => users.find((user) => user.id === meal.staffMemberId)!)
+    .forEach((user) => uniqueStaffMembers.add(user));
+
+  const uniquePersons: Person[] = [
+    ...Array.from(uniqueStudents).map(student => ({ student, staffMember: undefined })),
+    ...Array.from(uniqueStaffMembers).map(staffMember => ({ student: undefined, staffMember }))
+  ].sort((a, b) => {
+    const nameA = a.student?.name ?? (a.staffMember?.firstName + " " + a.staffMember?.lastName).trim();
+    const nameB = b.student?.name ?? (b.staffMember?.firstName + " " + b.staffMember?.lastName).trim();
+    return nameA.toLowerCase().localeCompare(nameB.toLowerCase());
+  });
 
   return (
     <>
@@ -199,20 +266,18 @@ const DailyOrders: React.FC<DailyOrdersProps> = ({
         <></>
       )}
 
-      {Array.from(uniqueStudents)
-        .sort((s1, s2) => {
-          return s1.name.toLowerCase().localeCompare(s2.name.toLowerCase());
-        })
-        .map((student) => (
-          <StudentDailyOrders
-            key={student.id}
-            orders={orders}
-            date={date}
-            student={student}
-            hidePrice={hidePrice}
-            onDelete={onDelete}
-          ></StudentDailyOrders>
-        ))}
+      {uniquePersons.map((person) => (
+        <DailyOrdersForPerson
+          key={person.student ? "s" + person.student.id : "m" + person.staffMember!.id}
+          orders={orders}
+          date={date}
+          student={person.student}
+          staffMember={person.staffMember}
+          hidePrice={hidePrice}
+          onDelete={onDelete}
+          highlightMealsNotOrderedByMe={highlightMealsNotOrderedByMe}
+        ></DailyOrdersForPerson>
+      ))}
     </>
   );
 };
@@ -224,7 +289,10 @@ interface OrdersTableProps {
   hidePrice?: boolean;
   hideDate?: boolean;
   hideTitlebar?: boolean;
+  students?: Student[]
   onDelete?: (meal: Meal) => void;
+  highlightMealsNotOrderedByMe?: boolean;
+  includeMealsForStaff?: boolean;
 }
 
 const OrderedMealsTable: React.FC<OrdersTableProps> = ({
@@ -235,6 +303,9 @@ const OrderedMealsTable: React.FC<OrdersTableProps> = ({
   hideDate,
   hidePrice,
   hideTitlebar,
+  highlightMealsNotOrderedByMe,
+  includeMealsForStaff,
+  students,
 }) => {
   const dates = new Set<string>();
   orders
@@ -298,7 +369,7 @@ const OrderedMealsTable: React.FC<OrdersTableProps> = ({
             p: 1,
           }}
         >
-          <Typography fontWeight="bold">Student Name</Typography>
+          <Typography fontWeight="bold">Name</Typography>
         </Box>
       ) : (
         <></>
@@ -338,7 +409,7 @@ const OrderedMealsTable: React.FC<OrdersTableProps> = ({
       ) : (
         <></>
       )}
-      {onDelete&& !hideTitlebar ? (
+      {onDelete && !hideTitlebar ? (
         <Box
           sx={{
             borderBottomWidth: "1px",
@@ -368,11 +439,14 @@ const OrderedMealsTable: React.FC<OrdersTableProps> = ({
           .map((date) => (
             <DailyOrders
               key={date}
+              students={students}
               orders={orders}
               date={date}
               onDelete={onDelete}
               hideDate={hideDate}
               hidePrice={hidePrice}
+              highlightMealsNotOrderedByMe={highlightMealsNotOrderedByMe}
+              includeMealsForStaff={includeMealsForStaff}
             ></DailyOrders>
           ))
       )}

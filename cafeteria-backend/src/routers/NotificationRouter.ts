@@ -45,7 +45,7 @@ NotificationRouter.post<Empty, Notification, Notification, Empty>(
     const savedItem = await notificationRepository.save(
       newItem as NotificationEntity
     );
-    res.send(savedItem as Notification);
+    res.send(new Notification(savedItem));
   }
 );
 

@@ -2,7 +2,7 @@ import express, { Router } from "express";
 import { DeepPartial } from "typeorm";
 import { DailyMenuEntity } from "../entity/MenuEntity";
 import { DailyMenu } from "../models/Menu";
-import { buildDailyMenuDto, getCurrentSchoolYear } from "./RouterUtils";
+import { getCurrentSchoolYear } from "./RouterUtils";
 import { AppDataSource } from "../data-source";
 
 interface UpdateDailyMenuAvailRequest {
@@ -27,8 +27,7 @@ DailyMenuRouter.put<Empty, DailyMenu, DailyMenu, Empty>("/", async (req, res) =>
   };
 
   const savedMenu = await dailyMenuRespository.save(menu);
-  const menuDto = buildDailyMenuDto(savedMenu);
-  res.send(menuDto);
+  res.send(new DailyMenu(savedMenu));
 });
 
 DailyMenuRouter.post<Empty, DailyMenu, DailyMenu, Empty>("/", async (req, res) => {
@@ -46,9 +45,8 @@ DailyMenuRouter.post<Empty, DailyMenu, DailyMenu, Empty>("/", async (req, res) =
     schoolYear: schoolYear,
   };
   const savedMenu = await dailyMenuRespository.save(menu);
-  const menuDto = buildDailyMenuDto(savedMenu);
 
-  res.send(menuDto);
+  res.send(new DailyMenu(savedMenu));
 });
 
 DailyMenuRouter.put<Empty, Empty, UpdateDailyMenuAvailRequest, Empty>(

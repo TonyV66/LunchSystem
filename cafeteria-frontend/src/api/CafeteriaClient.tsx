@@ -11,6 +11,10 @@ import Student from "../models/Student";
 import { StudentLunchTime } from "../models/StudentLunchTime";
 import { CreditCard } from "../models/CreditCard";
 import { GiftCard } from "../models/GiftCard";
+import SchoolYear from "../models/SchoolYear";
+import DailyLunchTimes from "../models/DailyLunchTimes";
+import { GradeLevel } from "../models/GradeLevel";
+import GradeLunchTime from "../models/GradeLunchTime";
 
 const API_BASE_URL = "/api";
 
@@ -30,6 +34,24 @@ export const fetchSessionInfo = async () => {
 export const getInvitation = async (invitationId: string) => {
   const response: AxiosResponse<{ user: User | null; students: Student[] }> =
     await http.get(API_BASE_URL + "/user/invite/" + invitationId);
+  return response.data;
+};
+
+export const saveSchoolYearLunchTimes = async (schoolYearId: string, dailyLunchTimes: DailyLunchTimes) => {
+  const response: AxiosResponse<DailyLunchTimes[]> =
+    await http.post(API_BASE_URL + "/schoolyear/" + schoolYearId + "/times", [dailyLunchTimes]);
+  return response.data;
+};
+
+export const saveGradeLunchTimes = async (schoolYearId: number, grade: GradeLevel, dailyLunchTimes: DailyLunchTimes[]) => {
+  const response: AxiosResponse<GradeLunchTime[]> =
+    await http.post(API_BASE_URL + "/schoolyear/" + schoolYearId + "/grade/" + grade + "/times", dailyLunchTimes);
+  return response.data;
+};
+
+export const saveTeacherLunchTimes = async (schoolYearId: string, teacherId: number, dailyLunchTimes: DailyLunchTimes[]) => {
+  const response: AxiosResponse<DailyLunchTimes[]> =
+    await http.post(API_BASE_URL + "/schoolyear/" + schoolYearId + "/teacher/" + teacherId + "/times", dailyLunchTimes);
   return response.data;
 };
 
@@ -142,25 +164,31 @@ export const getSavedCards = async () => {
 export const checkout = async (
   cardId: string,
   shoppingCart: ShoppingCart,
-  latestLunchSchedule: StudentLunchTime[],
   saveCard: boolean
 ) => {
   const response: AxiosResponse<Order> = await http.post(
     API_BASE_URL + "/order",
-    { cardId, shoppingCart, latestLunchSchedule, saveCard }
+    { cardId, shoppingCart, saveCard }
   );
   return response.data;
 };
 
-export const createUser = async (user: User) => {
-  const response: AxiosResponse<User> = await http.post(
-    API_BASE_URL + "/user",
-    user
+export const donate = async (
+  shoppingCart: ShoppingCart,
+) => {
+  const response: AxiosResponse<Order> = await http.post(
+    API_BASE_URL + "/order/donate",
+    shoppingCart
   );
   return response.data;
 };
 
-export const createStudent = async (student: Student) => {
+
+export interface StudentWithLunchTimes extends Student {
+  lunchTimes?: StudentLunchTime[];
+}
+
+export const createStudent = async (student: StudentWithLunchTimes) => {
   const response: AxiosResponse<Student> = await http.post(
     API_BASE_URL + "/student",
     student
@@ -168,7 +196,7 @@ export const createStudent = async (student: Student) => {
   return response.data;
 };
 
-export const updateStudent = async (student: Student) => {
+export const updateStudent = async (student: StudentWithLunchTimes) => {
   const response: AxiosResponse<Student> = await http.put(
     API_BASE_URL + "/student",
     student
@@ -207,10 +235,18 @@ export const updateNotificationReviewDate = async () => {
   return response.data;
 };
 
-export const updateSchoolSettings = async (schoolSettings: School) => {
+export const updateSchoolOrderTimes = async (school: School) => {
   const response: AxiosResponse<Notification> = await http.put(
-    API_BASE_URL + "/schoolsettings",
-    schoolSettings
+    API_BASE_URL + "/school/ordertimes",
+    school
+  );
+  return response.data;
+};
+
+export const updateSchoolPrices = async (school: School) => {
+  const response: AxiosResponse<Notification> = await http.put(
+    API_BASE_URL + "/school/prices",
+    school
   );
   return response.data;
 };
@@ -281,4 +317,40 @@ export const login = async (username: string, pwd: string) => {
     pwd,
   });
   return response.data as LoginResponse;
+};
+
+export const createSchoolYear = async (schoolYear: SchoolYear) => {
+  const response = await http.post(API_BASE_URL + "/schoolyear", schoolYear);
+  return response.data;
+};
+
+export const updateSchoolYear = async (schoolYear: SchoolYear) => {
+  const response: AxiosResponse<SchoolYear> = await http.put(
+    API_BASE_URL + "/schoolyear",
+    schoolYear
+  );
+  return response.data;
+};
+
+export const updateGradeLevelConfig = async (schoolYearId: number, gradesAssignedByClass: GradeLevel[]) => {
+  const response: AxiosResponse<SchoolYear> = await http.put(
+    `${API_BASE_URL}/schoolyear/${schoolYearId.toString()}/gradeconfig`,
+    gradesAssignedByClass
+  );
+  return response.data;
+};
+
+export const toggleSchoolYearCurrent = async (schoolYearId: number) => {
+  const response: AxiosResponse<SessionInfo> = await http.put(
+    `${API_BASE_URL}/schoolyear/${schoolYearId}/toggle-current`,
+    {}
+  );
+  return response.data;
+};
+
+export const getStudentsForUser = async (userId: number): Promise<Student[]> => {
+  const response: AxiosResponse<Student[]> = await http.get(
+    `${API_BASE_URL}/user/${userId}/students`
+  );
+  return response.data;
 };

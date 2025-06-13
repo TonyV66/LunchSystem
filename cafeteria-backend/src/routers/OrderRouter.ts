@@ -1,33 +1,26 @@
 import express, { Router } from "express";
 import { AppDataSource } from "../data-source";
 import { DeepPartial, In } from "typeorm";
-import StudentEntity from "../entity/StudentEntity";
 import { Client, Environment } from "square";
 import { randomUUID } from "crypto";
 import { DateTimeUtils } from "../DateTimeUtils";
 import { DailyMenuEntity } from "../entity/MenuEntity";
 import { OrderEntity } from "../entity/OrderEntity";
-import StudentLunchTimeEntity from "../entity/StudentLunchTimeEntity";
-import { DayOfWeek } from "../models/DailyLunchTime";
-import { getCurrentSchoolYear, buildOrderDto } from "./RouterUtils";
+import { getCurrentSchoolYear } from "./RouterUtils";
 import { PantryItem, PantryItemType } from "../models/Menu";
 import { Order } from "../models/Order";
 import { ShoppingCart, ShoppingCartItem } from "../models/ShoppingCart";
-import StudentLunchTime from "../models/StudentLunchTime";
-import UserEntity from "../entity/UserEntity";
-import CreditCard from "../models/CreditCard";
 
 interface CheckoutRequest {
   isGiftCard: boolean;
   cardId: string;
-  latestLunchSchedule: StudentLunchTime[];
   shoppingCart: ShoppingCart;
   saveCard?: boolean;
 }
 
 const buildMealItems = (
   shoppingCartItem: ShoppingCartItem,
-  dailyMenu: DailyMenuEntity
+  dailyMenu: DailyMenuEntity,
 ) => {
   let entrees: PantryItem[] = [];
   let sides: PantryItem[] = [];
@@ -104,12 +97,7 @@ OrderRouter.post<Empty, Order | string, CheckoutRequest, Empty>(
   "/",
   async (req, res) => {
     const dailyMenuRespository = AppDataSource.getRepository(DailyMenuEntity);
-    const studentRepository = AppDataSource.getRepository(StudentEntity);
     const orderRepository = AppDataSource.getRepository(OrderEntity);
-    const userRepository = AppDataSource.getRepository(UserEntity);
-    const studentLunchTimeRepository = AppDataSource.getRepository(
-      StudentLunchTimeEntity
-    );
 
     const dailyMenuIds = new Set(
       req.body.shoppingCart.items.map((item) => item.dailyMenuId)
@@ -125,34 +113,23 @@ OrderRouter.post<Empty, Order | string, CheckoutRequest, Empty>(
     });
 
     const schoolYear = getCurrentSchoolYear(req.user.school)!;
-    const studentIds = new Set(req.body.shoppingCart.items.map((item) => item.studentId));
 
-    for (const studentId of studentIds) {
-      const currentLunchTimes = await studentLunchTimeRepository.find({
-        where: {
-          schoolYear,
-          student: { id: studentId },
-        },
-      });
-      const revisedLunchTimes = req.body.latestLunchSchedule.filter(lt => lt.studentId === studentId)
-      for (const revisedLunchTime of revisedLunchTimes) {
-        const currentLunchTime = currentLunchTimes.find(clt => clt.dayOfWeek === revisedLunchTime.dayOfWeek);
-        if (!currentLunchTime) {
-          await studentLunchTimeRepository.save(revisedLunchTime);
-        } else {
-          await studentLunchTimeRepository.save({...currentLunchTime, dayOfWeek: revisedLunchTime.dayOfWeek});
-        }
-      }
-    }
 
     const meals = req.body.shoppingCart.items.map((shoppingCartItem, index) => {
       const dailyMenu = dailyMenus.find(
         (sm) => sm.id === shoppingCartItem.dailyMenuId
       )!;
-
+      const diner = shoppingCartItem.studentId
+        ? { student: { id: shoppingCartItem.studentId } }
+        : { staffMember: { id: req.user.id } };
       return {
+        ...diner,
         date: dailyMenu.date,
-        student: { id: shoppingCartItem.studentId },
+        time: shoppingCartItem.studentId
+          ? ""
+          : req.body.shoppingCart.mealTimes?.find(
+              (mt) => mt.date == dailyMenu.date
+            )?.time ?? "",
         items: buildMealItems(shoppingCartItem, dailyMenu).map((item) => ({
           ...item,
           id: undefined,
@@ -251,11 +228,73 @@ OrderRouter.post<Empty, Order | string, CheckoutRequest, Empty>(
     orderEntity.user = req.user;
 
     const savedOrder = await orderRepository.save(orderEntity);
+    savedOrder.user = req.user;
 
-    const orderDto = buildOrderDto(savedOrder);
-
-    res.send(orderDto);
+    res.send(new Order(savedOrder));
   }
 );
+
+OrderRouter.post<Empty, Order | string, ShoppingCart, Empty>(
+  "/donate",
+  async (req, res) => {
+    const dailyMenuRespository = AppDataSource.getRepository(DailyMenuEntity);
+    const orderRepository = AppDataSource.getRepository(OrderEntity);
+
+    const dailyMenuIds = new Set(
+      req.body.items.map((item) => item.dailyMenuId)
+    );
+
+    const dailyMenus = await dailyMenuRespository.find({
+      where: {
+        id: In(Array.from(dailyMenuIds)),
+      },
+      relations: {
+        items: true,
+      },
+    });
+
+    const schoolYear = getCurrentSchoolYear(req.user.school)!;
+
+    const meals = req.body.items.map((shoppingCartItem, index) => {
+      const dailyMenu = dailyMenus.find(
+        (sm) => sm.id === shoppingCartItem.dailyMenuId
+      )!;
+      const diner = { student: { id: shoppingCartItem.studentId } };
+      return {
+        ...diner,
+        date: dailyMenu.date,
+        time: "",
+        items: buildMealItems(shoppingCartItem, dailyMenu).map((item) => ({
+          ...item,
+          id: undefined,
+          price: 0,
+        })),
+      };
+    });
+
+    const orderEntity: DeepPartial<OrderEntity> = {
+      date: DateTimeUtils.toString(new Date()),
+      taxes: 0,
+      processingFee: 0,
+      otherFees: 0,
+      meals,
+      schoolYear: schoolYear,
+    };
+
+    let lastMealDate = dailyMenus[0].date;
+    dailyMenus.forEach(
+      (meal) =>
+        (lastMealDate = meal.date > lastMealDate ? meal.date : lastMealDate)
+    );
+    orderEntity.lastMealDate = lastMealDate;
+    orderEntity.user = req.user;
+
+    const savedOrder = await orderRepository.save(orderEntity);
+    savedOrder.user = req.user;
+
+    res.send(new Order(savedOrder));
+  }
+);
+
 
 export default OrderRouter;

@@ -61,7 +61,7 @@ const canShowDessertsAsSides = (menu: Menu) => {
 };
 
 const EditMenuDialog: React.FC<DialogProps> = ({ menu, onOk, onCancel }) => {
-  const { school: schoolSettings, setSnackbarErrorMsg } = useContext(AppContext);
+  const { school, setSnackbarErrorMsg } = useContext(AppContext);
   const newItemRef: MutableRefObject<HTMLInputElement | undefined> =
     React.useRef();
 
@@ -70,10 +70,10 @@ const EditMenuDialog: React.FC<DialogProps> = ({ menu, onOk, onCancel }) => {
   const [selectedTab, setSelectedTab] = useState(PantryItemType.ENTREE);
   const [isDirty, setIsDirty] = useState(false);
   const [price, setPrice] = useState(
-    menu?.price.toFixed(2) ?? schoolSettings.mealPrice.toFixed(2)
+    menu?.price.toFixed(2) ?? school.mealPrice.toFixed(2)
   );
   const [drinkOnlyPrice, setDrinkOnlyPrice] = useState(
-    menu?.drinkOnlyPrice.toFixed(2) ?? schoolSettings.drinkOnlyPrice.toFixed(2)
+    menu?.drinkOnlyPrice.toFixed(2) ?? school.drinkOnlyPrice.toFixed(2)
   );
 
   const [updatedMenu, setUpdatedMenu] = useState<Menu | DailyMenu>({
@@ -82,8 +82,8 @@ const EditMenuDialog: React.FC<DialogProps> = ({ menu, onOk, onCancel }) => {
     name: "",
     numSidesWithMeal: 0,
     items: menu?.items ?? [],
-    price: menu?.price ?? schoolSettings.mealPrice,
-    drinkOnlyPrice: menu?.drinkOnlyPrice ?? schoolSettings.drinkOnlyPrice,
+    price: menu?.price ?? school.mealPrice,
+    drinkOnlyPrice: menu?.drinkOnlyPrice ?? school.drinkOnlyPrice,
   });
   const [newMenuItem, setNewMenuItem] = useState("");
 

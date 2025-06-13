@@ -22,7 +22,7 @@ PantryRouter.post<Empty, PantryItem, PantryItem, Empty>(
     };
     const newItem = pantryRespository.create(item);
     const savedItem = await pantryRespository.save(newItem as PantryItemEntity);
-    res.send(savedItem as PantryItem);
+    res.send(new PantryItem(savedItem));
   }
 );
 

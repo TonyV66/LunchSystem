@@ -149,9 +149,6 @@ const EditUserDialog: React.FC<DialogProps> = ({ user, onClose }) => {
               id="userRoleSelector"
               value={role}
               label="Role"
-              disabled={
-                user?.role === Role.TEACHER || user?.role === Role.PARENT
-              }
               onChange={(event: SelectChangeEvent) =>
                 handleRoleChanged(event.target.value)
               }

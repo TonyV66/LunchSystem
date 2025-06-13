@@ -1,10 +1,15 @@
+export interface ShoppingCartMealTime {
+  date: string;
+  time: string;
+}
+
 export interface ShoppingCart {
-  items: ShoppingCartItem[]
+  mealTimes?: ShoppingCartMealTime[];
+  items: ShoppingCartItem[];
 }
 
 export interface ShoppingCartItem {
-  studentId: number;
-  teacherId: number;
+  studentId?: number;
   dailyMenuId: number;
   isDrinkOnly: boolean;
   selectedMenuItemIds: number[];

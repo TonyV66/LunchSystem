@@ -1,5 +1,4 @@
 export default interface School {
-  id: number;
   orderStartPeriodCount: number;
   orderStartPeriodType: number;
   orderStartRelativeTo: number;

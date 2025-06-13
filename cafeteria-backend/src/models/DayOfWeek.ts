@@ -6,10 +6,4 @@ export enum DayOfWeek {
   THURSDAY,
   FRIDAY,
   SATURDAY,
-}
-
-export default class DailyLunchTime {
-  id: number;
-  dayOfWeek: number;
-  time: string;
-}
+} 

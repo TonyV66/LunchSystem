@@ -15,9 +15,10 @@ import SchoolEntity from "./SchoolEntity";
 import TeacherLunchTimeEntity from "./TeacherLunchTimeEntity";
 import StudentLunchTimeEntity from "./StudentLunchTimeEntity";
 import SchoolYearEntity from "./SchoolYearEntity";
+import MealEntity from "./MealEntity";
 
 @Entity("user")
-export default class UserEntity extends User {
+export default class UserEntity {
   @PrimaryGeneratedColumn()
   id: number;
   @Column({default: ''})
@@ -49,13 +50,14 @@ export default class UserEntity extends User {
   forgotPwdUri: string | null;
   @Column({ nullable: true })
   forgotPwdDate: Date;
-
+  @OneToMany(() => MealEntity, (meal) => meal.staffMember)
+  meals: MealEntity[];
   @OneToMany(() => OrderEntity, (order) => order.user)
   orders: OrderEntity[];
 
-  @ManyToMany(() => StudentEntity)
+  @ManyToMany(() => StudentEntity, (student) => student.parents)
   @JoinTable({name: 'user_students'})
-  students: StudentEntity[];
+  students: StudentEntity[];  
 
   @ManyToMany(() => SchoolYearEntity, (schoolYear => schoolYear.parents))
   schoolYears: SchoolYearEntity[];

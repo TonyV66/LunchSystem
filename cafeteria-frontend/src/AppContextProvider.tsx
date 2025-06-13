@@ -18,13 +18,12 @@ import Student from "./models/Student";
 import { Notification } from "./models/Notification";
 import School from "./models/School";
 import { ShoppingCart } from "./models/ShoppingCart";
-import DailyLunchTime from "./models/DailyLunchTime";
-import { StudentLunchTime } from "./models/StudentLunchTime";
-import TeacherLunchTime from "./models/TeacherLunchTime";
-import SchoolYear from "./models/SchoolYear";
+import SchoolYear, { NO_SCHOOL_YEAR } from "./models/SchoolYear";
 
 export interface AppContextType extends SessionInfo {
   shoppingCart: ShoppingCart;
+  currentSchoolYear: SchoolYear;
+  setCurrentSchoolYear: (schoolYear: SchoolYear) => void;
   setShoppingCart: (shoppingCart: ShoppingCart) => void;
   setSnackbarMsg: (msg: string | undefined) => void;
   setSnackbarErrorMsg: (msg: string | undefined) => void;
@@ -40,13 +39,9 @@ export interface AppContextType extends SessionInfo {
   setPantryItems: (pantryItems: PantryItem[]) => void;
   setNotifications: (notifications: Notification[]) => void;
   setSchool: (school: School) => void;
-  setSchoolLunchTimes: (lunchTimes: DailyLunchTime[]) => void;
-  setStudentLunchTimes: (lunchTimes: StudentLunchTime[]) => void;
-  setTeacherLunchTimes: (lunchTimes: TeacherLunchTime[]) => void;
 }
 
 const DEFAULT_SYSTEM_DEFAULTS: School = {
-  id: 0,
   orderStartPeriodCount: 2,
   orderStartPeriodType: 0,
   orderStartRelativeTo: 0,
@@ -61,6 +56,7 @@ const DEFAULT_SYSTEM_DEFAULTS: School = {
   squareLocationId: "",
 };
 
+
 export const INITIAL_APP_CONTEXT: AppContextType = {
   shoppingCart: { items: [] },
   users: [],
@@ -73,9 +69,8 @@ export const INITIAL_APP_CONTEXT: AppContextType = {
   pantryItems: [],
   notifications: [],
   school: DEFAULT_SYSTEM_DEFAULTS,
-  schoolLunchTimes: [],
-  studentLunchTimes: [],
-  teacherLunchTimes: [],
+  currentSchoolYear: NO_SCHOOL_YEAR,
+  setCurrentSchoolYear: () => {},
   setShoppingCart: () => {},
   setStatusMsg: () => {},
   setSnackbarMsg: () => {},
@@ -91,9 +86,6 @@ export const INITIAL_APP_CONTEXT: AppContextType = {
   setPantryItems: () => {},
   setNotifications: () => {},
   setSchool: () => {},
-  setSchoolLunchTimes: () => {},
-  setStudentLunchTimes: () => {},
-  setTeacherLunchTimes: () => {},
 };
 
 export const AppContext = createContext<AppContextType>(INITIAL_APP_CONTEXT);
@@ -104,6 +96,18 @@ const AppContextProvider: React.FC<React.PropsWithChildren> = (props) => {
   const [menus, setMenus] = useState<Menu[]>([]);
   const [scheduledMenus, setScheduledMenus] = useState<DailyMenu[]>([]);
   const [schoolYears, setSchoolYears] = useState<SchoolYear[]>([]);
+  const [currentSchoolYear, setCurrentSchoolYear] = useState<SchoolYear>({
+    id: 0,
+    name: "",
+    startDate: "",
+    endDate: "",
+    isCurrent: false,
+    lunchTimes: [],
+    teacherLunchTimes: [],
+    gradeLunchTimes: [],
+    studentLunchTimes: [],
+    gradesAssignedByClass: [],
+  });
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [user, setUser] = useState<User>(NULL_USER);
   const [users, setUsers] = useState<User[]>([]);
@@ -117,9 +121,6 @@ const AppContextProvider: React.FC<React.PropsWithChildren> = (props) => {
   const [showGlassPane, setShowGlassPane] = useState<boolean>(false);
   const [isInitialized, setIsInitialized] = useState<boolean>(false);
   const [school, setSchool] = useState<School>(DEFAULT_SYSTEM_DEFAULTS);
-  const [schoolLunchTimes, setSchoolLunchTimes] = useState<DailyLunchTime[]>([]);
-  const [studentLunchTimes, setStudentLunchTimes] = useState<StudentLunchTime[]>([]);
-  const [teacherLunchTimes, setTeacherLunchTimes] = useState<TeacherLunchTime[]>([]);
 
   const requestOkInterceptor = (
     config:
@@ -199,10 +200,10 @@ const AppContextProvider: React.FC<React.PropsWithChildren> = (props) => {
         setPantryItems(sessionInfo.pantryItems);
         setNotifications(sessionInfo.notifications);
         setSchool(sessionInfo.school);
-        setSchoolLunchTimes(sessionInfo.schoolLunchTimes);
-        setStudentLunchTimes(sessionInfo.studentLunchTimes);
-        setTeacherLunchTimes(sessionInfo.teacherLunchTimes);
         setIsInitialized(true);
+        setSchoolYears(sessionInfo.schoolYears);
+        setCurrentSchoolYear(sessionInfo.schoolYears.find((sy) => sy.isCurrent) ?? NO_SCHOOL_YEAR);
+  
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
       } catch (error) {
         setIsInitialized(true);
@@ -246,10 +247,9 @@ const AppContextProvider: React.FC<React.PropsWithChildren> = (props) => {
         pantryItems,
         notifications,
         school: school,
-        schoolLunchTimes,
-        studentLunchTimes,
-        teacherLunchTimes,
         schoolYears,
+        currentSchoolYear,
+        setCurrentSchoolYear,
         setShoppingCart,
         setStatusMsg,
         setSnackbarMsg,
@@ -264,9 +264,6 @@ const AppContextProvider: React.FC<React.PropsWithChildren> = (props) => {
         setScheduledMenus,
         setUser,
         setSchool,
-        setSchoolLunchTimes,
-        setTeacherLunchTimes,
-        setStudentLunchTimes,
         setSchoolYears,
       }}
     >
@@ -303,7 +300,7 @@ const AppContextProvider: React.FC<React.PropsWithChildren> = (props) => {
         <Snackbar
           anchorOrigin={{ vertical: "top", horizontal: "center" }}
           open={snackbarMsg || snackbarErrorMsg ? true : false}
-          autoHideDuration={snackbarErrorMsg ? 3000 : 1000}
+          autoHideDuration={snackbarErrorMsg ? 3000 : 2000}
           onClose={handleCloseSnackbar}
         >
           <Alert

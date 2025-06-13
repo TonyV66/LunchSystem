@@ -1,0 +1,113 @@
+import React, { useContext, useState } from "react";
+import {
+  Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+} from "@mui/material";
+import { AppContext } from "../../AppContextProvider";
+import SchoolYear from "../../models/SchoolYear";
+import { createSchoolYear, updateSchoolYear } from "../../api/CafeteriaClient";
+import { AxiosError } from "axios";
+import { DateTimeUtils } from "../../DateTimeUtils";
+import BasicSchoolYearPanel from "./BasicSchoolYearPanel";
+
+interface DialogProps {
+  onClose: (schoolYear?: SchoolYear) => void;
+  schoolYear?: SchoolYear;
+}
+
+const getDefaultSchoolYear = (): SchoolYear => {
+  const startDate = new Date();
+  const endDate = new Date();
+  endDate.setFullYear(startDate.getFullYear() + 1);
+  
+  return {
+    id: 0,
+    name: `${startDate.getFullYear()} - ${endDate.getFullYear()}`,
+    startDate: DateTimeUtils.toString(startDate),
+    endDate: DateTimeUtils.toString(endDate),
+    studentLunchTimes: [],
+    gradeLunchTimes: [],
+    teacherLunchTimes: [],
+    lunchTimes: [],
+    isCurrent: false,
+    gradesAssignedByClass: [],
+  };
+};
+
+const SchoolYearDialog: React.FC<DialogProps> = ({ onClose, schoolYear }) => {
+  const { schoolYears, setSchoolYears, setSnackbarErrorMsg } = useContext(AppContext);
+  const [updatedSchoolYear, setUpdatedSchoolYear] = useState<SchoolYear>(
+    schoolYear ?? getDefaultSchoolYear()
+  );
+
+  const handleSchoolYearChanged = (changedSchoolYear: SchoolYear) => {
+    setUpdatedSchoolYear(changedSchoolYear);
+  };
+
+  const handleSave = async () => {
+    try {
+      const savedSchoolYear = updatedSchoolYear.id
+        ? await updateSchoolYear(updatedSchoolYear)
+        : await createSchoolYear(updatedSchoolYear);
+
+      if (updatedSchoolYear.id) {
+        setSchoolYears(
+          schoolYears.map((year) =>
+            year.id === savedSchoolYear.id ? savedSchoolYear : year
+          )
+        );
+      } else {
+        setSchoolYears([...schoolYears, savedSchoolYear]);
+      }
+      onClose(savedSchoolYear);
+    } catch (error) {
+      if (error instanceof AxiosError) {
+        setSnackbarErrorMsg(error.response?.data ?? error.message);
+      } else {
+        setSnackbarErrorMsg("An unknown error occurred");
+      }
+    }
+  };
+
+  return (
+    <Dialog
+      open={true}
+      maxWidth="sm"
+      onClose={() => {return;}}
+      aria-labelledby="alert-dialog-title"
+      aria-describedby="alert-dialog-description"
+    >
+      <DialogTitle>
+        {schoolYear ? "Edit School Year" : "New School Year"}
+      </DialogTitle>
+      <DialogContent
+        sx={{
+          overflow: "hidden",
+          pt: 2,
+        }}
+      >
+        <BasicSchoolYearPanel
+          schoolYear={updatedSchoolYear}
+          onSchoolYearChanged={handleSchoolYearChanged}
+        />
+      </DialogContent>
+      <DialogActions>
+        <Button variant="contained" onClick={() => onClose()}>
+          Cancel
+        </Button>
+        <Button
+          variant="contained"
+          disabled={!updatedSchoolYear.name.trim().length}
+          onClick={handleSave}
+        >
+          OK
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+};
+
+export default SchoolYearDialog;

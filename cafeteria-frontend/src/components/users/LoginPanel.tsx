@@ -18,6 +18,7 @@ import {
 import { AppContext } from "../../AppContextProvider";
 import { AxiosError } from "axios";
 import ConfirmDialog from "../ConfirmDialog";
+import { NO_SCHOOL_YEAR } from "../../models/SchoolYear";
 
 enum ForgottenCredential {
   USERNAME,
@@ -36,10 +37,9 @@ export const CredentialsPanel: React.FC = () => {
     setStudents,
     setNotifications,
     setSchool,
-    setSchoolLunchTimes,
-    setStudentLunchTimes,
-    setTeacherLunchTimes,
+    setSchoolYears,
     setSnackbarMsg,
+    setCurrentSchoolYear,
   } = useContext(AppContext);
 
   const [password, setPassword] = useState<string>("");
@@ -65,9 +65,9 @@ export const CredentialsPanel: React.FC = () => {
       setNotifications(loginResponse.notifications);
       setPantryItems(loginResponse.pantryItems);
       setSchool(loginResponse.school);
-      setSchoolLunchTimes(loginResponse.schoolLunchTimes);
-      setStudentLunchTimes(loginResponse.studentLunchTimes);
-      setTeacherLunchTimes(loginResponse.teacherLunchTimes);
+      setSchoolYears(loginResponse.schoolYears);
+      setCurrentSchoolYear(loginResponse.schoolYears.find((sy) => sy.isCurrent) ?? NO_SCHOOL_YEAR);
+
 
       localStorage.setItem("jwtToken", loginResponse.jwtToken);
     } catch (error) {

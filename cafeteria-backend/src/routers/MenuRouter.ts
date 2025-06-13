@@ -3,7 +3,6 @@ import { AppDataSource } from "../data-source";
 import { DeepPartial } from "typeorm";
 import MenuEntity from "../entity/MenuEntity";
 import { Menu } from "../models/Menu";
-import { buildMenuDto } from "./RouterUtils";
 
 const MenuRouter: Router = express.Router();
 interface Empty {}
@@ -21,9 +20,8 @@ MenuRouter.post<Empty, Menu, Menu, Empty>("/", async (req, res) => {
     school: req.user.school,
   };
   const savedMenu = await menuRespository.save(menu);
-  const menuDto = buildMenuDto(savedMenu);
 
-  res.send(menuDto);
+  res.send(new Menu(savedMenu));
 });
 
 MenuRouter.delete<EntityId, Empty, Empty, Empty>(
@@ -46,8 +44,7 @@ MenuRouter.put<Empty, Menu, Menu, Empty>("/", async (req, res) => {
   };
 
   const savedMenu = await menuRespository.save(menu);
-  const menuDto = buildMenuDto(savedMenu);
-  res.send(menuDto);
+  res.send(new Menu(savedMenu));
 });
 
 export default MenuRouter;

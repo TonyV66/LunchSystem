@@ -16,6 +16,7 @@ import SchoolEntity from "./entity/SchoolEntity";
 import SchoolYearEntity from "./entity/SchoolYearEntity";
 import SchoolYearLunchTimeEntity from "./entity/SchoolYearLunchTimeEntity";
 import TeacherLunchTimeEntity from "./entity/TeacherLunchTimeEntity";
+import GradeLunchTimeEntity from "./entity/GradeLunchTimeEntity";
 import StudentLunchTimeEntity from "./entity/StudentLunchTimeEntity";
 
 export const AppDataSource = new DataSource({
@@ -44,6 +45,7 @@ export const AppDataSource = new DataSource({
     SchoolYearLunchTimeEntity,
     TeacherLunchTimeEntity,
     StudentLunchTimeEntity,
+    GradeLunchTimeEntity,
   ],
   migrations: [],
   subscribers: [],

@@ -1,11 +1,17 @@
-import React, { useContext } from "react";
-import { Box, IconButton } from "@mui/material";
-import { DataGrid, GridColDef, GridRenderCellParams, GridValidRowModel } from "@mui/x-data-grid";
-import { grey } from "@mui/material/colors";
+import React, { useContext, useState } from "react";
+import { Box, Fab, IconButton, Stack, Typography } from "@mui/material";
+import {
+  DataGrid,
+  GridColDef,
+  GridRenderCellParams,
+  GridValidRowModel,
+} from "@mui/x-data-grid";
+import { green, grey } from "@mui/material/colors";
 import { AppContext } from "../../AppContextProvider";
-import { MoreVert } from "@mui/icons-material";
+import { Add, Edit } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
 import { SCHOOL_YEAR_URL } from "../../MainAppPanel";
+import SchoolYearDialog from "./SchoolYearDialog";
 
 interface Row {
   id: number;
@@ -16,45 +22,68 @@ interface Row {
 }
 
 const SchoolYearsPage: React.FC = () => {
-  const {schoolYears} = useContext(AppContext);
+  const { schoolYears, currentSchoolYear } = useContext(AppContext);
   const navigate = useNavigate();
+  const [showSchoolYearDialog, setShowSchoolYearDialog] = useState(false);
+
+  const handleCloseDialog = () => {
+    setShowSchoolYearDialog(false);
+  };
 
   const rows: Row[] = [];
 
-  const handleShowPopupMenu = (
-    yearId: number
-  ) => {
+  const handleShowSchoolYear = (yearId: number) => {
     navigate(SCHOOL_YEAR_URL + "/" + yearId);
   };
 
-
   const columns: GridColDef[] = [
-    { field: "username", headerName: "Name", minWidth: 150 },
-    { field: "startDate", headerName: "Start Date", flex: 1 },
-    { field: "endDate", headerName: "End Date", flex: 1 },
+    {
+      field: "name",
+      headerName: "Name",
+      minWidth: 150,
+      cellClassName: (params) => {
+        return params.id === currentSchoolYear.id ? "current-year" : "";
+      },
+    },
+    {
+      field: "startDate",
+      headerName: "Start Date",
+      flex: 1,
+      cellClassName: (params) => {
+        return params.id === currentSchoolYear.id ? "current-year" : "";
+      },
+    },
+    {
+      field: "endDate",
+      headerName: "End Date",
+      flex: 1,
+      cellClassName: (params) => {
+        return params.id === currentSchoolYear.id ? "current-year" : "";
+      },
+    },
     {
       field: "onEditYear",
       headerName: "Actions",
       width: 80,
+      cellClassName: (params) => {
+        return params.id === currentSchoolYear.id ? "current-year" : "";
+      },
       renderCell: (
-        params: GridRenderCellParams<GridValidRowModel, (yearId: number) => void>
+        params: GridRenderCellParams<
+          GridValidRowModel,
+          (yearId: number) => void
+        >
       ) => (
         <IconButton
           color="primary"
-          disabled={!params.value}
-          onClick={() =>
-            params.value!(
-              params.id as number,
-            )
-          }
+          onClick={() => params.value!(params.id as number)}
           size="small"
         >
-          <MoreVert />
+          <Edit />
         </IconButton>
       ),
     },
   ];
-  
 
   schoolYears.forEach((year) => {
     rows.push({
@@ -62,24 +91,56 @@ const SchoolYearsPage: React.FC = () => {
       name: year.name,
       startDate: year.startDate,
       endDate: year.endDate,
-      onEditYear: year.id !== year.id ? handleShowPopupMenu : undefined,
+      onEditYear: handleShowSchoolYear,
     });
   });
 
   return (
-    <Box sx={{ p: 2, display: "flex", flexDirection: "column", gap: 4 }}>
+    <Box sx={{ p: 2, display: "flex", flexDirection: "column", gap: 2 }}>
+      <Stack
+        direction="row"
+        justifyContent="space-between"
+        alignItems="flex-end"
+      >
+        <Stack direction="row" alignItems="center" gap={1}>
+          <Box
+            sx={{
+              width: "12px",
+              height: "12px",
+              backgroundColor: green[200],
+              border: "1px solid darkgrey",
+              borderRadius: "50%",
+            }}
+          ></Box>
+          <Typography variant="body2">Active School Year</Typography>
+        </Stack>
+        <Fab
+          size="small"
+          onClick={() => setShowSchoolYearDialog(true)}
+          color="primary"
+          sx={{ marginTop: "8px", alignSelf: "flex-end" }}
+        >
+          <Add />
+        </Fab>
+      </Stack>
+
       <DataGrid
         sx={{
           marginBottom: "10px",
           gridColumn: "span 2",
           borderColor: grey[400],
           backgroundColor: "white",
+          [`.current-year`]: {
+            backgroundColor: green[100],
+          },
         }}
         density="compact"
         rows={rows}
         disableRowSelectionOnClick
         columns={columns}
       />
+
+      {showSchoolYearDialog && <SchoolYearDialog onClose={handleCloseDialog} />}
     </Box>
   );
 };

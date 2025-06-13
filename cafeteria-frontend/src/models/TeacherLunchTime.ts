@@ -1,7 +1,5 @@
-import { DayOfWeek } from "./DailyLunchTime";
+import DailyLunchTimes from "./DailyLunchTimes";
 
-export default interface TeacherLunchTime {
-  dayOfWeek: DayOfWeek;
-  time: string;
+export default interface TeacherLunchTime extends DailyLunchTimes {
   teacherId: number;
 }

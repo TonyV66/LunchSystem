@@ -7,6 +7,7 @@ import { OrderEntity } from "./OrderEntity";
 import { DailyMenuEntity } from "./MenuEntity";
 import StudentEntity from "./StudentEntity";
 import UserEntity from "./UserEntity";
+import GradeLunchTimeEntity from "./GradeLunchTimeEntity";
 
 @Entity("school_year")
 export default class SchoolYearEntity {
@@ -20,8 +21,13 @@ export default class SchoolYearEntity {
   startDate: string;
   @Column()
   endDate: string;
+  @Column({default: ''})
+  gradesAssignedByClass: string;
+
   @OneToMany(() => SchoolYearLunchTimeEntity, (lunchTime) => lunchTime.schoolYear, {cascade: true})
   lunchTimes: SchoolYearLunchTimeEntity[];
+  @OneToMany(() => GradeLunchTimeEntity, (lunchTime) => lunchTime.schoolYear)
+  gradeLunchTimes: GradeLunchTimeEntity[];
   @OneToMany(() => TeacherLunchTimeEntity, (lunchTime) => lunchTime.schoolYear)
   teacherLunchTimes: TeacherLunchTimeEntity[];
   @OneToMany(() => StudentLunchTimeEntity, (lunchTime) => lunchTime.schoolYear)

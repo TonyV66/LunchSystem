@@ -1,16 +1,17 @@
 import React from "react";
 import {
-  Box,
   Fab,
   IconButton,
   Tab,
   Tabs,
   Menu as PulldownMenu,
   MenuItem,
+  Stack,
+  Typography,
 } from "@mui/material";
 import { AppContext } from "../../AppContextProvider";
 import { useContext, useState } from "react";
-import { Add, Delete, Edit, MoreVert, ReceiptLong } from "@mui/icons-material";
+import { Add, MoreVert } from "@mui/icons-material";
 import User, { Role, ROLE_NAMES } from "../../models/User";
 import { grey } from "@mui/material/colors";
 import {
@@ -22,47 +23,54 @@ import {
 import { useNavigate } from "react-router-dom";
 import { STUDENTS_URL, USERS_URL } from "../../MainAppPanel";
 import { UserOrderHistoryDialog } from "../orders/UserOrderHistoryDialog";
-import DailyLunchTimesDialog from "../mealplan/DailyLunchTimesDialog";
+import EditUserDialog from "./EditUserDialog";
 
 interface Row {
   id: number;
   username: string;
-  role: string;
+  role: Role;
   onShowMenu: undefined | ((userId: number, menuAnchor: HTMLElement) => void);
 }
 
+const roleCellRenderer = (
+  params: GridRenderCellParams<GridValidRowModel, Role>
+) => ROLE_NAMES[params.row.role];
+
+const actionCellRenderer = (
+  params: GridRenderCellParams<
+    GridValidRowModel,
+    (userId: number, menuAnchor: null | HTMLElement) => void
+  >
+) => {
+  console.log(params);
+  return (
+    <IconButton
+      color="primary"
+      disabled={!params.value}
+      onClick={(event) =>
+        params.value!(params.id as number, event.currentTarget)
+      }
+      size="small"
+    >
+      <MoreVert />
+    </IconButton>
+  );
+};
 
 const columns: GridColDef[] = [
   { field: "username", headerName: "User Name", minWidth: 150 },
-  { field: "role", headerName: "Role", flex: 1 },
+  { field: "role", headerName: "Role", flex: 1, renderCell: roleCellRenderer },
   {
     field: "onShowMenu",
     headerName: "Actions",
     width: 80,
-    renderCell: (
-      params: GridRenderCellParams<GridValidRowModel, (userId: number, menuAnchor: null | HTMLElement) => void>
-    ) => (
-      <IconButton
-        color="primary"
-        disabled={!params.value}
-        onClick={(event) =>
-          params.value!(
-            params.id as number,
-            event.currentTarget
-          )
-        }
-        size="small"
-      >
-        <MoreVert />
-      </IconButton>
-    ),
+    renderCell: actionCellRenderer,
   },
 ];
 
 interface AdminMenuProps {
   anchor: HTMLElement;
   onEdit: () => void;
-  onDelete: () => void;
   onClose: () => void;
 }
 
@@ -93,26 +101,12 @@ const ParentMenu: React.FC<ParentMenuProps> = ({
         horizontal: "left",
       }}
     >
-      <MenuItem onClick={onOrderHistory}>
-        <ReceiptLong color="primary" />
-      </MenuItem>
+      <MenuItem onClick={onOrderHistory}>Order History</MenuItem>
     </PulldownMenu>
   );
 };
 
-interface AdminMenuProps {
-  anchor: HTMLElement;
-  onEdit: () => void;
-  onDelete: () => void;
-  onClose: () => void;
-}
-
-const StaffMenu: React.FC<AdminMenuProps> = ({
-  anchor,
-  onEdit,
-  onDelete,
-  onClose,
-}) => {
+const StaffMenu: React.FC<AdminMenuProps> = ({ anchor, onEdit, onClose }) => {
   return (
     <PulldownMenu
       id="demo-positioned-menu"
@@ -129,12 +123,7 @@ const StaffMenu: React.FC<AdminMenuProps> = ({
         horizontal: "left",
       }}
     >
-      <MenuItem onClick={onEdit}>
-        <Edit color="primary" />
-      </MenuItem>
-      <MenuItem onClick={onDelete}>
-        <Delete color="primary" />
-      </MenuItem>
+      <MenuItem onClick={onEdit}>Edit</MenuItem>
     </PulldownMenu>
   );
 };
@@ -142,14 +131,14 @@ const StaffMenu: React.FC<AdminMenuProps> = ({
 type MenuAction = "edit" | "delete" | "history";
 
 const UsersPage: React.FC = () => {
-  const { users, user } = useContext(AppContext);
+  const { users, user, currentSchoolYear } = useContext(AppContext);
   const [showNewUserDialog, setShowNewUserDialog] = useState(false);
   const [pulldownMenuAnchor, setPulldownMenuAnchor] =
     useState<null | HTMLElement>(null);
   const [targetUser, setTargetUser] = useState<null | User>(null);
   const [action, setAction] = useState<null | MenuAction>(null);
 
-  const navigate = useNavigate()
+  const navigate = useNavigate();
 
   const handleShowPopupMenu = (
     userId: number,
@@ -170,11 +159,10 @@ const UsersPage: React.FC = () => {
     rows.push({
       id: usr.id,
       username: usr.userName,
-      role: ROLE_NAMES[usr.role],
+      role: usr.role,
       onShowMenu: user.id !== usr.id ? handleShowPopupMenu : undefined,
     });
   });
-
 
   const handleTabSelected = (event: React.SyntheticEvent, newValue: string) => {
     navigate(newValue);
@@ -190,9 +178,9 @@ const UsersPage: React.FC = () => {
     setPulldownMenuAnchor(null);
   };
 
-  const handleDeleteUser = () => {
-    setTargetUser(null);
-    setPulldownMenuAnchor(null);
+  const handleCloseEditUserDialog = () => {
+    setAction(null);
+    setShowNewUserDialog(false);
   };
 
   const handleCloseMenu = () => {
@@ -201,37 +189,49 @@ const UsersPage: React.FC = () => {
   };
 
   return (
-    <Box
+    <Stack
       pl={2}
       pr={2}
+      direction="column"
+      gap={1}
       sx={{
-        display: "grid",
-        rowGap: 1,
         height: "100%",
-        gridTemplateRows: "auto 1fr",
-        gridTemplateColumns: "1fr auto",
       }}
     >
-      <Tabs
-        value={USERS_URL}
-        onChange={handleTabSelected}
-        aria-label="secondary tabs example"
-      >
-        <Tab value={USERS_URL} label="Users" />
-        <Tab value={STUDENTS_URL} label="Students" />
-      </Tabs>
-      <Fab
-        size="small"
-        onClick={() => setShowNewUserDialog(true)}
-        color="primary"
-        sx={{marginTop: "8px"}}
-      >
-        <Add />
-      </Fab>
+      <Stack direction="row" alignItems="center" gap={2}>
+        <Tabs
+          sx={{ flexGrow: 1 }}
+          value={USERS_URL}
+          onChange={handleTabSelected}
+          aria-label="secondary tabs example"
+        >
+          <Tab value={USERS_URL} label="Users" />
+          <Tab value={STUDENTS_URL} label="Students" />
+        </Tabs>
+        <Stack direction="column">
+          <Typography variant="body2" fontWeight="bold">
+            School Year:
+          </Typography>
+          <Typography
+            variant="body2"
+            color={!currentSchoolYear.id ? "error" : "text.primary"}
+          >
+            {currentSchoolYear.name || "No School Year Selected"}
+          </Typography>
+        </Stack>
+        <Fab
+          size="small"
+          onClick={() => setShowNewUserDialog(true)}
+          color="primary"
+          disabled={!currentSchoolYear.id}
+          sx={{ marginTop: "8px" }}
+        >
+          <Add />
+        </Fab>
+      </Stack>
       <DataGrid
         sx={{
-          marginBottom: "10px",
-          gridColumn: "span 2",
+          mb: 2,
           borderColor: grey[400],
           backgroundColor: "white",
         }}
@@ -240,9 +240,11 @@ const UsersPage: React.FC = () => {
         disableRowSelectionOnClick
         columns={columns}
       />
-      {showNewUserDialog || (action === 'edit') ? (
-        <DailyLunchTimesDialog onClose={() => setShowNewUserDialog(false)}/>
-        // <EditUserDialog user={showNewUserDialog ? undefined : targetUser!} onClose={handleCloseEditUserDialog} />
+      {showNewUserDialog || action === "edit" ? (
+        <EditUserDialog
+          user={showNewUserDialog ? undefined : targetUser!}
+          onClose={handleCloseEditUserDialog}
+        />
       ) : (
         <></>
       )}
@@ -251,7 +253,6 @@ const UsersPage: React.FC = () => {
           <StaffMenu
             anchor={pulldownMenuAnchor!}
             onEdit={handleEditUser}
-            onDelete={handleDeleteUser}
             onClose={handleCloseMenu}
           />
         ) : (
@@ -265,11 +266,14 @@ const UsersPage: React.FC = () => {
         <></>
       )}
       {action === "history" && targetUser ? (
-        <UserOrderHistoryDialog user={targetUser} onClose={handleActionComplete} />
+        <UserOrderHistoryDialog
+          user={targetUser}
+          onClose={handleActionComplete}
+        />
       ) : (
         <></>
       )}
-    </Box>
+    </Stack>
   );
 };
 

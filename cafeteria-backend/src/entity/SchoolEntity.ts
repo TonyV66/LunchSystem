@@ -8,7 +8,7 @@ import { DecimalTransformer } from "./DecimalTransformer";
 import StudentEntity from "./StudentEntity";
 
 @Entity("school")
-export default class SchoolEntity extends School {
+export default class SchoolEntity {
   @PrimaryGeneratedColumn()
   id: number;
   @Column()

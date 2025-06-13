@@ -4,10 +4,11 @@ import {
   ManyToOne,
   PrimaryGeneratedColumn,
 } from "typeorm";
-import { DayOfWeek } from "../models/DailyLunchTime";
+import { DayOfWeek } from "../models/DayOfWeek";
 import UserEntity from "./UserEntity";
 import SchoolYearEntity from "./SchoolYearEntity";
 import StudentEntity from "./StudentEntity";
+import { GradeLevel } from "../models/GradeLevel";
 
 @Entity("student_lunch_time")
 export default class StudentLunchTimeEntity {
@@ -15,8 +16,10 @@ export default class StudentLunchTimeEntity {
   id: number;
   @Column({ type: "enum", enum: DayOfWeek, nullable: false })
   dayOfWeek: number;
-  @Column()
+  @Column({ default: '' })
   time: string;
+  @Column({ type: "enum", enum: GradeLevel, nullable: false })
+  grade: GradeLevel;
 
   @ManyToOne(
     () => SchoolYearEntity,

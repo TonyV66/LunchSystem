@@ -17,7 +17,6 @@ import { TransitionProps } from "@mui/material/transitions";
 import { useReactToPrint } from "react-to-print";
 import { AppContext } from "../../AppContextProvider";
 import { DateTimeUtils, DateTimeFormat } from "../../DateTimeUtils";
-import Meal from "../../models/Meal";
 import User, { Role } from "../../models/User";
 import ClassroomMealReport from "./ClassroomMealReport";
 import TeacherLunchTime from "../../models/TeacherLunchTime";
@@ -26,7 +25,7 @@ const getMealTime = (teacher: User, teacherLunchTimes: TeacherLunchTime[], date:
   const dayOfWeek = DateTimeUtils.toDate(date).getDay();
   const mealTime =
     teacherLunchTimes.find((lunchTime) => lunchTime.teacherId === teacher.id && lunchTime.dayOfWeek === dayOfWeek)
-      ?.time ?? "12:00";
+      ?.times[0] ?? "12:00";
   return DateTimeUtils.toTwelveHourTime(mealTime);
 };
 
@@ -51,12 +50,14 @@ const ClassroomMealsDialog: React.FC<DialogProps> = ({
   onClose,
 }) => {
   const dayOfWeek = DateTimeUtils.toDate(date).getDay();
-  const { students, orders, users, studentLunchTimes, teacherLunchTimes } = React.useContext(AppContext);
+  const { students, orders, users, currentSchoolYear } = React.useContext(AppContext);
 
   const reportRef = React.useRef<HTMLDivElement>(null);
   const handlePrint = useReactToPrint({
     contentRef: reportRef,
   });
+
+  const studentLunchTimes = currentSchoolYear.studentLunchTimes;
 
   const sortedTeachers = users
     .filter((user) => user.role === Role.TEACHER)
@@ -118,13 +119,11 @@ const ClassroomMealsDialog: React.FC<DialogProps> = ({
                   : false
               )
               .map((student) => student.id);
-            const meals: Meal[] = orders
+            if (!orders
               .flatMap((order) => order.meals)
-              .filter(
-                (m) => studentIds.includes(m.studentId) && m.date === date
-              );
-
-            if (!meals.length) {
+              .find(
+                (m) => (m.staffMemberId === teacher.id) || (m.studentId && studentIds.includes(m.studentId)) && m.date === date
+              )) {
               return <></>;
             }
             return (
@@ -138,7 +137,7 @@ const ClassroomMealsDialog: React.FC<DialogProps> = ({
                     {teacher.name +
                       (teacher.description ? " - " + teacher.description : "") +
                       " @" +
-                      getMealTime(teacher, teacherLunchTimes, DateTimeUtils.toDate(date))}
+                      getMealTime(teacher, currentSchoolYear.teacherLunchTimes, DateTimeUtils.toDate(date))}
                   </Typography>
                 </AccordionSummary>
                 <AccordionDetails>

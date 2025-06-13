@@ -1,15 +1,16 @@
 import React from "react";
 import {
-  Box,
   IconButton,
   Tab,
   Tabs,
   Menu as PulldownMenu,
   MenuItem,
+  Stack,
+  Typography,
 } from "@mui/material";
 import { AppContext } from "../../AppContextProvider";
 import { useContext, useState } from "react";
-import { Edit, Fastfood, MoreVert } from "@mui/icons-material";
+import { MoreVert } from "@mui/icons-material";
 import { grey } from "@mui/material/colors";
 import {
   DataGrid,
@@ -21,14 +22,13 @@ import Student from "../../models/Student";
 import StudentMealsDialog from "../meals/StudentMealsDialog";
 import { useNavigate } from "react-router-dom";
 import { STUDENTS_URL, USERS_URL } from "../../MainAppPanel";
-import StudentDialog from "./StudentDialog";
+import EditStudentDialog from "./EditStudentDialog";
 
 interface Row {
   id: number;
   name: string;
   onShowMenu: (studentId: number, menuAnchor: HTMLElement) => void;
 }
-
 
 const columns: GridColDef[] = [
   { field: "name", headerName: "Student Name", flex: 1 },
@@ -37,15 +37,15 @@ const columns: GridColDef[] = [
     headerName: "Actions",
     width: 80,
     renderCell: (
-      params: GridRenderCellParams<GridValidRowModel, (studentId: number, menuAnchor: null | HTMLElement) => void>
+      params: GridRenderCellParams<
+        GridValidRowModel,
+        (studentId: number, menuAnchor: null | HTMLElement) => void
+      >
     ) => (
       <IconButton
         color="primary"
         onClick={(event) =>
-          params.value!(
-            params.id as number,
-            event.currentTarget
-          )
+          params.value!(params.id as number, event.currentTarget)
         }
         size="small"
       >
@@ -68,6 +68,8 @@ const StudentMenu: React.FC<StudentMenuProps> = ({
   onShowMeals,
   onClose,
 }) => {
+  const { currentSchoolYear } = useContext(AppContext);
+  
   return (
     <PulldownMenu
       id="demo-positioned-menu"
@@ -84,12 +86,8 @@ const StudentMenu: React.FC<StudentMenuProps> = ({
         horizontal: "left",
       }}
     >
-      <MenuItem onClick={onEdit}>
-        <Edit color="primary" />
-      </MenuItem>
-      <MenuItem onClick={onShowMeals}>
-        <Fastfood color="primary" />
-      </MenuItem>
+      <MenuItem onClick={onEdit}>Edit</MenuItem>
+      <MenuItem onClick={onShowMeals} disabled={!currentSchoolYear.id}>Ordered Meals</MenuItem>
     </PulldownMenu>
   );
 };
@@ -97,12 +95,12 @@ const StudentMenu: React.FC<StudentMenuProps> = ({
 type MenuAction = "edit" | "meals";
 
 const StudentsPage: React.FC = () => {
-  const { students } = useContext(AppContext);
+  const { students, currentSchoolYear } = useContext(AppContext);
   const [pulldownMenuAnchor, setPulldownMenuAnchor] =
     useState<null | HTMLElement>(null);
   const [targetStudent, setTargetStudent] = useState<null | Student>(null);
   const [action, setAction] = useState<null | MenuAction>(null);
-  
+
   const navigate = useNavigate();
 
   const handleShowPopupMenu = (
@@ -152,29 +150,41 @@ const StudentsPage: React.FC = () => {
   };
 
   return (
-    <Box
+    <Stack
       pl={2}
       pr={2}
+      direction="column"
+      gap={1}
       sx={{
-        display: "grid",
-        rowGap: 1,
         height: "100%",
-        gridTemplateRows: "auto 1fr",
-        gridTemplateColumns: "1fr auto",
       }}
     >
-      <Tabs
-        value={STUDENTS_URL}
-        onChange={handleTabSelected}
-        aria-label="secondary tabs example"
-      >
-        <Tab value={USERS_URL} label="Users" />
-        <Tab value={STUDENTS_URL} label="Students" />
-      </Tabs>
+      <Stack direction="row" justifyContent="space-between">
+        <Tabs
+          value={STUDENTS_URL}
+          onChange={handleTabSelected}
+          aria-label="secondary tabs example"
+        >
+          <Tab value={USERS_URL} label="Users" />
+          <Tab value={STUDENTS_URL} label="Students" />
+        </Tabs>
+        <Stack direction="column">
+          <Typography variant="body2" fontWeight="bold">
+            School Year:
+          </Typography>
+          <Typography
+            variant="body2"
+            color={!currentSchoolYear.id ? "error" : "text.primary"}
+          >
+            {currentSchoolYear.name || "No School Year Selected"}
+          </Typography>
+        </Stack>
+
+      </Stack>
+
       <DataGrid
         sx={{
-          marginBottom: "10px",
-          gridColumn: "span 2",
+          mb: 2,
           borderColor: grey[400],
           backgroundColor: "white",
         }}
@@ -183,28 +193,33 @@ const StudentsPage: React.FC = () => {
         disableRowSelectionOnClick
         columns={columns}
       />
-      {action === 'edit' ? (
-        <StudentDialog student={targetStudent!} onClose={handleCloseStudentDialog} />
+      {action === "edit" ? (
+        <EditStudentDialog
+          student={targetStudent!}
+          onClose={handleCloseStudentDialog}
+        />
       ) : (
         <></>
       )}
       {targetStudent && pulldownMenuAnchor ? (
-          <StudentMenu
-            anchor={pulldownMenuAnchor!}
-            onEdit={handleEditUser}
-            onShowMeals={handleShowMeals}
-            onClose={handleCloseMenu}
-          />
-        ) : (
-          <></>
-        )
-      }
-      {action === "meals" && targetStudent ? (
-        <StudentMealsDialog student={targetStudent} onClose={handleActionComplete} />
+        <StudentMenu
+          anchor={pulldownMenuAnchor!}
+          onEdit={handleEditUser}
+          onShowMeals={handleShowMeals}
+          onClose={handleCloseMenu}
+        />
       ) : (
         <></>
       )}
-    </Box>
+      {action === "meals" && targetStudent ? (
+        <StudentMealsDialog
+          student={targetStudent}
+          onClose={handleActionComplete}
+        />
+      ) : (
+        <></>
+      )}
+    </Stack>
   );
 };
 

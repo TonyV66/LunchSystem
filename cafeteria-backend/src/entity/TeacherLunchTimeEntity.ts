@@ -1,10 +1,10 @@
 import { Column, Entity, ManyToOne, PrimaryGeneratedColumn } from "typeorm";
-import { DayOfWeek } from "../models/DailyLunchTime";
+import { DayOfWeek } from "../models/DayOfWeek";
 import UserEntity from "./UserEntity";
 import SchoolYearEntity from "./SchoolYearEntity";
 
 @Entity("teacher_lunch_time")
-export default class _TeacherLunchTimeEntity {
+export default class TeacherLunchTimeEntity {
   @PrimaryGeneratedColumn()
   id: number;
   @Column({ type: "enum", enum: DayOfWeek })

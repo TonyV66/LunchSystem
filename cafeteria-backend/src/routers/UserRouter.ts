@@ -2,13 +2,11 @@ import express, { Router } from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { AppDataSource } from "../data-source";
-import { DeepPartial } from "typeorm";
+import { DeepPartial, In } from "typeorm";
 import UserEntity from "../entity/UserEntity";
 import User, { Role } from "../models/User";
 import {
   authorizeRequest,
-  buildStudentDto,
-  buildUserDto,
   getCurrentSchoolYear,
   JWT_PRIVATE_KEY,
 } from "./RouterUtils";
@@ -22,6 +20,7 @@ import { Credentials, LoginResponse } from "./LoginRouter";
 import { getSessionInfo } from "./SessionRouter";
 import { sendInvitationEmail } from "./EmailUtils";
 import SchoolYearEntity from "../entity/SchoolYearEntity";
+import StudentEntity from "../entity/StudentEntity";
 
 const UserRouter: Router = express.Router();
 interface Empty {}
@@ -55,8 +54,8 @@ UserRouter.get<{ invitationId: string }, Empty, Empty, Empty>(
 
     const students = invitedUser?.students ?? [];
     res.send({
-      user: invitedUser ? buildUserDto(invitedUser) : null,
-      students,
+      user: invitedUser ? new User(invitedUser) : null,
+      students: students.map(s => new Student(s)),
     });
   }
 );
@@ -102,7 +101,7 @@ UserRouter.post<Empty, Empty, InvitationRequest, Empty>(
       req.body.lastName,
       "MICS"
     );
-    res.send(buildUserDto(savedUser));
+    res.send(new User(savedUser));
   }
 );
 
@@ -111,6 +110,7 @@ UserRouter.put<{ invitationId: string }, Student[] | string, Empty, Empty>(
   authorizeRequest,
   async (req, res) => {
     const userRepository = AppDataSource.getRepository(UserEntity);
+    const studentRepository = AppDataSource.getRepository(StudentEntity);
 
     const invitedUser = await userRepository.findOne({
       where: { userName: req.params.invitationId },
@@ -136,7 +136,7 @@ UserRouter.put<{ invitationId: string }, Student[] | string, Empty, Empty>(
       },
     });
 
-    const newStudents = invitedUser.students.filter(
+    let newStudents = invitedUser.students.filter(
       (invitedStudent) =>
         !loggedInUser!.students.find((student) => {
           if (invitedStudent.studentId.length && student.studentId.length) {
@@ -165,7 +165,14 @@ UserRouter.put<{ invitationId: string }, Student[] | string, Empty, Empty>(
 
     userRepository.delete(invitedUser.id);
 
-    res.send(newStudents.map((student) => buildStudentDto(student)));
+    newStudents = await studentRepository.find({
+      where: { id: In(newStudents.map(s => s.id)) },
+      relations: {
+        parents: true,
+      },
+    });
+
+    res.send(newStudents.map((student) => new Student(student)));
   }
 );
 
@@ -275,7 +282,7 @@ UserRouter.post<Empty, User | string, User, Empty>(
     const currentSchoolYear = getCurrentSchoolYear(req.user.school);
     await AppDataSource.createQueryBuilder().relation(SchoolYearEntity, 'parents').of(currentSchoolYear).add(savedUser);
 
-    res.send(buildUserDto(savedUser));
+    res.send(new User(savedUser));
   }
 );
 
@@ -319,7 +326,7 @@ UserRouter.put<Empty, User | string, User, Empty>(
       };
 
       const savedUser = await userRepository.save(updatedUser);
-      res.send(savedUser);
+      res.send(new User(savedUser));
     }
   }
 );
@@ -358,6 +365,34 @@ UserRouter.get<Empty, Empty, SavedCards[], Empty>(
     }
 
     res.send(savedCards);
+  }
+);
+
+UserRouter.get<{ userId: string }, Student[] | string, Empty, Empty>(
+  "/:userId/students",
+  authorizeRequest,
+  async (req, res) => {
+    const userRepository = AppDataSource.getRepository(UserEntity);
+
+    // Only allow users to access their own students or admins to access any user's students
+    if (req.user.role !== Role.ADMIN && req.user.id !== parseInt(req.params.userId)) {
+      res.status(403).send("Access denied. You can only view your own students.");
+      return;
+    }
+
+    const user = await userRepository.findOne({
+      where: { id: parseInt(req.params.userId) },
+      relations: {
+        students: true,
+      },
+    });
+
+    if (!user) {
+      res.status(404).send("User not found");
+      return;
+    }
+
+    res.send(user.students.map(student => new Student(student)));
   }
 );
 

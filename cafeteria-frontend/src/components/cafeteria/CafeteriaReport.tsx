@@ -8,13 +8,18 @@ import { PantryItem, DailyMenu } from "../../models/Menu";
 import { Order } from "../../models/Order";
 import Student from "../../models/Student";
 import MenuItemChip from "../meals/MenuItemChip";
-import { StudentLunchTime } from "../../models/StudentLunchTime";
 import TeacherLunchTime from "../../models/TeacherLunchTime";
+import SchoolYear from "../../models/SchoolYear";
+import Meal from "../../models/Meal";
 
 interface TallyRowProps {
+  schoolYear: SchoolYear;
   date: string;
   menuItem: PantryItem;
   mealTimes: string[];
+  students: Student[];
+  teachers: User[];
+  orders: Order[];
 }
 
 interface CafeteriaReportProps {
@@ -60,35 +65,108 @@ const getMenuItems = (
   return orderedItems;
 };
 
+const getAssignedLunchtime = (
+  student: Student | undefined,
+  date: string,
+  schoolYear: SchoolYear,
+  teachers: User[]
+) => {
+  if (student === undefined) {
+    return undefined;
+  }
+
+  const dayOfWeek = DateTimeUtils.toDate(date).getDay();
+
+  // First check if student has a specific teacher assignment
+  const studentLunchTime = schoolYear.studentLunchTimes.find(
+    (lt) => lt.studentId === student.id && lt.dayOfWeek === dayOfWeek
+  );
+
+  if (studentLunchTime?.teacherId) {
+    const teacher = teachers.find((t) => t.id === studentLunchTime.teacherId);
+    if (teacher) {
+      const teacherLunchTime = schoolYear.teacherLunchTimes.find(
+        (tlt) => tlt.teacherId === teacher.id && tlt.dayOfWeek === dayOfWeek
+      );
+      return teacherLunchTime?.times[0];
+    }
+  }
+
+  // If no teacher assignment, check grade level assignment
+  const gradeLunchTime = schoolYear.gradeLunchTimes.find(
+    (glt) =>
+      glt.grade === studentLunchTime?.grade && glt.dayOfWeek === dayOfWeek
+  );
+
+  return gradeLunchTime?.times[0];
+};
+
+const getMealsWithIrregularTimes = (
+  orders: Order[],
+  teachers: User[],
+  students: Student[],
+  schoolYear: SchoolYear,
+  date: string
+) => {
+  const dayOfWeek = DateTimeUtils.toDate(date).getDay();
+  const lunchTimes =
+    schoolYear.lunchTimes.find((lt) => lt.dayOfWeek === dayOfWeek)?.times ?? [];
+
+  return orders
+    .flatMap((order) => order.meals)
+    .filter(
+      (meal) =>
+        meal.date === date &&
+        !lunchTimes.includes(meal.time) &&
+        !lunchTimes.includes(
+          getAssignedLunchtime(
+            students.find((student) => student.id === meal.studentId),
+            date,
+            schoolYear,
+            teachers
+          ) ?? ""
+        )
+    );
+};
+
+const getMealsAtTime = (
+  orders: Order[],
+  teachers: User[],
+  students: Student[],
+  schoolYear: SchoolYear,
+  date: string,
+  time?: string
+) => {
+  return orders
+    .flatMap((order) => order.meals)
+    .filter(
+      (meal: Meal) =>
+        meal.date === date &&
+        (!time ||
+          meal.time === time ||
+          getAssignedLunchtime(
+            students.find((student) => student.id === meal.studentId),
+            date,
+            schoolYear,
+            teachers
+          ) === time)
+    );
+};
+
 const getOrderedQty = (
   orders: Order[],
   menuItem: PantryItem,
   teachers: User[],
-  teacherLunchTimes: TeacherLunchTime[],
   students: Student[],
-  studentLunchTimes: StudentLunchTime[],
+  schoolYear: SchoolYear,
   date: string,
   time?: string
 ): number => {
-  const dayOfWeek = DateTimeUtils.toDate(date).getDay();
-
-  const teacherIds = teachers
-    .filter((teacher) => !time || getMealTime(teacher, teacherLunchTimes, date) === time)
-    .map((teacher) => teacher.id);
-  const studentIds = students
-    .filter((student) =>
-      studentLunchTimes.find(
-        (lt) =>
-          lt.studentId === student.id && lt.dayOfWeek === dayOfWeek && teacherIds.includes(lt.teacherId ?? 0)
-      )
-        ? true
-        : false
-    )
-    .map((student) => student.id);
-
-  const qty = orders
-    .flatMap((order) => order.meals)
-    .filter((meal) => studentIds.includes(meal.studentId) && meal.date === date)
+  const meals =
+    time === "other"
+      ? getMealsWithIrregularTimes(orders, teachers, students, schoolYear, date)
+      : getMealsAtTime(orders, teachers, students, schoolYear, date, time);
+  const qty = meals
     .flatMap((meal) => meal.items)
     .filter(
       (orderedItem) =>
@@ -117,9 +195,15 @@ const TableCell: React.FC<React.PropsWithChildren> = ({ children }) => {
   );
 };
 
-const TallyRow: React.FC<TallyRowProps> = ({ date, menuItem, mealTimes }) => {
-  const { users, students, orders, studentLunchTimes, teacherLunchTimes } = React.useContext(AppContext);
-  const teachers = users.filter((user) => user.role === Role.TEACHER);
+const TallyRow: React.FC<TallyRowProps> = ({
+  date,
+  menuItem,
+  mealTimes,
+  schoolYear,
+  students,
+  teachers,
+  orders,
+}) => {
   return (
     <>
       <TableCell>
@@ -131,38 +215,79 @@ const TallyRow: React.FC<TallyRowProps> = ({ date, menuItem, mealTimes }) => {
       </TableCell>
       <TableCell>
         <Typography variant="h6">
-          {getOrderedQty(orders, menuItem, teachers, teacherLunchTimes, students, studentLunchTimes, date)}
+          {getOrderedQty(
+            orders,
+            menuItem,
+            teachers,
+            students,
+            schoolYear,
+            date
+          )}
         </Typography>
       </TableCell>
       {mealTimes.map((time) => (
         <TableCell key={time}>
           <Typography variant="h6">
-            {getOrderedQty(orders, menuItem, teachers, teacherLunchTimes, students, studentLunchTimes, date, time)}
+            {getOrderedQty(
+              orders,
+              menuItem,
+              teachers,
+              students,
+              schoolYear,
+              date,
+              time
+            )}
           </Typography>
         </TableCell>
       ))}
+      <TableCell>
+        <Typography variant="h6">
+          {getOrderedQty(
+            orders,
+            menuItem,
+            teachers,
+            students,
+            schoolYear,
+            date,
+            "other"
+          )}
+        </Typography>
+      </TableCell>
     </>
   );
 };
 
-const getMealTime = (teacher: User, teacherLunchTimes: TeacherLunchTime[], date: string) => {
+const getMealTime = (
+  teacher: User,
+  teacherLunchTimes: TeacherLunchTime[],
+  date: string
+) => {
   const dayOfWeek = DateTimeUtils.toDate(date).getDay();
   return (
-    teacherLunchTimes.find((lunchTime) => lunchTime.teacherId === teacher.id && lunchTime.dayOfWeek === dayOfWeek)
-      ?.time ?? "12:00"
+    teacherLunchTimes.find(
+      (lunchTime) =>
+        lunchTime.teacherId === teacher.id && lunchTime.dayOfWeek === dayOfWeek
+    )?.times[0] ?? "12:00"
   );
 };
 
 // eslint-disable-next-line react/display-name
 const CafeteriaReport = React.forwardRef<HTMLDivElement, CafeteriaReportProps>(
   (props, ref) => {
-    const { scheduledMenus, users, orders, teacherLunchTimes } = React.useContext(AppContext);
+    const { scheduledMenus, users, orders, students, currentSchoolYear } =
+      React.useContext(AppContext);
 
     const mealTimes = Array.from(
       new Set(
         users
           .filter((user) => user.role === Role.TEACHER)
-          .map((teacher) => getMealTime(teacher, teacherLunchTimes, props.date))
+          .map((teacher) =>
+            getMealTime(
+              teacher,
+              currentSchoolYear.teacherLunchTimes,
+              props.date
+            )
+          )
       )
     ).sort();
 
@@ -171,6 +296,8 @@ const CafeteriaReport = React.forwardRef<HTMLDivElement, CafeteriaReportProps>(
         item1.type - item2.type ||
         item1.name.toLowerCase().localeCompare(item2.name.toLowerCase())
     );
+
+    const teachers = users.filter((user) => user.role === Role.TEACHER);
 
     return (
       <Box ref={ref} p={2}>
@@ -214,12 +341,21 @@ const CafeteriaReport = React.forwardRef<HTMLDivElement, CafeteriaReportProps>(
                 </Typography>
               </TableCell>
             ))}
+            <TableCell>
+              <Typography fontWeight="bold" variant="body1">
+                Other
+              </Typography>
+            </TableCell>
             {menuItems.map((menuItem, index) => (
               <TallyRow
                 key={index}
+                schoolYear={currentSchoolYear}
                 date={props.date}
                 menuItem={menuItem}
                 mealTimes={mealTimes}
+                students={students}
+                teachers={teachers}
+                orders={orders}
               />
             ))}
           </Box>

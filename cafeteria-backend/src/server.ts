@@ -15,7 +15,8 @@ import SessionRouter from "./routers/SessionRouter";
 import SchoolRouter from "./routers/SchoolRouter";
 import LoginRouter from "./routers/LoginRouter";
 import { authorizeRequest } from "./routers/RouterUtils";
-
+import SchoolYearRouter from "./routers/SchoolYearRouter";
+import ReportsRouter from "./routers/ReportsRouter";
 
 AppDataSource.initialize()
   .then(async () => {
@@ -28,7 +29,7 @@ AppDataSource.initialize()
       if (/(.ico|.js|.css|.jpg|.png|.map|.svg)$/i.test(req.path)) {
         res.header("Cache-Control", "max-age=31536000");
         next();
-      } else if (/\/api\//i.test(req.path)) {
+      } else if (/\/api\//i.test(req.path) || /\/reports\//i.test(req.path)) {
         next();
       } else {
         res.sendFile(
@@ -47,9 +48,12 @@ AppDataSource.initialize()
     app.use("/api/student", authorizeRequest, StudentRouter);
     app.use("/api/order", authorizeRequest, OrderRouter);
     app.use("/api/session", authorizeRequest, SessionRouter);
-    app.use("/api/schoolsettings", authorizeRequest, SchoolRouter);
+    app.use("/api/school", authorizeRequest, SchoolRouter);
+    app.use("/api/schoolyear", authorizeRequest, SchoolYearRouter);
     app.use("/api/user", UserRouter);
     app.use("/api/login", LoginRouter);
+    app.use("/reports", ReportsRouter);
+
 
     interface Empty {}
 

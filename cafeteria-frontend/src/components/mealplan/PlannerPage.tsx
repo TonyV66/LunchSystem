@@ -11,7 +11,6 @@ import {
   InputAdornment,
   Fab,
 } from "@mui/material";
-import { DateTimeUtils } from "../../DateTimeUtils";
 import { AppContext } from "../../AppContextProvider";
 import { useContext, useEffect, useState } from "react";
 import MenuPanel from "../menus/MenuPanel";
@@ -162,25 +161,16 @@ const enum EditType {
   CREATE_MENU,
 }
 const PlannerPage: React.FC = () => {
-  const { menus, setMenus, setSnackbarErrorMsg } = useContext(AppContext);
+  const { menus, setMenus, setSnackbarErrorMsg, currentSchoolYear } =
+    useContext(AppContext);
   const [copiedMenu, setCopiedMenu] = useState<Menu | undefined>();
   const [editMenu, setEditMenu] = useState<Menu | undefined>();
   const [typeOfEdit, setTypeOfEdit] = useState<EditType>();
   const [search, setSearch] = useState("");
   const [filteredMenus, setFilteredMenus] = useState<Menu[]>([]);
 
-  let nextSchoolDay = new Date();
-  if (nextSchoolDay.getDay() % 6 === 0) {
-    nextSchoolDay = new Date(
-      DateTimeUtils.addDays(nextSchoolDay, (nextSchoolDay.getDay() + 1) % 5)
-    );
-  }
-
-  const startingMonth = nextSchoolDay.getMonth();
-  const months: number[] = [];
-  for (let i = 0; i < 12; i++) {
-    months.push(startingMonth + i);
-  }
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
 
   const handleCopyMenu = (menu: Menu) => {
     setCopiedMenu(menu);
@@ -197,7 +187,9 @@ const PlannerPage: React.FC = () => {
       const axiosError = error as AxiosError;
       setSnackbarErrorMsg(
         "Error deleting menu: " +
-        (axiosError.response?.data?.toString() ?? axiosError.response?.statusText ?? "Unknown server error")
+          (axiosError.response?.data?.toString() ??
+            axiosError.response?.statusText ??
+            "Unknown server error")
       );
     }
   };
@@ -263,9 +255,28 @@ const PlannerPage: React.FC = () => {
         gridTemplateRows: "1fr auto auto",
       }}
     >
-      <Box p={1} sx={{ overflowY: "auto" }}>
-        <MealCalendar clipboardMenu={copiedMenu} />
-      </Box>
+      {currentSchoolYear.id ? (
+        <Box p={1} sx={{ overflowY: "auto" }}>
+          <MealCalendar clipboardMenu={copiedMenu} />
+        </Box>
+      ) : (
+        <Box
+          p={1}
+          sx={{
+            overflowY: "auto",
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+          }}
+        >
+          <Paper elevation={3} sx={{ p: 4, textAlign: "center" }}>
+            <Typography variant="h6" color="text.secondary">
+              There is no active school year. Please set up a school year to
+              plan meals.
+            </Typography>
+          </Paper>
+        </Box>
+      )}
       <Box
         sx={{
           borderTopWidth: 1,
@@ -327,7 +338,7 @@ const PlannerPage: React.FC = () => {
             gap: 1,
             alignItems: "stretch",
             flexWrap: "wrap",
-            maxHeight: '300px'
+            maxHeight: "300px",
           }}
         >
           {filteredMenus.map((menu) => (

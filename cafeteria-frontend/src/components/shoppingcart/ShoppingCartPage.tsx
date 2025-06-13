@@ -175,11 +175,10 @@ const ShoppingCartPage: React.FC = () => {
     user,
     orders,
     setOrders,
-    school: schoolSettings,
+    school,
     setShoppingCart,
     scheduledMenus,
     setSnackbarErrorMsg,
-    studentLunchTimes,
   } = useContext(AppContext);
 
   const [selectedCard, setSelectedCard] = useState("creditcard");
@@ -218,17 +217,11 @@ const ShoppingCartPage: React.FC = () => {
   }, [shoppingCart]);
 
   const handleCheckout = async (paymentToken: string) => {
-    const studentIds = new Set(
-      shoppingCart.items.map((item) => item.studentId)
-    );
-    const latestLunchSchedules = studentLunchTimes
-      .filter((slt) => studentIds.has(slt.studentId));
 
     try {
       const completedOrder = await checkout(
         paymentToken,
         shoppingCart,
-        latestLunchSchedules,
         saveCard
       );
 
@@ -307,7 +300,7 @@ const ShoppingCartPage: React.FC = () => {
         >
           <PaymentOptions
             sendEmail={sendEmail}
-            onSendEmail={user.email.length ? setSendEmail : undefined}
+            onSendEmail={user.email?.length ? setSendEmail : undefined}
             onCardSelected={handlePaymentChanged}
             savedCreditCards={savedCreditCards}
             savedGiftCards={savedGiftCards}
@@ -320,8 +313,8 @@ const ShoppingCartPage: React.FC = () => {
                 Total: ${total.toFixed(2)}
               </Typography>
               <PaymentForm
-                applicationId={schoolSettings.squareAppId}
-                locationId={schoolSettings.squareLocationId}
+                applicationId={school.squareAppId}
+                locationId={school.squareLocationId}
                 cardTokenizeResponseReceived={(tokenResult, buyer) => {
                   if (tokenResult.status !== "OK") {
                     console.log("Tokenization failed");

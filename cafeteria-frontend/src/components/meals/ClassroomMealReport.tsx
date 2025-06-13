@@ -6,23 +6,35 @@ import MenuItemChip from "./MenuItemChip";
 import Meal from "../../models/Meal";
 import Student from "../../models/Student";
 import { DateTimeUtils } from "../../DateTimeUtils";
+import User from "../../models/User";
 
 interface StudentMealReportProps {
   student: Student;
   date: string;
 }
 
+interface StaffMealReportProps {
+  staffMember: User;
+  date: string;
+}
+
+interface MealReportProps {
+  meals: Meal[];
+  title: string;
+}
+
 const ClassroomMealReport: React.FC<{ date: string; teacherId: number }> = ({
   date,
   teacherId,
 }) => {
-  const { students, studentLunchTimes } = React.useContext(AppContext);
+  const { students, user, users, currentSchoolYear } = React.useContext(AppContext);
 
+  const staffMember = users.find((u) => u.id === teacherId) || user;
   const dayOfWeek = DateTimeUtils.toDate(date).getDay();
 
   const sortedStudents = students
     .filter((student) =>
-      studentLunchTimes.find(
+      currentSchoolYear.studentLunchTimes.find(
         (lt) =>
           lt.studentId === student.id &&
           lt.dayOfWeek === dayOfWeek &&
@@ -44,6 +56,7 @@ const ClassroomMealReport: React.FC<{ date: string; teacherId: number }> = ({
         borderStyle: "solid",
       }}
     >
+      <StaffMealReport key={user.id} staffMember={staffMember} date={date} />
       {sortedStudents.map((student) => (
         <StudentMealReport key={student.id} student={student} date={date} />
       ))}
@@ -51,14 +64,10 @@ const ClassroomMealReport: React.FC<{ date: string; teacherId: number }> = ({
   );
 };
 
-const StudentMealReport: React.FC<StudentMealReportProps> = ({
-  student,
-  date,
+const MealReport: React.FC<MealReportProps> = ({
+  meals,
+  title,
 }) => {
-  const { orders } = React.useContext(AppContext);
-  const meals: Meal[] = orders
-    .flatMap((order) => order.meals)
-    .filter((m) => m.studentId === student.id && m.date === date);
 
   if (!meals.length) {
     return <></>;
@@ -81,7 +90,7 @@ const StudentMealReport: React.FC<StudentMealReportProps> = ({
           justifyContent: "center",
         }}
       >
-        <Typography variant="body2">{student.name}</Typography>
+        <Typography variant="body2">{title}</Typography>
       </Box>
       {meals.map((meal) => (
         <Box
@@ -110,6 +119,44 @@ const StudentMealReport: React.FC<StudentMealReportProps> = ({
         </Box>
       ))}
     </>
+  );
+};
+
+
+const StaffMealReport: React.FC<StaffMealReportProps> = ({
+  staffMember,
+  date,
+}) => {
+  const { orders } = React.useContext(AppContext);
+  const meals: Meal[] = orders
+    .flatMap((order) => order.meals)
+    .filter((m) => m.staffMemberId === staffMember.id && m.date === date);
+
+  if (!meals.length) {
+    return <></>;
+  }
+
+  const title = staffMember.firstName && staffMember.lastName ? staffMember.firstName + " " + staffMember.lastName : staffMember.userName;
+  return (
+    <MealReport meals={meals} title={title} />
+  );
+};
+
+const StudentMealReport: React.FC<StudentMealReportProps> = ({
+  student,
+  date,
+}) => {
+  const { orders } = React.useContext(AppContext);
+  const meals: Meal[] = orders
+    .flatMap((order) => order.meals)
+    .filter((m) => m.studentId === student.id && m.date === date);
+
+  if (!meals.length) {
+    return <></>;
+  }
+
+  return (
+    <MealReport meals={meals} title={student.name} />
   );
 };
 

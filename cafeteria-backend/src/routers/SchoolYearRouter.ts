@@ -1,15 +1,23 @@
 import express, { Router } from "express";
 import { AppDataSource } from "../data-source";
-import { authorizeRequest, buildSchoolYearDto, getCurrentSchoolYear } from "./RouterUtils";
+import { addUserToSchoolYear, authorizeRequest } from "./RouterUtils";
 
 import SchoolYearEntity from "../entity/SchoolYearEntity";
 import SchoolYear from "../models/SchoolYear";
-import DailyLunchTime, { DayOfWeek } from "../models/DailyLunchTime";
 import SchoolYearLunchTimeEntity from "../entity/SchoolYearLunchTimeEntity";
-import UserEntity from "../entity/UserEntity";
 import SchoolEntity from "../entity/SchoolEntity";
 import { Role } from "../models/User";
-import { Not } from "typeorm";
+import DailyLunchTimes from "../models/DailyLunchTimes";
+import GradeLunchTimeEntity from "../entity/GradeLunchTimeEntity";
+import { GradeLevel } from "../models/GradeLevel";
+import TeacherLunchTimeEntity from "../entity/TeacherLunchTimeEntity";
+import UserEntity from "../entity/UserEntity";
+import { DailyMenuEntity } from "../entity/MenuEntity";
+import StudentEntity from "../entity/StudentEntity";
+import { OrderEntity } from "../entity/OrderEntity";
+import Student from "../models/Student";
+import StudentLunchTime from "../models/StudentLunchTime";
+import { getStaffSession, SessionInfo } from "./SessionRouter";
 
 const SchoolYearRouter: Router = express.Router();
 
@@ -17,11 +25,12 @@ SchoolYearRouter.post<{}, SchoolYear | string, SchoolYear, {}>(
   "/",
   authorizeRequest,
   async (req, res) => {
+    if (req.user.role !== Role.ADMIN) {
+      res.status(403).send("Unauthorized");
+      return;
+    }
+
     const schoolYearRepository = AppDataSource.getRepository(SchoolYearEntity);
-    const userRepository = AppDataSource.getRepository(UserEntity);
-
-
-    const isCurrentSchoolYear = !getCurrentSchoolYear(req.user.school);
 
     let startDate = req.body.startDate;
     let endDate = req.body.endDate;
@@ -32,28 +41,43 @@ SchoolYearRouter.post<{}, SchoolYear | string, SchoolYear, {}>(
       endDate = tmpDate;
     }
 
-    const existingSchoolYears: SchoolYearEntity[] = await AppDataSource.createQueryBuilder().relation(SchoolYearEntity, 'lunchTimes').of(req.user.school).loadMany();
-    const overlappingSchoolYear: SchoolYearEntity | undefined = existingSchoolYears.find(esy => !(endDate < esy.startDate || startDate > esy.endDate));
+    const existingSchoolYears: SchoolYearEntity[] =
+      await AppDataSource.createQueryBuilder()
+        .relation(SchoolEntity, "schoolYears")
+        .of(req.user.school)
+        .loadMany();
+
+    const overlappingSchoolYear: SchoolYearEntity | undefined =
+      existingSchoolYears.find(
+        (esy) => !(endDate < esy.startDate || startDate > esy.endDate)
+      );
+
     if (overlappingSchoolYear) {
-      res.status(401).send("Overlapping school year dates");
+      res.status(400).send("Overlapping school year dates");
+      return;
     }
 
     const newSchoolYear = await schoolYearRepository.save({
       name: req.body.name,
       startDate: startDate,
       endDate: endDate,
-      isCurrent: isCurrentSchoolYear,
-      lunchTimes: [{dayOfWeek: DayOfWeek.MONDAY},{dayOfWeek: DayOfWeek.TUESDAY},{dayOfWeek: DayOfWeek.WEDNESDAY},{dayOfWeek: DayOfWeek.THURSDAY},{dayOfWeek: DayOfWeek.FRIDAY}]
+      isCurrent: false,
+      school: req.user.school,
     });
 
-    res.send(buildSchoolYearDto(newSchoolYear));
+    res.send(new SchoolYear(newSchoolYear));
   }
 );
 
-SchoolYearRouter.put<{}, {}, SchoolYear, {}>(
+SchoolYearRouter.put<{}, SchoolYear | string, SchoolYear, {}>(
   "/",
   authorizeRequest,
   async (req, res) => {
+    if (req.user.role !== Role.ADMIN) {
+      res.status(403).send("Unauthorized");
+      return;
+    }
+
     const schoolYearRepository = AppDataSource.getRepository(SchoolYearEntity);
 
     let startDate = req.body.startDate;
@@ -65,10 +89,35 @@ SchoolYearRouter.put<{}, {}, SchoolYear, {}>(
       endDate = tmpDate;
     }
 
-    const existingSchoolYears: SchoolYearEntity[] = await AppDataSource.createQueryBuilder().relation(SchoolYearEntity, 'lunchTimes').of(req.user.school).loadMany();
-    const overlappingSchoolYear: SchoolYearEntity | undefined = existingSchoolYears.find(esy => !(endDate < esy.startDate || startDate > esy.endDate));
+    const existingSchoolYears: SchoolYearEntity[] =
+      await AppDataSource.createQueryBuilder()
+        .relation(SchoolEntity, "schoolYears")
+        .of(req.user.school)
+        .loadMany();
+
+    const overlappingSchoolYear: SchoolYearEntity | undefined =
+      existingSchoolYears.find(
+        (esy) => !(endDate < esy.startDate || startDate > esy.endDate)
+      );
+
     if (overlappingSchoolYear && overlappingSchoolYear.id !== req.body.id) {
-      res.status(401).send("Overlapping school year dates");
+      res.status(400).send("Overlapping school year dates");
+      return;
+    }
+
+    const existingSchoolYear = await schoolYearRepository.findOne({
+      where: { id: req.body.id },
+      relations: { school: true },
+    });
+
+    if (!existingSchoolYear) {
+      res.status(404).send("School year not found");
+      return;
+    }
+
+    if (existingSchoolYear.school.id !== req.user.school.id) {
+      res.status(403).send("Unauthorized");
+      return;
     }
 
     await schoolYearRepository.update(req.body.id, {
@@ -76,23 +125,88 @@ SchoolYearRouter.put<{}, {}, SchoolYear, {}>(
       startDate: startDate,
       endDate: endDate,
     });
+
+    const updatedSchoolYear = await schoolYearRepository.findOne({
+      where: { id: req.body.id },
+    });
+
+    res.send(new SchoolYear(updatedSchoolYear!));
+  }
+);
+
+SchoolYearRouter.post<
+  { schoolYearId: string; teacherId: string },
+  {},
+  DailyLunchTimes[],
+  {}
+>(
+  "/:schoolYearId/teacher/:teacherId/times",
+  authorizeRequest,
+  async (req, res) => {
+    const schoolYearRepository = AppDataSource.getRepository(SchoolYearEntity);
+    const teacherLunchTimeRepository = AppDataSource.getRepository(
+      TeacherLunchTimeEntity
+    );
+    const userRepository = AppDataSource.getRepository(UserEntity);
+
+    let schoolYear = await schoolYearRepository.findOne({
+      where: { id: parseInt(req.params.schoolYearId) },
+      relations: { teacherLunchTimes: { teacher: true } },
+    });
+
+    if (!schoolYear) {
+      res.status(401).send("School year not found");
+      return;
+    }
+
+    const teacher = await userRepository.findOne({
+      where: { id: parseInt(req.params.teacherId) },
+    });
+
+    if (!teacher) {
+      res.status(401).send("Teacher not found");
+      return;
+    }
+
+    for (const dlt of req.body) {
+      const newTimes = dlt.times.sort().join("|");
+      const dailyTimes = schoolYear.teacherLunchTimes.find(
+        (lt) => lt.dayOfWeek === dlt.dayOfWeek && lt.teacher.id === teacher.id
+      );
+
+      if (dailyTimes) {
+        if (dailyTimes.time !== newTimes) {
+          await teacherLunchTimeRepository.update(dailyTimes.id, {
+            time: newTimes,
+          });
+        }
+      } else {
+        await teacherLunchTimeRepository.save({
+          dayOfWeek: dlt.dayOfWeek,
+          time: newTimes,
+          schoolYear: schoolYear,
+          teacher: teacher,
+        });
+      }
+    }
+
     res.sendStatus(200);
   }
 );
 
 SchoolYearRouter.post<
-  {},
-  DailyLunchTime[] | string,
-  { schoolYearId: number; daysOfWeek: number[]; times: string[] },
+  { schoolYearId: string },
+  DailyLunchTimes[] | string,
+  DailyLunchTimes[],
   {}
->("/times", authorizeRequest, async (req, res) => {
+>("/:schoolYearId/times", authorizeRequest, async (req, res) => {
   const schoolYearRepository = AppDataSource.getRepository(SchoolYearEntity);
   const schoolLunchTimeRepository = AppDataSource.getRepository(
     SchoolYearLunchTimeEntity
   );
 
   let schoolYear = await schoolYearRepository.findOne({
-    where: { id: req.body.schoolYearId },
+    where: { id: parseInt(req.params.schoolYearId) },
     relations: { lunchTimes: true },
   });
 
@@ -101,17 +215,171 @@ SchoolYearRouter.post<
     return;
   }
 
-  for (const dow of req.body.daysOfWeek) {
-    const newTimes = req.body.times.join("|");
-    const dailyTimes = schoolYear.lunchTimes.find((lt) => lt.dayOfWeek === dow);
+  for (const dlt of req.body) {
+    const newTimes = dlt.times.join("|");
+    const dailyTimes = schoolYear.lunchTimes.find(
+      (lt) => lt.dayOfWeek === dlt.dayOfWeek
+    );
     if (dailyTimes) {
       await schoolLunchTimeRepository.update(dailyTimes.id, {
         time: newTimes,
       });
       dailyTimes.time = newTimes;
+    } else {
+      schoolYear.lunchTimes.push(
+        await schoolLunchTimeRepository.save({
+          dayOfWeek: dlt.dayOfWeek,
+          time: newTimes,
+          schoolYear: schoolYear,
+        })
+      );
     }
   }
-  res.status(200).send(schoolYear.lunchTimes)
+  res.status(200).send(
+    schoolYear.lunchTimes.map((sylt) => ({
+      dayOfWeek: sylt.dayOfWeek,
+      times: sylt.time ? sylt.time.split("|") : [],
+    }))
+  );
 });
+
+SchoolYearRouter.put<
+  { schoolYearId: string },
+  SchoolYear | string,
+  GradeLevel[],
+  {}
+>("/:schoolYearId/gradeconfig", authorizeRequest, async (req, res) => {
+  if (req.user.role !== Role.ADMIN) {
+    res.status(403).send("Unauthorized");
+    return;
+  }
+
+  const schoolYearRepository = AppDataSource.getRepository(SchoolYearEntity);
+
+  const schoolYear = await schoolYearRepository.findOne({
+    where: {
+      id: parseInt(req.params.schoolYearId),
+    },
+    relations: { school: true },
+  });
+
+  if (!schoolYear) {
+    res.status(404).send("Current school year not found");
+    return;
+  }
+
+  await schoolYearRepository.update(schoolYear.id, {
+    gradesAssignedByClass: req.body.join("|"),
+  });
+
+  const updatedSchoolYear = await schoolYearRepository.findOne({
+    where: { id: schoolYear.id },
+  });
+
+  res.send(new SchoolYear(updatedSchoolYear!));
+});
+
+SchoolYearRouter.post<
+  { schoolYearId: string; grade: string },
+  {},
+  DailyLunchTimes[],
+  {}
+>("/:schoolYearId/grade/:grade/times", authorizeRequest, async (req, res) => {
+  const schoolYearRepository = AppDataSource.getRepository(SchoolYearEntity);
+  const gradeLunchTimeRepository =
+    AppDataSource.getRepository(GradeLunchTimeEntity);
+
+  let schoolYear = await schoolYearRepository.findOne({
+    where: { id: parseInt(req.params.schoolYearId) },
+    relations: { gradeLunchTimes: true },
+  });
+
+  if (!schoolYear) {
+    res.status(401).send("School year not found");
+    return;
+  }
+
+  const grade = req.params.grade as GradeLevel;
+  if (!Object.values(GradeLevel).includes(grade)) {
+    res.status(400).send("Invalid grade level");
+    return;
+  }
+
+  for (const dlt of req.body) {
+    const newTimes = dlt.times.sort().join("|");
+    const dailyTimes = schoolYear.gradeLunchTimes.find(
+      (lt) => lt.dayOfWeek === dlt.dayOfWeek && lt.grade === grade
+    );
+
+    let isUpdated = false;
+    if (dailyTimes) {
+      if (dailyTimes.time !== newTimes) {
+        await gradeLunchTimeRepository.update(dailyTimes.id, {
+          time: newTimes,
+        });
+        isUpdated = true;
+      } else {
+        await gradeLunchTimeRepository.save({
+          dayOfWeek: dlt.dayOfWeek,
+          time: newTimes,
+          schoolYear: schoolYear,
+          grade: grade,
+        });
+        isUpdated = true;
+      }
+    }
+  }
+
+  res.sendStatus(200);
+});
+
+SchoolYearRouter.put<{ schoolYearId: string }, SessionInfo | string, {}, {}>(
+  "/:schoolYearId/toggle-current",
+  authorizeRequest,
+  async (req, res) => {
+
+    if (req.user.role !== Role.ADMIN) {
+      res.status(403).send("Unauthorized");
+      return;
+    }
+
+    const schoolYearRepository = AppDataSource.getRepository(SchoolYearEntity);
+
+    const schoolYear = await schoolYearRepository.findOne({
+      where: { id: parseInt(req.params.schoolYearId) },
+      relations: { school: true },
+    });
+
+    if (!schoolYear) {
+      res.status(404).send("School year not found");
+      return;
+    }
+
+    if (schoolYear.school.id !== req.user.school.id) {
+      res.status(403).send("Unauthorized");
+      return;
+    }
+
+    const isCurrent = !schoolYear.isCurrent;
+
+    // If we're activating this year, deactivate all other years first
+    if (isCurrent) {
+      await schoolYearRepository.update(
+        { school: { id: req.user.school.id } },
+        { isCurrent: false }
+      );
+      await addUserToSchoolYear(req.user, schoolYear);
+    }
+
+    // Toggle the current status
+    await schoolYearRepository.update(schoolYear.id, {
+      isCurrent,
+    });
+
+    const updatedSessionInfo: SessionInfo = await getStaffSession(req.user);
+
+    res.send(updatedSessionInfo);
+  }
+);
 
 export default SchoolYearRouter;

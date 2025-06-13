@@ -4,9 +4,6 @@ import Student from "./Student";
 import User from "./User";
 import { Notification } from "./Notification";
 import School from "./School";
-import DailyLunchTime from "./DailyLunchTime";
-import TeacherLunchTime from "./TeacherLunchTime";
-import { StudentLunchTime } from "./StudentLunchTime";
 import SchoolYear from "./SchoolYear";
 
 export default interface SessionInfo {
@@ -20,7 +17,4 @@ export default interface SessionInfo {
   pantryItems: PantryItem[];
   notifications: Notification[];
   school: School;
-  schoolLunchTimes: DailyLunchTime[];
-  teacherLunchTimes: TeacherLunchTime[];
-  studentLunchTimes: StudentLunchTime[];
 }

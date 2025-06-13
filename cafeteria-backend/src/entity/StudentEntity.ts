@@ -8,9 +8,9 @@ import {
 } from "typeorm";
 import MealEntity from "./MealEntity";
 import StudentLunchTimeEntity from "./StudentLunchTimeEntity";
-import { GradeLevel } from "../models/GradeLevel";
 import SchoolEntity from "./SchoolEntity";
 import SchoolYearEntity from "./SchoolYearEntity";
+import UserEntity from "./UserEntity";
 
 @Entity("student")
 export default class StudentEntity {
@@ -20,8 +20,6 @@ export default class StudentEntity {
   studentId: string;
   @Column()
   name: string;
-  @Column({ type: "enum", enum: GradeLevel, default: "" })
-  grade: GradeLevel | null;
   @OneToMany(() => MealEntity, (meal) => meal.student)
   meals: MealEntity[];
 
@@ -30,6 +28,9 @@ export default class StudentEntity {
 
   @ManyToMany(() => SchoolYearEntity, (schoolYear) => schoolYear.students)
   schoolYears: SchoolYearEntity[];
+
+  @ManyToMany(() => UserEntity, (user) => user.students)
+  parents: UserEntity[];
 
   @ManyToOne(() => SchoolEntity, (school) => school.students)
   school: SchoolEntity;

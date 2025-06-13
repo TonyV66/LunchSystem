@@ -1,4 +1,4 @@
-import React, { useRef } from "react";
+import React from "react";
 import {
   Box,
   IconButton,
@@ -10,6 +10,8 @@ import {
   Accordion,
   AccordionSummary,
   AccordionDetails,
+  Divider,
+  ListSubheader,
 } from "@mui/material";
 import {
   DateTimeFormat,
@@ -42,17 +44,17 @@ import {
   RelativeDateTarget,
 } from "../settings/AdminSettingsPage";
 import DailyMealsDialog from "../meals/DailyMealsDialog";
-import AddToCartDialog from "../shoppingcart/AddToCartDialog";
+import OrderMealDialog from "../shoppingcart/OrderMealDialog";
 import { Role } from "../../models/User";
 import CafeteriaDialog from "../cafeteria/CafeteriaDialog";
 import ClassroomMealsDialog from "../meals/ClassroomMealsDialog";
 import { AxiosError } from "axios";
 import OrderDatesDialog from "./OrderDatesDialog";
+import DonateMealDialog from "../shoppingcart/DonateMealDialog";
 
 interface MealPlanProps {
   menuOrDate: DailyMenu | string;
   clipboardMenu?: Menu;
-  disabled?: boolean;
 }
 
 interface AdminMealButtonProps extends MealPlanProps {
@@ -99,19 +101,29 @@ const willBeAcceptingOrders = (menu?: DailyMenu) => {
   return menu && new Date(menu.orderEndTime) > now;
 };
 
-const DAILY_BACKGROUND_IMAGES = ['/s.png', '/m.png', '/t.png', '/w.png', '/t.png', '/f.png', '/s.png'];
+const DAILY_BACKGROUND_IMAGES = [
+  "/s.png",
+  "/m.png",
+  "/t.png",
+  "/w.png",
+  "/t.png",
+  "/f.png",
+  "/s.png",
+];
 const AdminMealButtons: React.FC<AdminMealButtonProps> = ({
   menuOrDate,
   clipboardMenu,
-  disabled,
   onMenuChanged,
 }) => {
   const {
+    user,
     scheduledMenus,
     setScheduledMenus,
-    school: schoolSettings,
+    school,
     orders,
     setSnackbarErrorMsg,
+    shoppingCart,
+    currentSchoolYear,
   } = useContext(AppContext);
   const [menu, setMenu] = useState(
     typeof menuOrDate === "string" ? undefined : (menuOrDate as DailyMenu)
@@ -120,9 +132,26 @@ const AdminMealButtons: React.FC<AdminMealButtonProps> = ({
   const [editMenu, setEditMenu] = useState(false);
   const [showCafeteriaReport, setShowCafeteriaReport] = useState(false);
   const [showClassroomReport, setShowClassroomReport] = useState(false);
+  const [showDonateMeal, setShowDonateMeal] = useState(false);
+  const [addToCart, setAddToCart] = useState(false);
+  const [showOrderedMeals, setShowOrderedMeals] = useState(false);
+  const [hasMealsInCart, setHasMealsInCart] = useState(
+    shoppingCart.items.find((item) => item.dailyMenuId === menu?.id)
+      ? true
+      : false
+  );
 
   const dateStr = menu?.date ?? (menuOrDate as string);
+  const today = DateTimeUtils.toString(new Date());
   const date = DateTimeUtils.toDate(dateStr);
+
+  const isDateInUpcomingSchoolYear =
+    dateStr <= currentSchoolYear.endDate &&
+    dateStr >= today &&
+    (currentSchoolYear.id ? true : false);
+
+  const isDateInCurrentSchoolYear =
+    isDateInUpcomingSchoolYear && dateStr >= currentSchoolYear.startDate;
 
   const hasOrderedMeals = orders
     .flatMap((order) => order.meals)
@@ -153,20 +182,20 @@ const AdminMealButtons: React.FC<AdminMealButtonProps> = ({
   const calculateOrderStartTime = (mealDate: Date) => {
     return calculateOrderTime(
       mealDate,
-      schoolSettings.orderStartPeriodCount,
-      schoolSettings.orderStartPeriodType,
-      schoolSettings.orderStartRelativeTo,
-      schoolSettings.orderStartTime
+      school.orderStartPeriodCount,
+      school.orderStartPeriodType,
+      school.orderStartRelativeTo,
+      school.orderStartTime
     );
   };
 
   const calculateOrderEndTime = (mealDate: Date) => {
     return calculateOrderTime(
       mealDate,
-      schoolSettings.orderEndPeriodCount,
-      schoolSettings.orderEndPeriodType,
-      schoolSettings.orderEndRelativeTo,
-      schoolSettings.orderEndTime
+      school.orderEndPeriodCount,
+      school.orderEndPeriodType,
+      school.orderEndRelativeTo,
+      school.orderEndTime
     );
   };
 
@@ -232,6 +261,16 @@ const AdminMealButtons: React.FC<AdminMealButtonProps> = ({
     setEditMenu(true);
   };
 
+  const handleAddToCart = () => {
+    setPulldownMenuAnchor(null);
+    setAddToCart(true);
+  };
+
+  const handleShowOrderedMeals = () => {
+    setPulldownMenuAnchor(null);
+    setShowOrderedMeals(true);
+  };
+
   const handleShowCafeteriaReport = () => {
     setPulldownMenuAnchor(null);
     setShowCafeteriaReport(true);
@@ -281,6 +320,16 @@ const AdminMealButtons: React.FC<AdminMealButtonProps> = ({
     }
   };
 
+  const handleShowDonateMeal = () => {
+    setPulldownMenuAnchor(null);
+    setShowDonateMeal(true);
+  };
+
+  const handleMealAddedToCart = () => {
+    setAddToCart(false);
+    setHasMealsInCart(true);
+  };
+
   return (
     <Box
       sx={{
@@ -290,12 +339,14 @@ const AdminMealButtons: React.FC<AdminMealButtonProps> = ({
       }}
     >
       <Typography sx={{ flexGrow: 1 }} fontWeight="bold" variant="caption">
-        {SHORT_MONTH_NAMES[DateTimeUtils.toDate(date).getMonth()] + " " + DateTimeUtils.toDate(date).getDate()}
+        {SHORT_MONTH_NAMES[DateTimeUtils.toDate(date).getMonth()] +
+          " " +
+          DateTimeUtils.toDate(date).getDate()}
       </Typography>
 
-      {disabled || !menu ? (
+      {!menu || today > dateStr ? (
         <IconButton color="primary" disabled={true} size="small">
-          {isAcceptingOrders(menu) ? <AccessTimeTwoTone /> : <AccessTime />}
+          <AccessTime />
         </IconButton>
       ) : (
         <Tooltip
@@ -318,7 +369,7 @@ const AdminMealButtons: React.FC<AdminMealButtonProps> = ({
       )}
       <IconButton
         color="primary"
-        disabled={disabled || !clipboardMenu}
+        disabled={!isDateInCurrentSchoolYear || !clipboardMenu}
         onClick={handlePasteMenu}
         size="small"
       >
@@ -326,7 +377,7 @@ const AdminMealButtons: React.FC<AdminMealButtonProps> = ({
       </IconButton>
       <IconButton
         color="primary"
-        disabled={disabled || !menu}
+        disabled={!menu}
         onClick={handleShowMenu}
         size="small"
       >
@@ -363,7 +414,23 @@ const AdminMealButtons: React.FC<AdminMealButtonProps> = ({
           >
             Cafeteria Report
           </MenuItem>
-          <MenuItem onClick={handleDeleteClicked}>Delete</MenuItem>
+          <MenuItem disabled={today > dateStr} onClick={handleShowDonateMeal}>
+            Order Student Meal
+          </MenuItem>
+          <MenuItem disabled={today > dateStr} onClick={handleDeleteClicked}>
+            Delete
+          </MenuItem>
+          <Divider />
+          <ListSubheader>For My Family</ListSubheader>
+          <MenuItem disabled={today > dateStr} onClick={handleAddToCart}>
+            Order A Meal
+          </MenuItem>
+          <MenuItem
+            disabled={!hasOrderedMeals && !hasMealsInCart}
+            onClick={handleShowOrderedMeals}
+          >
+            Show Ordered Meals
+          </MenuItem>
         </PulldownMenu>
       )}
       {editAvail && (
@@ -400,6 +467,33 @@ const AdminMealButtons: React.FC<AdminMealButtonProps> = ({
       ) : (
         <></>
       )}
+      {showDonateMeal && menu ? (
+        <DonateMealDialog
+          menu={menu}
+          onClose={() => setShowDonateMeal(false)}
+        />
+      ) : (
+        <></>
+      )}
+      {addToCart ? (
+        <OrderMealDialog
+          user={user}
+          onClose={() => setAddToCart(false)}
+          onAddedToCart={handleMealAddedToCart}
+          date={menu!.date}
+        />
+      ) : (
+        <></>
+      )}
+      {showOrderedMeals ? (
+        <DailyMealsDialog
+          user={user}
+          onClose={() => setShowOrderedMeals(false)}
+          date={menu!.date}
+        />
+      ) : (
+        <></>
+      )}
     </Box>
   );
 };
@@ -407,28 +501,83 @@ const AdminMealButtons: React.FC<AdminMealButtonProps> = ({
 const TeacherMealButtons: React.FC<CafeteriaMealButtonProps> = ({
   menuOrDate,
 }) => {
-  const { orders, students, user, studentLunchTimes } = useContext(AppContext);
+  const { orders, students, user, currentSchoolYear, shoppingCart } =
+    useContext(AppContext);
   const [showReport, setShowReport] = useState(false);
+  const [addToCart, setAddToCart] = useState(false);
+  const [showOrderedMeals, setShowOrderedMeals] = useState(false);
+  const [hasMealsInCart, setHasMealsInCart] = useState(
+    shoppingCart.items.find((item) => item.dailyMenuId === menu?.id)
+      ? true
+      : false
+  );
+  const [pulldownMenuAnchor, setPulldownMenuAnchor] =
+    useState<null | HTMLElement>(null);
+
+  const handleMealAddedToCart = () => {
+    setAddToCart(false);
+    setHasMealsInCart(true);
+  };
+
+  const handleCloseMenu = () => {
+    setPulldownMenuAnchor(null);
+  };
+
+  const handleShowMenu = (event: React.MouseEvent<HTMLButtonElement>) => {
+    setPulldownMenuAnchor(event.currentTarget);
+  };
+
+  const handleShowAddToCart = () => {
+    setPulldownMenuAnchor(null);
+    setAddToCart(true);
+  };
+
+  const handleShowOrderedMeals = () => {
+    setPulldownMenuAnchor(null);
+    setShowOrderedMeals(true);
+  };
 
   const menu =
     typeof menuOrDate === "string" ? undefined : (menuOrDate as DailyMenu);
   const date = menu?.date ?? (menuOrDate as string);
 
   const dayOfWeek = DateTimeUtils.toDate(date).getDay();
+  const today = DateTimeUtils.toString(new Date());
 
   const studentIds = students
     .filter((student) =>
-      studentLunchTimes.find(
-        (lt) => lt.studentId === student.id && lt.dayOfWeek === dayOfWeek && lt.teacherId == user.id
+      currentSchoolYear.studentLunchTimes.find(
+        (lt) =>
+          lt.studentId === student.id &&
+          lt.dayOfWeek === dayOfWeek &&
+          lt.teacherId == user.id
       )
         ? true
         : false
     )
     .map((student) => student.id);
 
-  const hasOrderedMeals = orders
+  const childrenIds = students
+    .filter((s) => s.parents.includes(user.id))
+    .map((student) => student.id);
+
+  const studentsHaveOrderedMeals = orders
     .flatMap((order) => order.meals)
-    .find((meal) => meal.date === date && studentIds.includes(meal.studentId))
+    .find(
+      (meal) =>
+        meal.date === date &&
+        (!meal.studentId || studentIds.includes(meal.studentId))
+    )
+    ? true
+    : false;
+
+  const childrenHaveOrderedMeals = orders
+    .flatMap((order) => order.meals)
+    .find(
+      (meal) =>
+        meal.date === date &&
+        (!meal.studentId || childrenIds.includes(meal.studentId))
+    )
     ? true
     : false;
 
@@ -446,16 +595,78 @@ const TeacherMealButtons: React.FC<CafeteriaMealButtonProps> = ({
         fontWeight="bold"
         variant="caption"
       >
-        {SHORT_MONTH_NAMES[DateTimeUtils.toDate(date).getMonth()] + " " + DateTimeUtils.toDate(date).getDate()}
+        {SHORT_MONTH_NAMES[DateTimeUtils.toDate(date).getMonth()] +
+          " " +
+          DateTimeUtils.toDate(date).getDate()}
       </Typography>
       <IconButton
         color="primary"
-        disabled={!menu || !hasOrderedMeals}
+        disabled={!menu || !studentsHaveOrderedMeals}
         onClick={() => setShowReport(true)}
         size="small"
       >
         <ManageSearch />
       </IconButton>
+      <IconButton
+        color="primary"
+        disabled={!menu}
+        onClick={handleShowMenu}
+        size="small"
+      >
+        <MoreVert />
+      </IconButton>
+      {!pulldownMenuAnchor ? (
+        <></>
+      ) : (
+        <PulldownMenu
+          id="demo-positioned-menu"
+          aria-labelledby="demo-positioned-button"
+          anchorEl={pulldownMenuAnchor}
+          open={true}
+          onClose={handleCloseMenu}
+          anchorOrigin={{
+            vertical: "top",
+            horizontal: "left",
+          }}
+          transformOrigin={{
+            vertical: "top",
+            horizontal: "left",
+          }}
+        >
+          <MenuItem
+            disabled={!menu || !isAcceptingOrders(menu) || today > date}
+            onClick={handleShowAddToCart}
+          >
+            Order Meal
+          </MenuItem>
+          <MenuItem
+            disabled={!childrenHaveOrderedMeals && !hasMealsInCart}
+            onClick={handleShowOrderedMeals}
+          >
+            Show My Orders
+          </MenuItem>
+        </PulldownMenu>
+      )}
+
+      {showOrderedMeals ? (
+        <DailyMealsDialog
+          user={user}
+          onClose={() => setShowOrderedMeals(false)}
+          date={date}
+        />
+      ) : (
+        <></>
+      )}
+      {addToCart ? (
+        <OrderMealDialog
+          user={user}
+          onClose={() => setAddToCart(false)}
+          onAddedToCart={handleMealAddedToCart}
+          date={date}
+        />
+      ) : (
+        <></>
+      )}
       {showReport ? (
         <ClassroomMealsDialog
           teacherId={user.id}
@@ -499,7 +710,9 @@ const CafeteriaMealButtons: React.FC<CafeteriaMealButtonProps> = ({
         fontWeight="bold"
         variant="caption"
       >
-        {SHORT_MONTH_NAMES[DateTimeUtils.toDate(date).getMonth()] + " " + DateTimeUtils.toDate(date).getDate()}
+        {SHORT_MONTH_NAMES[DateTimeUtils.toDate(date).getMonth()] +
+          " " +
+          DateTimeUtils.toDate(date).getDate()}
       </Typography>
       <IconButton
         color="primary"
@@ -519,14 +732,14 @@ const CafeteriaMealButtons: React.FC<CafeteriaMealButtonProps> = ({
 };
 
 const ParentMealButtons: React.FC<ParentMealButtonProps> = ({ menuOrDate }) => {
-  const { orders, shoppingCart } = useContext(AppContext);
+  const { orders, shoppingCart, user } =
+    useContext(AppContext);
 
   const menu =
     typeof menuOrDate === "string" ? undefined : (menuOrDate as DailyMenu);
   const date = menu?.date ?? (menuOrDate as string);
 
   const [showOrderedMeals, setShowOrderedMeals] = useState(false);
-  // const [showAvailability, setShowAvailability] = useState(false);
   const [addToCart, setAddToCart] = useState(false);
   const [showOrderDates, setShowOrderDates] = useState(false);
   const [hasMealsInCart, setHasMealsInCart] = useState(
@@ -535,6 +748,7 @@ const ParentMealButtons: React.FC<ParentMealButtonProps> = ({ menuOrDate }) => {
       : false
   );
 
+  const today = DateTimeUtils.toString(new Date());
   const hasOrderedMeals = orders
     .flatMap((order) => order.meals)
     .find((meal) => meal.date === date)
@@ -563,11 +777,13 @@ const ParentMealButtons: React.FC<ParentMealButtonProps> = ({ menuOrDate }) => {
         fontWeight="bold"
         variant="caption"
       >
-        {SHORT_MONTH_NAMES[DateTimeUtils.toDate(date).getMonth()] + " " + DateTimeUtils.toDate(date).getDate()}
+        {SHORT_MONTH_NAMES[DateTimeUtils.toDate(date).getMonth()] +
+          " " +
+          DateTimeUtils.toDate(date).getDate()}
       </Typography>
       <IconButton
         color="primary"
-        disabled={!hasOrderedMeals && !hasMealsInCart}
+        disabled={(!hasOrderedMeals && !hasMealsInCart) || !menu}
         onClick={() => setShowOrderedMeals(true)}
         size="small"
       >
@@ -575,11 +791,11 @@ const ParentMealButtons: React.FC<ParentMealButtonProps> = ({ menuOrDate }) => {
       </IconButton>
       <IconButton
         color={
-          !currentlyAcceptingOrders && willAcceptOrderInFuture
+          today <= date && !currentlyAcceptingOrders && willAcceptOrderInFuture
             ? "warning"
             : "primary"
         }
-        disabled={!currentlyAcceptingOrders && !willAcceptOrderInFuture}
+        disabled={today > date || !currentlyAcceptingOrders && !willAcceptOrderInFuture}
         onClick={
           currentlyAcceptingOrders
             ? () => setAddToCart(true)
@@ -591,6 +807,7 @@ const ParentMealButtons: React.FC<ParentMealButtonProps> = ({ menuOrDate }) => {
       </IconButton>
       {showOrderedMeals ? (
         <DailyMealsDialog
+          user={user}
           onClose={() => setShowOrderedMeals(false)}
           date={date}
         />
@@ -598,7 +815,8 @@ const ParentMealButtons: React.FC<ParentMealButtonProps> = ({ menuOrDate }) => {
         <></>
       )}
       {addToCart ? (
-        <AddToCartDialog
+        <OrderMealDialog
+          user={user}
           onClose={() => setAddToCart(false)}
           onAddedToCart={handleMealAddedToCart}
           date={date}
@@ -618,60 +836,50 @@ const ParentMealButtons: React.FC<ParentMealButtonProps> = ({ menuOrDate }) => {
   );
 };
 
-const MealPlan: React.FC<MealPlanProps> = ({
-  menuOrDate,
-  clipboardMenu,
-  disabled,
-}) => {
-  const { user } = useContext(AppContext);
+const MealPlan: React.FC<MealPlanProps> = ({ menuOrDate, clipboardMenu }) => {
+  const { user, currentSchoolYear } = useContext(AppContext);
   const [menu, setMenu] = useState(
     typeof menuOrDate === "string" ? undefined : (menuOrDate as DailyMenu)
   );
 
-  const tmpDate = menu?.date ?? (menuOrDate as string);
-  if (!tmpDate) {
-    console.log("Here I am");
-  }
-
-  const date = useRef(
-    DateTimeUtils.toDate(
-      typeof menuOrDate === "string"
-        ? menuOrDate
-        : (menuOrDate as DailyMenu).date
-    )
-  );
+  const today = DateTimeUtils.toString(new Date());
+  const date = menu?.date ?? (menuOrDate as string);
 
   const backgroundImage = "/m.png";
   const handleMenuChanged = (menu?: DailyMenu) => {
     setMenu(menu);
   };
 
+  const isDateInCurrentSchoolYear =
+    date <= currentSchoolYear.endDate &&
+    (currentSchoolYear.id ? true : false) &&
+    date >= currentSchoolYear.startDate;
+
   let buttonBar = (
     <CafeteriaMealButtons
-      menuOrDate={menu ?? DateTimeUtils.toString(date.current)}
+      menuOrDate={menu && isDateInCurrentSchoolYear ? menu : date}
     ></CafeteriaMealButtons>
   );
   switch (user.role) {
     case Role.TEACHER:
       buttonBar = (
         <TeacherMealButtons
-          menuOrDate={menu ?? DateTimeUtils.toString(date.current)}
+          menuOrDate={menu && isDateInCurrentSchoolYear ? menu : date}
         ></TeacherMealButtons>
       );
       break;
     case Role.PARENT:
       buttonBar = (
         <ParentMealButtons
-          menuOrDate={menu ?? DateTimeUtils.toString(date.current)}
+          menuOrDate={menu && isDateInCurrentSchoolYear ? menu : date}
         ></ParentMealButtons>
       );
       break;
     case Role.ADMIN:
       buttonBar = (
         <AdminMealButtons
-          menuOrDate={menu ?? DateTimeUtils.toString(date.current)}
+          menuOrDate={menu && isDateInCurrentSchoolYear ? menu : date}
           clipboardMenu={clipboardMenu}
-          disabled={disabled}
           onMenuChanged={handleMenuChanged}
         ></AdminMealButtons>
       );
@@ -696,66 +904,91 @@ const MealPlan: React.FC<MealPlanProps> = ({
         className={"testname"}
         sx={{
           flexGrow: 1,
-          backgroundSize: '65px 65px',
+          backgroundSize: "65px 65px",
           backgroundImage: backgroundImage
-            ? 'url("' + DAILY_BACKGROUND_IMAGES[date.current.getDay()] + '")'
+            ? 'url("' +
+              DAILY_BACKGROUND_IMAGES[DateTimeUtils.toDate(date).getDay()] +
+              '")'
             : undefined,
           backgroundPosition: "center",
           backgroundRepeat: "no-repeat",
         }}
       >
-        {menu ? <MenuPanel disabled={disabled} menu={menu} /> : <></>}
+        {menu && isDateInCurrentSchoolYear ? (
+          <MenuPanel disabled={today > menu.date} menu={menu} />
+        ) : (
+          <></>
+        )}
       </Box>
     </Paper>
   );
 };
 
 interface MonthlyMealPlanProps {
-  month: number;
+  startOfMonth: Date;
   expand: boolean;
   clipboardMenu?: Menu;
+  disabled?: boolean;
 }
 
 const MonthlyMealPlan: React.FC<MonthlyMealPlanProps> = ({
-  month,
+  startOfMonth,
   clipboardMenu,
   expand,
 }) => {
-  let nextSchoolDay = new Date();
-  if (nextSchoolDay.getDay() % 6 === 0) {
-    nextSchoolDay = new Date(
-      DateTimeUtils.addDays(nextSchoolDay, (nextSchoolDay.getDay() + 1) % 5)
-    );
-  }
-
-  let startDate = new Date(nextSchoolDay);
-  if (month !== nextSchoolDay.getMonth()) {
-    startDate.setDate(1);
-    startDate.setMonth(month);
-    startDate.setFullYear(
-      startDate.getFullYear() + (startDate.getMonth() < month ? 1 : 0)
-    );
-  }
-
-  if (startDate.getDay() % 6 === 0) {
-    startDate = new Date(
-      DateTimeUtils.addDays(startDate, (startDate.getDay() + 1) % 5)
-    );
-  }
-
   const title =
-    MONTH_NAMES[startDate.getMonth()] + " " + startDate.getFullYear();
+    MONTH_NAMES[startOfMonth.getMonth()] + " " + startOfMonth.getFullYear();
 
-  const dates: string[] = [];
-  do {
-    dates.push(DateTimeUtils.toString(startDate));
-    startDate = new Date(
-      DateTimeUtils.addDays(
-        DateTimeUtils.getFirstDayOfWeek(DateTimeUtils.addDays(startDate, 7)),
-        1
-      )
+  const dates: Date[] = [];
+
+  const firstWeekdayOfMonth = new Date(startOfMonth);
+  while (
+    firstWeekdayOfMonth.getDay() === 0 ||
+    firstWeekdayOfMonth.getDay() === 6
+  ) {
+    firstWeekdayOfMonth.setDate(firstWeekdayOfMonth.getDate() + 1);
+  }
+  firstWeekdayOfMonth.setHours(0, 0, 0, 0);
+
+  const lastWeekdayOfMonth = new Date(
+    startOfMonth.getFullYear(),
+    startOfMonth.getMonth() + 1,
+    0
+  );
+  while (
+    lastWeekdayOfMonth.getDay() === 0 ||
+    lastWeekdayOfMonth.getDay() === 6
+  ) {
+    lastWeekdayOfMonth.setDate(lastWeekdayOfMonth.getDate() - 1);
+  }
+  lastWeekdayOfMonth.setHours(23, 59, 59, 999);
+
+  dates.push(new Date(firstWeekdayOfMonth));
+  const nextMonday = DateTimeUtils.addDays(
+    DateTimeUtils.getFirstDayOfWeek(firstWeekdayOfMonth),
+    8
+  );
+  while (nextMonday.getMonth() === startOfMonth.getMonth()) {
+    dates.push(new Date(nextMonday));
+    nextMonday.setDate(nextMonday.getDate() + 7);
+  }
+
+  const nextSchoolDay = new Date();
+  while (nextSchoolDay.getDay() === 0 || nextSchoolDay.getDay() === 6) {
+    nextSchoolDay.setDate(nextSchoolDay.getDate() + 1);
+  }
+  nextSchoolDay.setHours(0, 0, 0, 0);
+
+  if (
+    nextSchoolDay >= firstWeekdayOfMonth &&
+    nextSchoolDay <= lastWeekdayOfMonth
+  ) {
+    dates.splice(
+      0,
+      dates.findIndex((date) => date > nextSchoolDay)
     );
-  } while (startDate.getMonth() === month);
+    dates.unshift(new Date(nextSchoolDay));
+  }
 
   return (
     <Accordion defaultExpanded={expand}>
@@ -776,9 +1009,9 @@ const MonthlyMealPlan: React.FC<MonthlyMealPlanProps> = ({
         >
           {dates.map((date) => (
             <WeeklyMealPlan
-              key={date}
+              key={DateTimeUtils.toString(date)}
               clipboardMenu={clipboardMenu}
-              date={DateTimeUtils.toDate(date)}
+              date={date}
             ></WeeklyMealPlan>
           ))}
         </Box>
@@ -797,6 +1030,7 @@ const WeeklyMealPlan: React.FC<WeeklyMealPlanProps> = ({
   clipboardMenu,
 }) => {
   const today = new Date();
+
   today.setHours(0, 0, 0, 0);
   const { scheduledMenus } = useContext(AppContext);
   const [thisWeeksMenus, setThisWeeksMenus] = useState<
@@ -854,7 +1088,6 @@ const WeeklyMealPlan: React.FC<WeeklyMealPlanProps> = ({
           <MealPlan
             key={DateTimeUtils.toString(thisDate)}
             clipboardMenu={clipboardMenu}
-            disabled={thisDate < today}
             menuOrDate={menu ?? DateTimeUtils.toString(thisDate)}
           ></MealPlan>
         );
@@ -868,110 +1101,58 @@ interface MealCalendarProps {
 }
 
 const MealCalendar: React.FC<MealCalendarProps> = ({ clipboardMenu }) => {
-  const { scheduledMenus, user } = useContext(AppContext);
+  const { currentSchoolYear } = useContext(AppContext);
 
-  const today = new Date();
-
-  let nextSchoolDay = new Date(today);
-  nextSchoolDay.setHours(0, 0, 0, 0);
-  if (nextSchoolDay.getDay() % 6 === 0) {
-    nextSchoolDay = new Date(
-      DateTimeUtils.addDays(nextSchoolDay, (nextSchoolDay.getDay() + 1) % 5)
-    );
+  const firstDayOfSchoolYear = new Date(currentSchoolYear.startDate);
+  while (
+    firstDayOfSchoolYear.getDay() === 0 ||
+    firstDayOfSchoolYear.getDay() === 6
+  ) {
+    firstDayOfSchoolYear.setDate(firstDayOfSchoolYear.getDate() + 1);
   }
+  firstDayOfSchoolYear.setHours(0, 0, 0, 0);
 
-  let targetDate = new Date(nextSchoolDay);
-  const months: number[] = [];
+  const lastDayOfSchoolYear = new Date(currentSchoolYear.endDate);
+  while (
+    lastDayOfSchoolYear.getDay() === 0 ||
+    lastDayOfSchoolYear.getDay() === 6
+  ) {
+    lastDayOfSchoolYear.setDate(lastDayOfSchoolYear.getDate() - 1);
+  }
+  lastDayOfSchoolYear.setHours(23, 59, 59, 999); // Set to end of day
 
-  if (user.role === Role.PARENT) {
-    const futurePurchasableMeals = scheduledMenus.filter(
-      (menu) => DateTimeUtils.toDate(menu.orderEndTime) >= targetDate
-    );
+  const nextSchoolDay = new Date();
+  while (nextSchoolDay.getDay() === 0 || nextSchoolDay.getDay() === 6) {
+    nextSchoolDay.setDate(nextSchoolDay.getDate() + 1);
+  }
+  nextSchoolDay.setHours(0, 0, 0, 0);
 
-    if (!futurePurchasableMeals.length) {
-      return <Typography>No meals scheduled for purchase</Typography>;
+  let schoolDay = new Date(nextSchoolDay);
+  if (nextSchoolDay > lastDayOfSchoolYear) {
+    schoolDay = new Date(lastDayOfSchoolYear);
+  } else if (nextSchoolDay < firstDayOfSchoolYear) {
+    schoolDay = new Date(firstDayOfSchoolYear);
+  }
+  schoolDay.setDate(1);
+
+  const dates: Date[] = [];
+  while (schoolDay <= lastDayOfSchoolYear) {
+    dates.push(schoolDay);
+    schoolDay = new Date(schoolDay);
+    schoolDay.setMonth((schoolDay.getMonth() + 1) % 12);
+    if (schoolDay.getMonth() === 0) {
+      schoolDay.setFullYear(schoolDay.getFullYear() + 1);
     }
-
-    const nextPurchasableMealDate = futurePurchasableMeals
-      .map((menu) => new Date(menu.orderStartTime))
-      .reduce((d1, d2) => (d1 < d2 ? d1 : d2), new Date("2100-01-01"));
-
-    if (targetDate < nextPurchasableMealDate) {
-      targetDate = nextPurchasableMealDate;
-    }
-
-    do {
-      if (
-        futurePurchasableMeals.find((meal) => {
-          const mealDate = DateTimeUtils.toDate(meal.date);
-          return (
-            mealDate.getMonth() === targetDate.getMonth() &&
-            mealDate.getFullYear() === targetDate.getFullYear()
-          );
-        })
-      ) {
-        months.push(targetDate.getMonth());
-      }
-      targetDate.setDate(1);
-      targetDate.setMonth((targetDate.getMonth() + 1) % 12);
-      if (targetDate.getMonth() === 0) {
-        targetDate.setFullYear(targetDate.getFullYear() + 1);
-      }
-    } while (targetDate.getMonth() !== today.getMonth());
-  } else if (user.role === Role.CAFETERIA || user.role === Role.TEACHER) {
-    const futureMealsToBeServed = scheduledMenus.filter(
-      (menu) => DateTimeUtils.toDate(menu.date) >= targetDate
-    );
-
-    if (!futureMealsToBeServed.length) {
-      return <Typography>No meals scheduled to be served</Typography>;
-    }
-
-    const nextMealServiceDate = futureMealsToBeServed
-      .map((menu) => DateTimeUtils.toDate(menu.date))
-      .reduce((d1, d2) => (d1 < d2 ? d1 : d2), new Date("2100-01-01"));
-
-    if (targetDate < nextMealServiceDate) {
-      targetDate = nextMealServiceDate;
-    }
-
-    do {
-      if (
-        futureMealsToBeServed.find((meal) => {
-          const mealDate = DateTimeUtils.toDate(meal.date);
-          return (
-            mealDate.getMonth() === targetDate.getMonth() &&
-            mealDate.getFullYear() === targetDate.getFullYear()
-          );
-        })
-      ) {
-        months.push(targetDate.getMonth());
-      }
-      targetDate.setDate(1);
-      targetDate.setMonth((targetDate.getMonth() + 1) % 12);
-      if (targetDate.getMonth() === 0) {
-        targetDate.setFullYear(targetDate.getFullYear() + 1);
-      }
-    } while (targetDate.getMonth() !== today.getMonth());
-  } else {
-    do {
-      months.push(targetDate.getMonth());
-      targetDate.setDate(1);
-      targetDate.setMonth((targetDate.getMonth() + 1) % 12);
-      if (targetDate.getMonth() === 0) {
-        targetDate.setFullYear(targetDate.getFullYear() + 1);
-      }
-    } while (targetDate.getMonth() !== today.getMonth());
   }
 
   return (
     <Box>
-      {months.map((month, index) => (
+      {dates.map((date, index) => (
         <MonthlyMealPlan
           clipboardMenu={clipboardMenu}
           expand={!index}
-          key={month}
-          month={month}
+          key={DateTimeUtils.toString(date)}
+          startOfMonth={date}
         />
       ))}
     </Box>

@@ -78,10 +78,6 @@ const OrderHistoryTable: React.FC<OrderHistoryTableProps> = ({onShowOrder, purch
     });
   });
 
-  if (!rows.length) {
-    return <div>No calls</div>;
-  }
-
   return (
     <DataGrid
       sx={{

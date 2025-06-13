@@ -15,3 +15,38 @@ export enum GradeLevel {
     TWELFTH = '12',
     UNKNOWN = '',
 }
+
+export const getGradeName = (grade: GradeLevel): string => {
+    switch (grade) {
+      case GradeLevel.PRE_K:
+        return "Pre-K";
+      case GradeLevel.KINDERGARTEN:
+        return "Kind.";
+      case GradeLevel.FIRST:
+        return "1st";
+      case GradeLevel.SECOND:
+        return "2nd";
+      case GradeLevel.THIRD:
+        return "3rd";
+      case GradeLevel.FOURTH:
+        return "4th";
+      case GradeLevel.FIFTH:
+        return "5th";
+      case GradeLevel.SIXTH:
+        return "6th";
+      case GradeLevel.SEVENTH:
+        return "7th";
+      case GradeLevel.EIGHTH:
+        return "8th";
+      case GradeLevel.NINTH:
+        return "9th";
+      case GradeLevel.TENTH:
+        return "10th";
+      case GradeLevel.ELEVENTH:
+        return "11th";
+      case GradeLevel.TWELFTH:
+        return "12th";
+      default:
+        return "Unknown";
+    }
+  };

@@ -7,30 +7,20 @@ import { Notification } from "../models/Notification";
 import { Order } from "../models/Order";
 import { AppDataSource } from "../data-source";
 import UserEntity from "../entity/UserEntity";
-import {
-  getCurrentSchoolYear,
-  buildStudentDto,
-  buildOrderDto,
-  buildDailyMenuDto,
-  buildUserDto,
-  buildMenuDto,
-} from "./RouterUtils";
+import { addUserToSchoolYear, getCurrentSchoolYear } from "./RouterUtils";
 import MenuEntity, {
   DailyMenuEntity,
   PantryItemEntity,
 } from "../entity/MenuEntity";
 import NotificationEntity from "../entity/NotificationEntity";
-import SchoolYearLunchTimeEntity from "../entity/SchoolYearLunchTimeEntity";
 import { OrderEntity } from "../entity/OrderEntity";
-import DailyLunchTime from "../models/DailyLunchTime";
-import StudentEntity from "../entity/StudentEntity";
 import SchoolYearEntity from "../entity/SchoolYearEntity";
-import TeacherLunchTimeEntity from "../entity/TeacherLunchTimeEntity";
 import StudentLunchTimeEntity from "../entity/StudentLunchTimeEntity";
 import { In, Not } from "typeorm";
 import SchoolYear from "../models/SchoolYear";
 import StudentLunchTime from "../models/StudentLunchTime";
-import TeacherLunchTime from "../models/TeacherLunchTime";
+import StudentEntity from "../entity/StudentEntity";
+import { DateTimeUtils } from "../DateTimeUtils";
 
 const SessionRouter: Router = express.Router();
 interface Empty {}
@@ -41,27 +31,32 @@ export interface SessionInfo {
   users: User[];
   students: Student[];
   orders: Order[];
-  schoolLunchTimes: DailyLunchTime[];
-  teacherLunchTimes: TeacherLunchTime[];
-  studentLunchTimes: StudentLunchTime[];
   scheduledMenus: DailyMenu[];
   pantryItems: PantryItem[];
   notifications: Notification[];
   school: School;
+  schoolYears: SchoolYear[];
 }
 
 const getStudentLunchTimes = async (
-  schoolYear: SchoolYear
+  schoolYearId: number,
+  studentIds?: number[]
 ): Promise<StudentLunchTime[]> => {
   const studentLunchTimeRepository = AppDataSource.getRepository(
     StudentLunchTimeEntity
   );
 
+  const whereClause: any = {
+    schoolYear: { id: schoolYearId },
+  };
+
+  if (studentIds && studentIds.length > 0) {
+    whereClause.student = { id: In(studentIds) };
+  }
+
   let studentLunchTimes: StudentLunchTimeEntity[] =
     await studentLunchTimeRepository.find({
-      where: {
-        schoolYear: { id: schoolYear.id },
-      },
+      where: whereClause,
       relations: {
         student: true,
         lunchtimeTeacher: true,
@@ -70,100 +65,161 @@ const getStudentLunchTimes = async (
 
   return studentLunchTimes.map((stl) => ({
     dayOfWeek: stl.dayOfWeek,
+    grade: stl.grade,
     time: stl.time,
     studentId: stl.student.id,
     teacherId: stl.lunchtimeTeacher ? stl.lunchtimeTeacher.id : undefined,
   }));
 };
 
-const getTeacherLunchTimes = async (
-  schoolYear: SchoolYear
-): Promise<TeacherLunchTime[]> => {
-  const teacherLunchTimeRepository = AppDataSource.getRepository(
-    TeacherLunchTimeEntity
+const getClassroomStudents = async (
+  schoolYearId: number,
+  teacher: User
+): Promise<StudentEntity[]> => {
+  let schoolYearStudents: StudentEntity[] = [];
+
+  const studentLunchTimeRepository = AppDataSource.getRepository(
+    StudentLunchTimeEntity
   );
 
-  let teacherLunchTimes: TeacherLunchTimeEntity[] =
-    await teacherLunchTimeRepository.find({
-      where: {
-        schoolYear: { id: schoolYear.id },
-      },
-      relations: {
-        teacher: true,
-      },
-    });
+  // Find all lunchtime assignments where this teacher is assigned
+  const lunchTimeAssignments = await studentLunchTimeRepository.find({
+    where: {
+      schoolYear: { id: schoolYearId },
+      lunchtimeTeacher: { id: teacher.id },
+    },
+    relations: {
+      student: true,
+    },
+  });
 
-  return teacherLunchTimes.map((tlt) => ({
-    teacherId: tlt.teacher.id,
-    dayOfWeek: tlt.dayOfWeek,
-    time: tlt.time,
-  }));
-};
+  // Extract unique students from the assignments
+  const studentIds = [
+    ...new Set(lunchTimeAssignments.map((assignment) => assignment.student.id)),
+  ];
 
-const getSchoolLunchTimes = async (
-  schoolYear: SchoolYear
-): Promise<DailyLunchTime[]> => {
-  const schoolYearLunchTimeRepository = AppDataSource.getRepository(
-    SchoolYearLunchTimeEntity
-  );
+  // Get full student information for these students, including their parents
+  schoolYearStudents = await AppDataSource.getRepository(StudentEntity)
+    .createQueryBuilder("student")
+    .innerJoin(
+      "student.schoolYears",
+      "schoolYear",
+      "schoolYear.id = :schoolYearId",
+      { schoolYearId }
+    )
+    .leftJoinAndSelect("student.parents", "parents")
+    .where("student.id IN (:...studentIds)", { studentIds })
+    .getMany();
 
-  let schoolLunchTimes: SchoolYearLunchTimeEntity[] =
-    await schoolYearLunchTimeRepository.find({
-      where: {
-        schoolYear: { id: schoolYear.id },
-      },
-    });
-
-  return schoolLunchTimes.map((stl) => ({
-    id: stl.id,
-    dayOfWeek: stl.dayOfWeek,
-    time: stl.time,
-  }));
-};
-
-const getStudents = async (
-  schoolYear: SchoolYear,
-  user: User
-): Promise<Student[]> => {
-  let schoolYearStudents: Student[] = await AppDataSource.createQueryBuilder()
-    .relation(SchoolYearEntity, "students")
-    .of(schoolYear)
-    .loadMany();
-
-  if (user.role === Role.PARENT) {
-    schoolYearStudents = (
-      await AppDataSource.createQueryBuilder()
-        .relation(UserEntity, "students")
-        .of(user)
-        .loadMany()
-    ).filter((myStudent) =>
-      schoolYearStudents.find((sys) => sys.id === myStudent.id)
-    );
-  }
   return schoolYearStudents;
 };
 
-const getStaff = async (school: School): Promise<User[]> => {
+const getOrdersForStudents = async (
+  schoolYearId: number,
+  students: StudentEntity[]
+): Promise<OrderEntity[]> => {
+  const orderRepository = AppDataSource.getRepository(OrderEntity);
+  const studentIds = students.map((student) => student.id);
+
+  const orders = await orderRepository.find({
+    where: {
+      schoolYear: { id: schoolYearId },
+      meals: {
+        student: { id: In(studentIds) },
+      },
+    },
+    relations: {
+      user: true,
+      meals: {
+        student: true,
+        items: true,
+      },
+    },
+  });
+
+  // Filter meals to only include those for the specified students
+  return orders.map((order) => ({
+    ...order,
+    meals: order.meals.filter(
+      (meal) => meal.student && studentIds.includes(meal.student.id)
+    ),
+  }));
+};
+
+const getStaff = async (school: School, role?: Role): Promise<UserEntity[]> => {
   const userRepository = AppDataSource.getRepository(UserEntity);
   return await userRepository.find({
     select: { pwd: false },
-    where: { school, role: Not(Role.PARENT + 1) },
+    where: {
+      school,
+      role: role != undefined ? role + 1 : Not(Role.PARENT + 1),
+    },
   });
 };
 
-const getUsers = async (schoolYear: SchoolYear): Promise<User[]> => {
-  let users: User[] = await AppDataSource.createQueryBuilder()
-    .relation(SchoolYearEntity, "parents")
-    .of(schoolYear)
-    .loadMany();
+const getUsers = async (schoolYearId: number): Promise<UserEntity[]> => {
+  const userRepository = AppDataSource.getRepository(UserEntity);
+
+  // Get all users that are parents in the school year with their students in a single query
+  const users = await userRepository
+    .createQueryBuilder("user")
+    .innerJoin(
+      "user.schoolYears",
+      "schoolYear",
+      "schoolYear.id = :schoolYearId",
+      { schoolYearId }
+    )
+    .leftJoinAndSelect("user.students", "students")
+    .getMany();
 
   return users;
 };
 
-const getParentSession = async (user: UserEntity): Promise<SessionInfo> => {
-  const userRepository = AppDataSource.getRepository(UserEntity);
-  const dailyMenuRepository = AppDataSource.getRepository(DailyMenuEntity);
+const getOrdersForFamilyMembers = async (
+  schoolYear: SchoolYearEntity,
+  parent: UserEntity,
+  children: StudentEntity[]
+): Promise<OrderEntity[]> => {
   const orderRepository = AppDataSource.getRepository(OrderEntity);
+
+  const ordersByParent = (
+    await orderRepository.find({
+      where: {
+        user: { id: parent.id },
+        schoolYear: { id: schoolYear.id },
+      },
+      relations: {
+        meals: {
+          student: true,
+          items: true,
+        },
+      },
+    })
+  ).map((o) => ({ ...o, user: parent }));
+
+  const ordersBySomeoneElse = await orderRepository.find({
+    where: {
+      user: { id: Not(parent.id) },
+      schoolYear: { id: schoolYear.id },
+      meals: {
+        student: { id: In(children.map((s) => s.id)) },
+      },
+    },
+    relations: {
+      meals: {
+        student: true,
+        items: true,
+      },
+      user: true,
+    },
+  });
+
+  return ordersByParent.concat(ordersBySomeoneElse);
+};
+
+const getParentSession = async (user: UserEntity): Promise<SessionInfo> => {
+  const dailyMenuRepository = AppDataSource.getRepository(DailyMenuEntity);
+  const schoolYearRepository = AppDataSource.getRepository(SchoolYearEntity);
 
   const notificationRepository =
     AppDataSource.getRepository(NotificationEntity);
@@ -174,129 +230,184 @@ const getParentSession = async (user: UserEntity): Promise<SessionInfo> => {
     },
   });
 
-  const schoolYear = getCurrentSchoolYear(user.school);
-
-  const orders = !schoolYear
-    ? []
-    : await orderRepository.find({
-        where: {
-          user: { id: user.id },
-          schoolYear: { id: schoolYear.id },
+  let currentSchoolYear: SchoolYearEntity | null | undefined =
+    await schoolYearRepository.findOne({
+      where: { school: { id: user.school.id }, isCurrent: true },
+      relations: {
+        lunchTimes: true,
+        gradeLunchTimes: true,
+        teacherLunchTimes: {
+          teacher: true,
         },
-        relations: {
-          meals: {
-            student: true,
-            items: true,
-          },
-        },
-      });
+      },
+    });
 
-  const userEntity = (await userRepository.findOne({
-    select: { pwd: false },
-    where: { id: user.id },
-  })) as UserEntity;
+  if (!currentSchoolYear) {
+    const startOfMonth = new Date();
+    startOfMonth.setDate(1);
+    startOfMonth.setHours(0, 0, 0, 0);
 
-  const dailyMenus = !schoolYear
-    ? []
-    : await dailyMenuRepository.find({
-        where: { schoolYear: { id: schoolYear.id } },
-        relations: { items: true },
-      });
+    const endOfMonth = new Date(
+      startOfMonth.getFullYear(),
+      startOfMonth.getMonth() + 1,
+      0
+    );
+    endOfMonth.setHours(23, 59, 59, 999);
 
-  const scheduledMenus = dailyMenus.map((menu) => buildDailyMenuDto(menu));
+    currentSchoolYear = {
+      id: 0,
+      name: "No School Year Active",
+      isCurrent: true,
+      startDate: DateTimeUtils.toString(startOfMonth),
+      endDate: DateTimeUtils.toString(endOfMonth),
+      lunchTimes: [],
+      teacherLunchTimes: [],
+      gradeLunchTimes: [],
+      studentLunchTimes: [],
+      gradesAssignedByClass: "",
+      school: user.school,
+      parents: [],
+      students: [],
+      orders: [],
+      dailyMenus: [],
+    };
+  }
 
-  const students = schoolYear ? await getStudents(schoolYear, user) : [];
-  let teachers = schoolYear
-    ? (await getUsers(schoolYear)).filter((user) => user.role === Role.TEACHER)
-    : [];
+  // Get my children with their parents
+  const myChildren: StudentEntity[] = await AppDataSource.getRepository(
+    StudentEntity
+  )
+    .createQueryBuilder("student")
+    .innerJoin("student.parents", "parent", "parent.id = :userId", {
+      userId: user.id,
+    })
+    .leftJoinAndSelect("student.parents", "allParents")
+    .getMany();
 
-  const schoolLunchTimes = schoolYear
-    ? await getSchoolLunchTimes(schoolYear)
-    : [];
-
-  const studentLunchTimes = schoolYear
-    ? await getStudentLunchTimes(schoolYear)
-    : [];
-
-  const teacherLunchTimes = schoolYear
-    ? await getTeacherLunchTimes(schoolYear)
-    : [];
-
-  const studentIds = students.map((stu) => stu.id);
-
-  const otherTeacherIds = studentLunchTimes.filter(
-    (slt) =>
-      studentIds.includes(slt.studentId) &&
-      slt.teacherId &&
-      !teachers.find((teacher) => teacher.id)
+  let orders = await getOrdersForFamilyMembers(
+    currentSchoolYear,
+    user,
+    myChildren
   );
-  teachers = teachers.concat(
-    await userRepository.find({ where: { id: In(otherTeacherIds) } })
+
+  orders = orders.map((o) => ({
+    ...o,
+    meals: o.meals.filter((m) =>
+      myChildren.find((s) => s.id === m.student?.id)
+    ),
+  }));
+
+  const otherUsers: UserEntity[] = [];
+  orders.forEach(
+    (order) =>
+      !otherUsers.find(
+        (u) => order.user && order.user.id !== user.id && u.id === order.user.id
+      ) && otherUsers.push(order.user)
   );
+
+  const dailyMenus = await dailyMenuRepository.find({
+    where: { schoolYear: { id: currentSchoolYear.id } },
+    relations: { items: true },
+  });
+
+  const scheduledMenus = dailyMenus.map((menu) => new DailyMenu(menu));
+
+  let teachers = await getStaff(user.school, Role.TEACHER);
+
+  const studentLunchTimes = await getStudentLunchTimes(
+    currentSchoolYear.id,
+    myChildren.map((s) => s.id)
+  );
+
+  const users = teachers
+    .concat(otherUsers.filter((u) => !teachers.find((t) => t.id === u.id)))
+    .map((u) => new User(u));
+  if (!users.find((u) => u.id === user.id)) {
+    users.push(new User(user));
+  }
 
   const sessionInfo: SessionInfo = {
-    user: userEntity,
-    users: teachers,
+    user: new User(user),
+    users,
     menus: [],
-    students,
-    orders: orders.map((order) => buildOrderDto(order, user.id)),
+    students: myChildren.map((c) => new Student(c)),
+    orders: orders.map((order) => new Order(order)),
     scheduledMenus,
     pantryItems: [],
     notifications,
-    school: { ...user.school, squareAppAccessToken: "" },
-    schoolLunchTimes,
-    studentLunchTimes,
-    teacherLunchTimes,
+    school: new School(user.school),
+    schoolYears: currentSchoolYear.id
+      ? [{ ...new SchoolYear(currentSchoolYear), studentLunchTimes }]
+      : [],
   };
 
   return sessionInfo;
 };
 
-const getStaffSession = async (user: UserEntity): Promise<SessionInfo> => {
-  const userRepository = AppDataSource.getRepository(UserEntity);
+export const getStaffSession = async (
+  user: UserEntity
+): Promise<SessionInfo> => {
   const pantryRepository = AppDataSource.getRepository(PantryItemEntity);
   const menuRepository = AppDataSource.getRepository(MenuEntity);
   const dailyMenuRepository = AppDataSource.getRepository(DailyMenuEntity);
   const orderRepository = AppDataSource.getRepository(OrderEntity);
   const notificationRepository =
     AppDataSource.getRepository(NotificationEntity);
+  const schoolYearRepository = AppDataSource.getRepository(SchoolYearEntity);
 
-  const userEntity = (await userRepository.findOne({
-    select: { pwd: false },
-    where: { id: user.id },
-  })) as UserEntity;
+  const allSchoolYears = await schoolYearRepository.find({
+    where: { school: { id: user.school.id } },
+    relations: {
+      lunchTimes: true,
+      gradeLunchTimes: true,
+      teacherLunchTimes: {
+        teacher: true,
+      },
+    },
+    order: { startDate: "DESC" },
+  });
 
-  let schoolYear = getCurrentSchoolYear(user.school);
+  let currentSchoolYear = allSchoolYears.find((sy) => sy.isCurrent);
+  if (!currentSchoolYear) {
+    const startOfMonth = new Date();
+    startOfMonth.setDate(1);
+    startOfMonth.setHours(0, 0, 0, 0);
 
-  const dailyMenus = !schoolYear
-    ? []
-    : await dailyMenuRepository.find({
-        where: { schoolYear: { id: schoolYear.id } },
-        relations: { items: true },
-      });
+    const endOfMonth = new Date(
+      startOfMonth.getFullYear(),
+      startOfMonth.getMonth() + 1,
+      0
+    );
+    endOfMonth.setHours(23, 59, 59, 999);
 
-  let orders = !schoolYear
-    ? []
-    : await orderRepository.find({
-        where: { schoolYear: { id: schoolYear.id } },
-        relations: {
-          user: true,
-          meals: {
-            student: true,
-            items: true,
-          },
-        },
-      });
-
-  const menus =
-    user.role != Role.ADMIN
-      ? []
-      : await menuRepository.find({
-          where: { school: { id: user.school.id } },
-          relations: {
-            items: true,
-          },
-        });
+    currentSchoolYear = {
+      id: 0,
+      name: "No School Year Active",
+      isCurrent: true,
+      startDate: DateTimeUtils.toString(startOfMonth),
+      endDate: DateTimeUtils.toString(endOfMonth),
+      lunchTimes: [],
+      teacherLunchTimes: [],
+      gradeLunchTimes: [],
+      studentLunchTimes: [],
+      gradesAssignedByClass: "",
+      school: user.school,
+      parents: [],
+      students: [],
+      orders: [],
+      dailyMenus: [],
+    };
+  }
+  // Get my children with their parents
+  const myChildren: StudentEntity[] = await AppDataSource.getRepository(
+    StudentEntity
+  )
+    .createQueryBuilder("student")
+    .innerJoin("student.parents", "parent", "parent.id = :userId", {
+      userId: user.id,
+    })
+    .leftJoinAndSelect("student.parents", "allParents")
+    .getMany();
 
   const notifications = await notificationRepository.find({
     where: {
@@ -304,63 +415,146 @@ const getStaffSession = async (user: UserEntity): Promise<SessionInfo> => {
     },
   });
 
-  const pantryItems =
-    user.role != Role.ADMIN
-      ? []
-      : await pantryRepository.find({
-          where: {
-            school: { id: user.school.id },
-          },
+  let dailyMenus: DailyMenuEntity[] = [];
+  let students: StudentEntity[] = [];
+  let studentDtos: Student[] = [];
+  let orders: OrderEntity[] = [];
+  let menus: MenuEntity[] = [];
+  let pantryItems: PantryItemEntity[] = [];
+  let studentLunchTimes: StudentLunchTime[] = [];
+  let users: UserEntity[] = [];
+
+  dailyMenus = await dailyMenuRepository.find({
+    where: { schoolYear: { id: currentSchoolYear.id } },
+    relations: { items: true },
+  });
+
+  if (user.role === Role.TEACHER) {
+    students = await getClassroomStudents(currentSchoolYear.id, user);
+    studentDtos = students.map((student) => new Student(student));
+
+    let familyOrders = await getOrdersForFamilyMembers(
+      currentSchoolYear,
+      user,
+      myChildren
+    );
+
+    let classroomOrders = (
+      await getOrdersForStudents(currentSchoolYear.id, students)
+    ).filter((o) => !familyOrders.find((o2) => o2.id === o.id));
+
+    const studentIds = myChildren
+      .map((child) => child.id)
+      .concat(students.map((student) => student.id));
+
+    orders = familyOrders.concat(classroomOrders).map((o) => ({
+      ...o,
+      meals:
+        o.user.id === user.id
+          ? o.meals
+          : o.meals.filter((m) => studentIds.includes(m.student!.id)),
+    }));
+    studentLunchTimes = await getStudentLunchTimes(
+      currentSchoolYear.id,
+      studentIds
+    );
+
+    orders.forEach((o) => {
+      if (!users.find((u) => o.user.id === u.id)) {
+        users.push(o.user);
+      }
+    });
+  } else {
+    users = await getUsers(currentSchoolYear.id);
+
+    const studentMap = new Map<number, StudentEntity>();
+    users.forEach((user) => {
+      if (user.students) {
+        user.students.forEach((student) => {
+          if (!studentMap.has(student.id)) {
+            studentMap.set(student.id, student);
+          }
         });
+      }
+    });
+    students = Array.from(studentMap.values());
 
-  let students = !schoolYear ? [] : await getStudents(schoolYear, user);
+    studentDtos = students.map((student) => {
+      const studentDto = new Student(student);
+      studentDto.parents = Array.from(
+        new Set(
+          users
+            .filter((user) => user.students?.some((s) => s.id === student.id))
+            .map((user) => user.id)
+        )
+      );
+      return studentDto;
+    });
 
-  if (user.role == Role.TEACHER) {
-    const studentIds = students.map((student) => student.id);
-    orders = orders
-      .filter((order) =>
-        order.meals.find((meal) => studentIds.includes(meal.student.id))
-      )
-      .map((order) => ({
-        ...order,
-        meals: order.meals.filter((meal) =>
-          studentIds.includes(meal.student.id)
-        ),
-      }));
+    studentLunchTimes = await getStudentLunchTimes(currentSchoolYear.id);
+
+    orders = await orderRepository.find({
+      where: { schoolYear: { id: currentSchoolYear.id } },
+      relations: {
+        user: true,
+        meals: {
+          student: true,
+          items: true,
+        },
+      },
+    });
   }
 
-  const users = schoolYear ? await getUsers(schoolYear) : [];
+  if (user.role === Role.ADMIN) {
+    menus = await menuRepository.find({
+      where: { school: { id: user.school.id } },
+      relations: {
+        items: true,
+      },
+    });
+
+    pantryItems = await pantryRepository.find({
+      where: {
+        school: { id: user.school.id },
+      },
+    });
+  }
+
   const staff = await getStaff(user.school);
   staff.forEach((sm) => {
     if (!users.find((user) => user.id === sm.id)) {
       users.push(sm);
     }
   });
-  const schoolLunchTimes = schoolYear
-    ? await getSchoolLunchTimes(schoolYear)
-    : [];
 
-  const studentLunchTimes = schoolYear
-    ? await getStudentLunchTimes(schoolYear)
-    : [];
+  // Ensure all myChildren are included in the students array
+  const studentMap = new Map(
+    studentDtos.map((student) => [student.id, student])
+  );
+  myChildren.forEach((child) => {
+    if (!studentMap.has(child.id)) {
+      studentDtos.push(new Student(child));
+    }
+  });
 
-  const teacherLunchTimes = schoolYear
-    ? await getTeacherLunchTimes(schoolYear)
-    : [];
+  const schoolYears = allSchoolYears.map((sy) => new SchoolYear(sy));
+  if (currentSchoolYear.id) {
+    schoolYears.find(
+      (sy) => sy.id === currentSchoolYear.id
+    )!.studentLunchTimes = studentLunchTimes;
+  }
 
   const sessionInfo: SessionInfo = {
-    user: userEntity,
-    users,
-    menus: menus.map((menu) => buildMenuDto(menu)),
-    students,
-    orders: orders.map((order) => buildOrderDto(order)),
-    scheduledMenus: dailyMenus.map((menu) => buildDailyMenuDto(menu)),
-    pantryItems,
-    notifications,
-    school: { ...user.school, squareAppAccessToken: "" },
-    schoolLunchTimes,
-    studentLunchTimes,
-    teacherLunchTimes,
+    user: new User(user),
+    users: users.map((u) => new User(u)),
+    menus: menus.map((menu) => new Menu(menu)),
+    students: studentDtos,
+    orders: orders.map((order) => new Order(order)),
+    scheduledMenus: dailyMenus.map((menu) => new DailyMenu(menu)),
+    pantryItems: pantryItems.map((item) => new PantryItem(item)),
+    notifications: notifications.map((n) => new Notification(n)),
+    school: new School(user.school),
+    schoolYears,
   };
 
   return sessionInfo;
@@ -369,21 +563,10 @@ const getStaffSession = async (user: UserEntity): Promise<SessionInfo> => {
 export const getSessionInfo = async (
   user: UserEntity
 ): Promise<SessionInfo> => {
-
   const currentSchoolYear = getCurrentSchoolYear(user.school);
 
   if (currentSchoolYear) {
-    const userYears = await AppDataSource.createQueryBuilder()
-      .relation(UserEntity, "schoolYears")
-      .of(user)
-      .loadMany();
-
-    if (!userYears.find((year) => year.id === currentSchoolYear.id)) {
-      await AppDataSource.createQueryBuilder()
-        .relation(SchoolYearEntity, "parents")
-        .of(currentSchoolYear)
-        .add(user);
-    }
+    await addUserToSchoolYear(user, currentSchoolYear);
   }
 
   return user.role === Role.PARENT

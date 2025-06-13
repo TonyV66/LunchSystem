@@ -1,5 +1,5 @@
 import { Column, Entity, ManyToOne, PrimaryGeneratedColumn } from "typeorm";
-import { DayOfWeek } from "../models/DailyLunchTime";
+import { DayOfWeek } from "../models/DayOfWeek";
 import SchoolYearEntity from "./SchoolYearEntity";
 
 

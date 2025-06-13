@@ -7,6 +7,8 @@ export interface MealItem extends PantryItem {
 export default interface Meal {
   id: number;
   date: string;
-  studentId: number;
+  time: string;
+  studentId?: number | null;
+  staffMemberId?: number | null;
   items: MealItem[];
 }

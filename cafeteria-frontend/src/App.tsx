@@ -25,6 +25,7 @@ import RegistrationPanel from "./components/users/RegistrationPanel";
 import ChangeForgottenPwdPanel from "./components/users/ChangeForgottenPwdPanel";
 import PageNotFound from "./components/PageNotFound";
 import SchoolYearsPage from "./components/schoolyear/SchoolYearsPage";
+import SchoolYearTabsPanel from "./components/schoolyear/SchoolYearTabsPanel";
 
 const App: React.FC = () => {
   const { user } = useContext(AppContext);
@@ -54,22 +55,12 @@ const App: React.FC = () => {
             <Route
               path="/register/:inviteId"
               element={
-                user.id ? (
-                  <Navigate to={"/"} replace />
-                ) : (
-                  <RegistrationPanel />
-                )
+                user.id ? <Navigate to={"/"} replace /> : <RegistrationPanel />
               }
             />
             <Route
               path="/login/:inviteId"
-              element={
-                user.id ? (
-                  <Navigate to={"/"} replace />
-                ) : (
-                  <LoginPanel />
-                )
-              }
+              element={user.id ? <Navigate to={"/"} replace /> : <LoginPanel />}
             />
           </>
         ) : (
@@ -85,7 +76,11 @@ const App: React.FC = () => {
         <Route
           path="/forgot/:forgottenLoginId"
           element={
-            user.id ? <Navigate to={defaultUrl} replace /> : <ChangeForgottenPwdPanel />
+            user.id ? (
+              <Navigate to={defaultUrl} replace />
+            ) : (
+              <ChangeForgottenPwdPanel />
+            )
           }
         />
 
@@ -124,6 +119,14 @@ const App: React.FC = () => {
           {user.role === Role.ADMIN ? (
             <>
               <Route path="calendar" element={<PlannerPage></PlannerPage>} />
+              <Route
+                path="meals"
+                element={<OrderedMealsPage></OrderedMealsPage>}
+              />
+              <Route
+                path="cart"
+                element={<ShoppingCartPage></ShoppingCartPage>}
+              />
               <Route path="users" element={<UsersPage></UsersPage>} />
               <Route path="students" element={<StudentsPage></StudentsPage>} />
               <Route
@@ -132,6 +135,15 @@ const App: React.FC = () => {
               />
               <Route path="account" element={<AdminSettingsPage />} />
               <Route path="years" element={<SchoolYearsPage />} />
+              <Route path="year/:yearId" element={<SchoolYearTabsPanel />} />
+              <Route
+                path="year/:yearId/teachers"
+                element={<SchoolYearTabsPanel />}
+              />
+              <Route
+                path="year/:yearId/grades"
+                element={<SchoolYearTabsPanel />}
+              />
             </>
           ) : (
             <></>
@@ -140,6 +152,14 @@ const App: React.FC = () => {
           {user.role === Role.CAFETERIA ? (
             <>
               <Route path="calendar" element={<CalendarPage></CalendarPage>} />
+              <Route
+                path="cart"
+                element={<ShoppingCartPage></ShoppingCartPage>}
+              />
+              <Route
+                path="meals"
+                element={<OrderedMealsPage></OrderedMealsPage>}
+              />
               <Route path="account" element={<ChangePasswordPage />} />
             </>
           ) : (
@@ -149,6 +169,14 @@ const App: React.FC = () => {
           {user.role === Role.TEACHER ? (
             <>
               <Route path="calendar" element={<CalendarPage></CalendarPage>} />
+              <Route
+                path="cart"
+                element={<ShoppingCartPage></ShoppingCartPage>}
+              />
+              <Route
+                path="meals"
+                element={<OrderedMealsPage></OrderedMealsPage>}
+              />
               <Route path="account" element={<ChangePasswordPage />} />
             </>
           ) : (

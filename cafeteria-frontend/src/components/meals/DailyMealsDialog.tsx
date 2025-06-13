@@ -15,10 +15,21 @@ import { grey } from "@mui/material/colors";
 import Meal from "../../models/Meal";
 import { DateTimeFormat, DateTimeUtils } from "../../DateTimeUtils";
 import ShoppingCartTable from "../shoppingcart/ShoppingCartTable";
+import User from "../../models/User";
 
-interface StudentDailyOrdersProps {
+interface StudentMealsTableProps {
   date: string;
   student: Student;
+}
+
+interface StaffMealsTableProps {
+  date: string;
+  staffMember: User;
+}
+
+interface MealsTableProps {
+  title: string;
+  meals: Meal[];
 }
 
 const OrderedMealDescription: React.FC<{
@@ -54,19 +65,7 @@ const OrderedMealDescription: React.FC<{
   );
 };
 
-const StudentDailyOrders: React.FC<StudentDailyOrdersProps> = ({
-  date,
-  student,
-}) => {
-  const { orders } = useContext(AppContext);
-
-  const meals = orders
-    .flatMap((order) => order.meals)
-    .filter((meal) => meal.date === date && meal.studentId === student.id);
-  if (!meals.length) {
-    return <></>;
-  }
-
+const MealsTable: React.FC<MealsTableProps> = ({ title, meals }) => {
   return (
     <>
       <Box
@@ -84,7 +83,7 @@ const StudentDailyOrders: React.FC<StudentDailyOrdersProps> = ({
           justifyContent: "center",
         }}
       >
-        <Typography textAlign="left">{student.name}</Typography>
+        <Typography textAlign="left">{title}</Typography>
       </Box>
 
       {meals.map((meal) => (
@@ -94,15 +93,62 @@ const StudentDailyOrders: React.FC<StudentDailyOrdersProps> = ({
   );
 };
 
+const StudentMealsTable: React.FC<StudentMealsTableProps> = ({
+  date,
+  student,
+}) => {
+  const { orders } = useContext(AppContext);
+
+  const meals = orders
+    .flatMap((order) => order.meals)
+    .filter((meal) => meal.date === date && meal.studentId === student.id);
+  if (!meals.length) {
+    return <></>;
+  }
+
+  return <MealsTable title={student.name} meals={meals} />;
+};
+
+const StaffMealsTable: React.FC<StaffMealsTableProps> = ({
+  date,
+  staffMember,
+}) => {
+  const { orders } = useContext(AppContext);
+
+  const meals = orders
+    .flatMap((order) => order.meals)
+    .filter(
+      (meal) => meal.date === date && meal.staffMemberId === staffMember.id
+    );
+  if (!meals.length) {
+    return <></>;
+  }
+
+  return (
+    <MealsTable
+      title={
+        staffMember.firstName.length && staffMember.lastName.length
+          ? staffMember.firstName + " " + staffMember.lastName
+          : staffMember.userName
+      }
+      meals={meals}
+    />
+  );
+};
+
 interface DialogProps {
   date: string;
+  user: User;
   onClose: () => void;
 }
 
-const DailyMealsDialog: React.FC<DialogProps> = ({ date, onClose }) => {
-  const { students, orders, shoppingCart, scheduledMenus } =
+const DailyMealsDialog: React.FC<DialogProps> = ({ date, onClose, user }) => {
+  const { orders, shoppingCart, scheduledMenus } =
     useContext(AppContext);
 
+  const { students } = useContext(AppContext);
+  const siblings = students.filter(s => s.parents.includes(user.id))
+  
   const hasOrderedMeals = orders
     .flatMap((order) => order.meals)
     .find((meal) => meal.date === date)
@@ -127,13 +173,14 @@ const DailyMealsDialog: React.FC<DialogProps> = ({ date, onClose }) => {
     >
       <DialogTitle>
         Meals for
-        {" "  + DateTimeUtils.toString(date, DateTimeFormat.SHORT_DAY_OF_WEEK_DESC)}
+        {" " +
+          DateTimeUtils.toString(date, DateTimeFormat.SHORT_DAY_OF_WEEK_DESC)}
       </DialogTitle>
       <DialogContent>
-        <Box sx={{display: 'flex', flexDirection: 'column', gap: 2}}>
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
           {hasOrderedMeals ? (
             <Box>
-              <Typography fontWeight='bold'>Ordered</Typography>
+              <Typography fontWeight="bold">Ordered</Typography>
               <Box
                 sx={{
                   display: "grid",
@@ -143,18 +190,22 @@ const DailyMealsDialog: React.FC<DialogProps> = ({ date, onClose }) => {
                   borderColor: grey[400],
                 }}
               >
-                {Array.from(students)
+                <StaffMealsTable
+                  date={date}
+                  staffMember={user}
+                ></StaffMealsTable>
+                {Array.from(siblings)
                   .sort((s1, s2) => {
                     return s1.name
                       .toLowerCase()
                       .localeCompare(s2.name.toLowerCase());
                   })
                   .map((student) => (
-                    <StudentDailyOrders
+                    <StudentMealsTable
                       key={student.id}
                       date={date}
                       student={student}
-                    ></StudentDailyOrders>
+                    ></StudentMealsTable>
                   ))}
               </Box>
             </Box>
@@ -163,7 +214,7 @@ const DailyMealsDialog: React.FC<DialogProps> = ({ date, onClose }) => {
           )}
           {hasMealsInCart ? (
             <Box>
-              <Typography fontWeight='bold'>In Cart</Typography>
+              <Typography fontWeight="bold">In Cart</Typography>
               <ShoppingCartTable
                 date={date}
                 editable={false}
@@ -178,7 +229,9 @@ const DailyMealsDialog: React.FC<DialogProps> = ({ date, onClose }) => {
         </Box>
       </DialogContent>
       <DialogActions>
-        <Button variant="contained" onClick={onClose}>Close</Button>
+        <Button variant="contained" onClick={onClose}>
+          Close
+        </Button>
       </DialogActions>
     </Dialog>
   );

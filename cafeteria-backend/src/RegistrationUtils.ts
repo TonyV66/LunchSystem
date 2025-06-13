@@ -92,7 +92,7 @@ export const importStudents = async (
         } else {
           invitesToSend.push({
             email: studentImport.parentEmail,
-            student: student as Student,
+            student: new Student(student!),
             parents: [parent!],
           });
         }

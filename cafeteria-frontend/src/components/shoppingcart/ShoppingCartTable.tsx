@@ -75,6 +75,7 @@ const buildOrder = (
       return {
         id: index,
         date: dailyMenu.date,
+        time: "",
         studentId: shoppingCartItem.studentId,
         items: entrees
           .concat(sides)

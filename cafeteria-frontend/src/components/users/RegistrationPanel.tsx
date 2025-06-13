@@ -5,6 +5,7 @@ import { getInvitation, register } from "../../api/CafeteriaClient";
 import { AppContext } from "../../AppContextProvider";
 import { useParams } from "react-router-dom";
 import { AxiosError } from "axios";
+import { NO_SCHOOL_YEAR } from "../../models/SchoolYear";
 
 const RegisrationPanel: React.FC = () => {
   const {
@@ -17,10 +18,9 @@ const RegisrationPanel: React.FC = () => {
     setStudents,
     setNotifications,
     setSchool,
-    setSchoolLunchTimes,
-    setStudentLunchTimes,
-    setTeacherLunchTimes,
     setSnackbarErrorMsg,
+    setSchoolYears,
+    setCurrentSchoolYear
   } = useContext(AppContext);
 
   const { inviteId } = useParams();
@@ -62,9 +62,8 @@ const RegisrationPanel: React.FC = () => {
       setNotifications(loginResponse.notifications);
       setPantryItems(loginResponse.pantryItems);
       setSchool(loginResponse.school);
-      setSchoolLunchTimes(loginResponse.schoolLunchTimes);
-      setStudentLunchTimes(loginResponse.studentLunchTimes);
-      setTeacherLunchTimes(loginResponse.teacherLunchTimes);
+      setSchoolYears(loginResponse.schoolYears);
+      setCurrentSchoolYear(loginResponse.schoolYears.find((sy) => sy.isCurrent) ?? NO_SCHOOL_YEAR);
 
       localStorage.setItem("jwtToken", loginResponse.jwtToken);
     } catch (error) {

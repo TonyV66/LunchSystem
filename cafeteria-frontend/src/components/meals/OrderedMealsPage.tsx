@@ -1,15 +1,18 @@
 import React, { useContext } from "react";
-import { Box, Button, Typography } from "@mui/material";
+import { Box, Button, Stack, Typography } from "@mui/material";
 import { AppContext } from "../../AppContextProvider";
 import MenuItemTypesLegend from "../menus/MenuItemTypesLegend";
 import { CALENDAR_URL } from "../../MainAppPanel";
 import { useNavigate } from "react-router-dom";
 import OrderedMealsTable from "./OrderedMealsTable";
 import { DateTimeUtils } from "../../DateTimeUtils";
+import { Role } from "../../models/User";
 
 const OrderedMealsPage: React.FC = () => {
-  const { orders } = useContext(AppContext);
+  const { orders, students, user } = useContext(AppContext);
   const navigate = useNavigate();
+
+  const siblings = students.filter(s => s.parents.includes(user.id))
 
   const handleOrder = () => {
     navigate(CALENDAR_URL);
@@ -19,24 +22,21 @@ const OrderedMealsPage: React.FC = () => {
     <Box
       sx={{ pt: 2, pb: 2, display: "flex", flexDirection: "column", gap: 1 }}
     >
-      <Box
-        sx={{
-          pl: 2,
-          pr: 2,
-          display: "flex",
-          flexWrap: "wrap-reverse",
-          flexDirection: "row",
-          gap: 1,
-          justifyContent: "flex-end",
-        }}
+      <Stack
+        direction="row"
+        gap={1}
+        justifyContent="space-between"
+        alignItems="center"
+        pl={2}
+        pr={2}
       >
-        <Box flexGrow={1}>
+        <Box>
           <Typography fontWeight="bold" mb={1}>
-            Upcoming Ordered Meals
+            Upcoming Meals For My Family
           </Typography>
           <MenuItemTypesLegend />
         </Box>
-        <Box>
+        {user.role !== Role.ADMIN ? (
           <Button
             size="small"
             onClick={handleOrder}
@@ -45,14 +45,18 @@ const OrderedMealsPage: React.FC = () => {
           >
             Order Meals
           </Button>
-        </Box>
-      </Box>
+        ) : (
+          <></>
+        )}
+      </Stack>
 
       <Box sx={{ pl: 2, pr: 2, overflowX: "auto" }}>
         <Box minWidth={"600px"}>
           <OrderedMealsTable
+            students={siblings}
             startDate={DateTimeUtils.toString(new Date())}
             orders={orders}
+            highlightMealsNotOrderedByMe={true}
           />
         </Box>
       </Box>

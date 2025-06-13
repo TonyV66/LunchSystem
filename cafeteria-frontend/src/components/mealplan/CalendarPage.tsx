@@ -11,6 +11,7 @@ const CalendarPage: React.FC = () => {
   const { user, shoppingCart } = useContext(AppContext);
   const [checkoutDisabled, setCheckoutDisabled] = useState(true);
 
+
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -77,7 +78,7 @@ const CalendarPage: React.FC = () => {
             pr: 2,
           }}
         >
-          <MealCalendar />
+          <MealCalendar/>
         </Box>
       </Box>
     </Box>
