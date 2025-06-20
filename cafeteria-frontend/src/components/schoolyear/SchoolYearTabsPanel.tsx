@@ -8,8 +8,8 @@ import {
 } from "react-router-dom";
 import { AppContext } from "../../AppContextProvider";
 import SchoolYearTab from "./SchoolYearTab";
-import GradeLevelLunchtimesTab from "./GradeLevelLunchtimesTab";
-import ClassroomLunchtimesTab from "./ClassroomLunchtimesTab";
+import GradeLevelLunchTimesTable from "./GradeLevelLunchTimesTable";
+import TeacherLunchTimesTable from "./TeacherLunchTimesTable";
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -75,36 +75,46 @@ const SchoolYearTabsPanel: React.FC = () => {
   }
 
   return (
-    <Box
+    <Stack
+      pl={2}
+      pr={2}
+      direction="column"
+      gap={1}
       sx={{
         height: "100%",
-        width: "100%",
-        display: "flex",
-        flexDirection: "column",
       }}
     >
-      <Stack mt={1} pl={2} pr={2} direction="row" spacing={2} justifyContent="space-between" alignItems="flex-end">
-        <Typography fontWeight="bold" variant="body1">School Year: {schoolYear.name}</Typography>
+      <Stack
+        direction="row"
+        spacing={2}
+        justifyContent="space-between"
+        alignItems="flex-end"
+      >
+        <Tabs value={getSelectedTab()} onChange={handleTabChange}>
+          <Tab label="General" />
+          <Tab label="Grade Level Schedules" />
+          <Tab label="Classroom Schedules" />
+        </Tabs>
+        <Stack direction="column">
+          <Typography variant="body2" fontWeight="bold">
+            School Year:
+          </Typography>
+          <Typography variant="body2">{schoolYear.name}</Typography>
+        </Stack>
       </Stack>
-      <Paper sx={{ m: 2, flex: 1, display: "flex", flexDirection: "column" }}>
-        <Box sx={{ borderBottom: 1, borderColor: "divider" }}>
-          <Tabs value={getSelectedTab()} onChange={handleTabChange}>
-            <Tab label="General" />
-            <Tab label="Grade Level Schedules" />
-            <Tab label="Classroom Schedules" />
-          </Tabs>
-        </Box>
+      <Paper sx={{ mb: 2, flex: 1, display: "flex", flexDirection: "column" }}>
+        <Box sx={{ borderBottom: 1, borderColor: "divider" }}></Box>
         <TabPanel value={getSelectedTab()} index={0}>
           <SchoolYearTab schoolYear={schoolYear} />
         </TabPanel>
         <TabPanel value={getSelectedTab()} index={1}>
-          <GradeLevelLunchtimesTab schoolYear={schoolYear} />
+          <GradeLevelLunchTimesTable schoolYear={schoolYear} />
         </TabPanel>
         <TabPanel value={getSelectedTab()} index={2}>
-          <ClassroomLunchtimesTab schoolYear={schoolYear} />
+          <TeacherLunchTimesTable schoolYear={schoolYear} />
         </TabPanel>
       </Paper>
-    </Box>
+    </Stack>
   );
 };
 

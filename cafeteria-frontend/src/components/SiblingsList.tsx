@@ -51,7 +51,7 @@ const SiblingsList: React.FC<{user: User}> = ({user}) => {
             {siblings.map((child: Student) => (
               <ListItem key={child.id}>
                 <ListItemText
-                  primary={child.name}
+                  primary={child.firstName + " " + child.lastName}
                   secondary={`Student ID: ${child.studentId}`}
                 />
               </ListItem>

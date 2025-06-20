@@ -25,16 +25,14 @@ interface Props {
   schoolYear: SchoolYear;
   open: boolean;
   onClose: () => void;
-  onSave?: (updatedSchoolYear: SchoolYear) => void;
 }
 
 const GradeLevelConfigDialog: React.FC<Props> = ({
   schoolYear,
   open,
   onClose,
-  onSave,
 }) => {
-  const { setSnackbarErrorMsg, setSnackbarMsg, schoolYears, setSchoolYears } =
+  const { setSnackbarErrorMsg, setSnackbarMsg, schoolYears, setSchoolYears, currentSchoolYear, setCurrentSchoolYear } =
     useContext(AppContext);
   const [localSchoolYear, setLocalSchoolYear] = React.useState<SchoolYear>({
     ...schoolYear,
@@ -72,16 +70,16 @@ const GradeLevelConfigDialog: React.FC<Props> = ({
       );
       setSnackbarMsg("Grade level configuration updated successfully");
 
-      // Update the school years in AppContext
       setSchoolYears(
         schoolYears.map((year) =>
           year.id === updatedSchoolYear.id ? updatedSchoolYear : year
         )
       );
-
-      if (onSave) {
-        onSave(updatedSchoolYear);
+      
+      if (currentSchoolYear.id === updatedSchoolYear.id) {
+        setCurrentSchoolYear(updatedSchoolYear);
       }
+
       onClose();
     } catch (error) {
       const axiosError = error as AxiosError;

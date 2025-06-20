@@ -142,7 +142,7 @@ const DailyOrdersForPerson: React.FC<StudentDailyOrdersProps> = ({
     .flatMap((order) => order.meals)
     .filter((meal) => meal.date === date && ((student && meal.studentId === student.id) || (staffMember && meal.staffMemberId === staffMember.id)));
 
-  let title = student?.name ?? "Unknown";
+  let title = student ? student.firstName + " " + student.lastName : "Unknown";
   if (staffMember) {
     title = getUserName(staffMember);
   }
@@ -188,10 +188,10 @@ interface DailyOrdersProps {
   hideDate?: boolean;
   hidePrice?: boolean;
   orders: Order[];
-  students?: Student[]
+  students: Student[];
+  staffMembers: User[];
   onDelete?: (meal: Meal) => void;
   highlightMealsNotOrderedByMe?: boolean;
-  includeMealsForStaff?: boolean;
 }
 interface Person {
   student?: Student;
@@ -205,37 +205,32 @@ const DailyOrders: React.FC<DailyOrdersProps> = ({
   hideDate,
   hidePrice,
   highlightMealsNotOrderedByMe,
-  includeMealsForStaff,
   students,
+  staffMembers,
 }) => {
-  const { users, students: allStudents } = useContext(AppContext);
 
-  const uniqueStudents = new Set<Student>();
-  const uniqueStaffMembers = new Set<User>();
+  const studentIds = new Set<number>(students.map(student => student.id));
+  const staffMemberIds = new Set<number>(staffMembers.map(user => user.id));
+
   const meals = orders
     .flatMap((order) => order.meals)
-    .filter(
-      (meal) => (includeMealsForStaff || meal.studentId) && meal.date === date
-    );
+    .filter(meal => meal.date === date && ((meal.studentId && studentIds.has(meal.studentId)) || (meal.staffMemberId && staffMemberIds.has(meal.staffMemberId))));
 
-  meals
-    .filter(meal => meal.studentId)
-    .map((meal) => (students || allStudents).find((student) => student.id === meal.studentId)!)
-    .forEach((student) => uniqueStudents.add(student));
-
-  meals
-    .filter(meal => meal.staffMemberId)
-    .map((meal) => users.find((user) => user.id === meal.staffMemberId)!)
-    .forEach((user) => uniqueStaffMembers.add(user));
+  const studentsWithMeals = students.filter(student => meals.some(meal => meal.studentId === student.id));
+  const staffMembersWithMeals = staffMembers.filter(user => meals.some(meal => meal.staffMemberId === user.id));
 
   const uniquePersons: Person[] = [
-    ...Array.from(uniqueStudents).map(student => ({ student, staffMember: undefined })),
-    ...Array.from(uniqueStaffMembers).map(staffMember => ({ student: undefined, staffMember }))
+    ...Array.from(studentsWithMeals).map(student => ({ student, staffMember: undefined })),
+    ...Array.from(staffMembersWithMeals).map(staffMember => ({ student: undefined, staffMember }))
   ].sort((a, b) => {
-    const nameA = a.student?.name ?? (a.staffMember?.firstName + " " + a.staffMember?.lastName).trim();
-    const nameB = b.student?.name ?? (b.staffMember?.firstName + " " + b.staffMember?.lastName).trim();
+    const nameA = a.student ? (a.student.firstName + " " + a.student.lastName) : (a.staffMember?.firstName + " " + a.staffMember?.lastName);
+    const nameB = b.student ? (b.student.firstName + " " + b.student.lastName) : (b.staffMember?.firstName + " " + b.staffMember?.lastName);
     return nameA.toLowerCase().localeCompare(nameB.toLowerCase());
   });
+
+  if (!meals.length) {
+    return <></>;
+  }
 
   return (
     <>
@@ -289,10 +284,10 @@ interface OrdersTableProps {
   hidePrice?: boolean;
   hideDate?: boolean;
   hideTitlebar?: boolean;
-  students?: Student[]
+  students: Student[]
+  staffMembers: User[]
   onDelete?: (meal: Meal) => void;
   highlightMealsNotOrderedByMe?: boolean;
-  includeMealsForStaff?: boolean;
 }
 
 const OrderedMealsTable: React.FC<OrdersTableProps> = ({
@@ -304,8 +299,8 @@ const OrderedMealsTable: React.FC<OrdersTableProps> = ({
   hidePrice,
   hideTitlebar,
   highlightMealsNotOrderedByMe,
-  includeMealsForStaff,
   students,
+  staffMembers,
 }) => {
   const dates = new Set<string>();
   orders
@@ -440,13 +435,13 @@ const OrderedMealsTable: React.FC<OrdersTableProps> = ({
             <DailyOrders
               key={date}
               students={students}
+              staffMembers={staffMembers}
               orders={orders}
               date={date}
               onDelete={onDelete}
               hideDate={hideDate}
               hidePrice={hidePrice}
               highlightMealsNotOrderedByMe={highlightMealsNotOrderedByMe}
-              includeMealsForStaff={includeMealsForStaff}
             ></DailyOrders>
           ))
       )}

@@ -383,8 +383,8 @@ UserRouter.get<{ userId: string }, Student[] | string, Empty, Empty>(
     const user = await userRepository.findOne({
       where: { id: parseInt(req.params.userId) },
       relations: {
-        students: true,
-      },
+        students: true
+      }
     });
 
     if (!user) {

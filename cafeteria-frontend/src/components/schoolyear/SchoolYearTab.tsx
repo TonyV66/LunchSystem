@@ -59,13 +59,6 @@ const SchoolYearTab: React.FC<SchoolYearTabProps> = ({ schoolYear }) => {
     setIsEditDialogOpen(false);
   };
 
-  const handleGradeLevelConfigChanged = (updatedSchoolYear: SchoolYear) => {
-    setSchoolYears(
-      schoolYears.map((year) =>
-        year.id === updatedSchoolYear.id ? updatedSchoolYear : year
-      )
-    );
-  };
 
   const handleToggleCurrent = async () => {
     if (schoolYear.isCurrent) {
@@ -240,7 +233,6 @@ const SchoolYearTab: React.FC<SchoolYearTabProps> = ({ schoolYear }) => {
         <GradeLevelConfigDialog
           open={true}
           onClose={() => setIsGradeLevelConfigOpen(false)}
-          onSave={handleGradeLevelConfigChanged}
           schoolYear={schoolYear}
         />
       )}

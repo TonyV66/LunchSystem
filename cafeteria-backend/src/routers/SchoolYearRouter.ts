@@ -18,6 +18,7 @@ import { OrderEntity } from "../entity/OrderEntity";
 import Student from "../models/Student";
 import StudentLunchTime from "../models/StudentLunchTime";
 import { getStaffSession, SessionInfo } from "./SessionRouter";
+import { Not, LessThan, In } from "typeorm";
 
 const SchoolYearRouter: Router = express.Router();
 
@@ -49,11 +50,11 @@ SchoolYearRouter.post<{}, SchoolYear | string, SchoolYear, {}>(
 
     const overlappingSchoolYear: SchoolYearEntity | undefined =
       existingSchoolYears.find(
-        (esy) => !(endDate < esy.startDate || startDate > esy.endDate)
+        (esy) => startDate === esy.startDate
       );
 
     if (overlappingSchoolYear) {
-      res.status(400).send("Overlapping school year dates");
+      res.status(400).send("Duplicate school year start dates");
       return;
     }
 
@@ -311,22 +312,19 @@ SchoolYearRouter.post<
       (lt) => lt.dayOfWeek === dlt.dayOfWeek && lt.grade === grade
     );
 
-    let isUpdated = false;
     if (dailyTimes) {
       if (dailyTimes.time !== newTimes) {
         await gradeLunchTimeRepository.update(dailyTimes.id, {
           time: newTimes,
         });
-        isUpdated = true;
-      } else {
-        await gradeLunchTimeRepository.save({
-          dayOfWeek: dlt.dayOfWeek,
-          time: newTimes,
-          schoolYear: schoolYear,
-          grade: grade,
-        });
-        isUpdated = true;
       }
+    } else {
+      await gradeLunchTimeRepository.save({
+        dayOfWeek: dlt.dayOfWeek,
+        time: newTimes,
+        grade,
+        schoolYear,
+      });
     }
   }
 
@@ -337,13 +335,14 @@ SchoolYearRouter.put<{ schoolYearId: string }, SessionInfo | string, {}, {}>(
   "/:schoolYearId/toggle-current",
   authorizeRequest,
   async (req, res) => {
-
     if (req.user.role !== Role.ADMIN) {
       res.status(403).send("Unauthorized");
       return;
     }
 
     const schoolYearRepository = AppDataSource.getRepository(SchoolYearEntity);
+    const userRepository = AppDataSource.getRepository(UserEntity);
+    const orderRepository = AppDataSource.getRepository(OrderEntity);
 
     const schoolYear = await schoolYearRepository.findOne({
       where: { id: parseInt(req.params.schoolYearId) },
@@ -368,7 +367,50 @@ SchoolYearRouter.put<{ schoolYearId: string }, SessionInfo | string, {}, {}>(
         { school: { id: req.user.school.id } },
         { isCurrent: false }
       );
-      await addUserToSchoolYear(req.user, schoolYear);
+
+      // Get all non-parent users for the school
+      const staffUsers = await userRepository.find({
+        where: {
+          school: { id: req.user.school.id },
+          role: Not(Role.PARENT)
+        }
+      });
+
+      // Add all staff users to the school year
+      for (const user of staffUsers) {
+        await addUserToSchoolYear(user, schoolYear);
+      }
+
+      // Find the previous school year by comparing start dates
+      const previousSchoolYear = await schoolYearRepository.findOne({
+        where: {
+          school: { id: req.user.school.id },
+          startDate: LessThan(schoolYear.startDate)
+        },
+        order: { startDate: 'DESC' }
+      });
+
+      if (previousSchoolYear) {
+        // Get all users who placed orders in the previous school year
+        const orders = await orderRepository.find({
+          where: { schoolYear: { id: previousSchoolYear.id } },
+          relations: { user: true },
+          select: { user: { id: true } }
+        });
+
+        // Get unique user IDs from orders
+        const previousYearUserIds = [...new Set(orders.map(order => order.user.id))];
+
+        // Get full user entities for those who placed orders
+        const previousYearUsers = await userRepository.find({
+          where: { id: In(previousYearUserIds) }
+        });
+
+        // Add previous year's ordering users to the new school year
+        for (const user of previousYearUsers) {
+          await addUserToSchoolYear(user, schoolYear);
+        }
+      }
     }
 
     // Toggle the current status

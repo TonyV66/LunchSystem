@@ -73,14 +73,15 @@ const InvitationPanel: React.FC = () => {
               return invitedStudent.studentId === student.studentId;
             } else {
               return (
-                invitedStudent.name.toLowerCase() === student.name.toLowerCase()
+                invitedStudent.firstName.toLowerCase() === student.firstName.toLowerCase() &&
+                invitedStudent.lastName.toLowerCase() === student.lastName.toLowerCase()
               );
             }
           })
       );
       if (newStudents.length) {
         const studentNames = newStudents
-          .map((student) => student.name)
+          .map((student) => student.firstName + " " + student.lastName)
           .join(", ");
         body = (
           <Typography textAlign="center">
@@ -138,7 +139,7 @@ const InvitationPanel: React.FC = () => {
     } else {
       if (invitation.students.length) {
         const studentNames = invitation.students
-          .map((student) => student.name)
+          .map((student) => student.firstName + " " + student.lastName)
           .join(", ");
         body = (
           <Typography textAlign="center">

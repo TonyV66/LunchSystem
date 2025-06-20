@@ -67,23 +67,6 @@ export const validateAuthorizationToken = async (
   }
 };
 
-export const addStudentToSchoolYear = async (
-  student: StudentEntity,
-  schoolYear: SchoolYearEntity
-) => {
-  const schoolYearStudents = await AppDataSource.createQueryBuilder()
-    .relation(SchoolYearEntity, "students")
-    .of(schoolYear)
-    .loadMany();
-
-  if (!schoolYearStudents.find(s => s.id === student.id)) {
-    await AppDataSource.createQueryBuilder()
-      .relation(SchoolYearEntity, "students")
-      .of(schoolYear)
-      .add(student);
-  }
-};
-
 export const addUserToSchoolYear = async (
   user: UserEntity,
   schoolYear: SchoolYearEntity
@@ -100,19 +83,6 @@ export const addUserToSchoolYear = async (
       .relation(SchoolYearEntity, "parents")
       .of(schoolYear)
       .add(user);
-
-    // Load user's students using repository
-    const userWithStudents = await userRepository.findOne({
-      where: { id: user.id },
-      relations: { students: true }
-    });
-
-    if (userWithStudents?.students) {
-      // Add each student to the school year if they're not already in it
-      for (const student of userWithStudents.students) {
-        await addStudentToSchoolYear(student, schoolYear);
-      }
-    }
   }
 };
 

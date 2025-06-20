@@ -59,11 +59,11 @@ export const StudentMealsDialog: React.FC<{
             <Close />
           </IconButton>
           <Typography sx={{ ml: 2, flex: 1 }} variant="h6" component="div">
-            Upcoming Meals - {student.name}
+            Upcoming Meals - {student.firstName + " " + student.lastName}
           </Typography>
         </Toolbar>
       </AppBar>
-      {<OrderedMealsTable students={[student]} orders={[order]} hidePrice={true}/>}
+      {<OrderedMealsTable students={[student]} staffMembers={[]} orders={[order]} hidePrice={true}/>}
     </Dialog>
   );
 };

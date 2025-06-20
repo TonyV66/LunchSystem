@@ -30,6 +30,9 @@ StudentRouter.post<Empty, Student | string, StudentWithLunchTimes, Empty>(
 
     const studentToSave: DeepPartial<StudentEntity> = {
       name: req.body.name,
+      firstName: req.body.firstName,
+      lastName: req.body.lastName,
+      birthDate: req.body.birthDate,
       studentId: randomUUID(),
       school: req.user.school,
     };
@@ -117,6 +120,9 @@ StudentRouter.put<Empty, Student | string, StudentWithLunchTimes, Empty>(
       const updatedStudent: DeepPartial<StudentEntity> = {
         id: student.id,
         name: req.body.name,
+        firstName: req.body.firstName,
+        lastName: req.body.lastName,
+        birthDate: req.body.birthDate,
       };
 
       const savedStudent = await studentRepository.save(updatedStudent);

@@ -37,27 +37,21 @@ const OrderForSelector: React.FC<OrderForSelectorProps> = ({
           onPersonSelected(parseInt(event.target.value as string))
         }
       >
-        {!selectedPersonId ? (
+        {!selectedPersonId && (
           <MuiMenuItem disabled={true} key={0} value={"0"}>
             <Typography color="textDisabled">Select a {userRole === Role.PARENT ? "student" : "person"}</Typography>
           </MuiMenuItem>
-        ) : (
-          <></>
         )}
-        {userRole !== Role.PARENT ? (
+        {userRole !== Role.PARENT && (
           <MuiMenuItem color="primary" value={MY_ID.toString()}>
             <Typography color="primary">Me</Typography>
           </MuiMenuItem>
-        ) : (
-          <></>
         )}
-
         {students.map((student) => (
           <MuiMenuItem key={student.id} value={student.id.toString()}>
-            {student.name}
+            {student.firstName + " " + student.lastName}
           </MuiMenuItem>
         ))}
-
         <MuiMenuItem color="primary" value={"-2"}>
           <Typography color="primary">Add A Student</Typography>
         </MuiMenuItem>

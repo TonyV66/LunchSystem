@@ -12,6 +12,8 @@ import { createSchoolYear, updateSchoolYear } from "../../api/CafeteriaClient";
 import { AxiosError } from "axios";
 import { DateTimeUtils } from "../../DateTimeUtils";
 import BasicSchoolYearPanel from "./BasicSchoolYearPanel";
+import { useNavigate } from "react-router-dom";
+import { SCHOOL_YEAR_URL } from "../../MainAppPanel";
 
 interface DialogProps {
   onClose: (schoolYear?: SchoolYear) => void;
@@ -38,10 +40,12 @@ const getDefaultSchoolYear = (): SchoolYear => {
 };
 
 const SchoolYearDialog: React.FC<DialogProps> = ({ onClose, schoolYear }) => {
-  const { schoolYears, setSchoolYears, setSnackbarErrorMsg } = useContext(AppContext);
+  const { schoolYears, setSchoolYears, setSnackbarErrorMsg, currentSchoolYear, setCurrentSchoolYear } = useContext(AppContext);
   const [updatedSchoolYear, setUpdatedSchoolYear] = useState<SchoolYear>(
     schoolYear ?? getDefaultSchoolYear()
   );
+
+  const navigate = useNavigate();
 
   const handleSchoolYearChanged = (changedSchoolYear: SchoolYear) => {
     setUpdatedSchoolYear(changedSchoolYear);
@@ -59,8 +63,12 @@ const SchoolYearDialog: React.FC<DialogProps> = ({ onClose, schoolYear }) => {
             year.id === savedSchoolYear.id ? savedSchoolYear : year
           )
         );
+        if (currentSchoolYear.id === savedSchoolYear.id) {
+          setCurrentSchoolYear(savedSchoolYear);
+        }
       } else {
         setSchoolYears([...schoolYears, savedSchoolYear]);
+        navigate(SCHOOL_YEAR_URL + '/' + savedSchoolYear.id)
       }
       onClose(savedSchoolYear);
     } catch (error) {

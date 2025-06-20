@@ -5,6 +5,7 @@ import type { RangeKeyDict } from "react-date-range";
 import SchoolYear from "../../models/SchoolYear";
 import 'react-date-range/dist/styles.css';
 import 'react-date-range/dist/theme/default.css';
+import { DateTimeUtils } from "../../DateTimeUtils";
 
 interface PanelProps {
   schoolYear: SchoolYear;
@@ -22,13 +23,15 @@ const BasicSchoolYearPanel: React.FC<PanelProps> = ({ schoolYear, onSchoolYearCh
   const handleDatesChanged = (ranges: RangeKeyDict) => {
     const range = ranges.selection;
     if (range.startDate && range.endDate) {
-      const startYear = range.startDate.getFullYear();
-      const endYear = range.endDate.getFullYear();
+      const startDate = DateTimeUtils.toString(range.startDate);
+      const endDate = DateTimeUtils.toString(range.endDate);
+      const startYear = startDate.split('-')[0];
+      const endYear = endDate.split('-')[0];
       onSchoolYearChanged({
         ...schoolYear,
         name: `${startYear} - ${endYear}`,
-        startDate: range.startDate.toISOString().split('T')[0],
-        endDate: range.endDate.toISOString().split('T')[0],
+        startDate: startDate,
+        endDate: endDate,
       });
     }
   };
@@ -50,8 +53,8 @@ const BasicSchoolYearPanel: React.FC<PanelProps> = ({ schoolYear, onSchoolYearCh
           moveRangeOnFirstSelection={false}
           ranges={[
             {
-              startDate: new Date(schoolYear.startDate),
-              endDate: new Date(schoolYear.endDate),
+              startDate: DateTimeUtils.toDate(schoolYear.startDate),
+              endDate: DateTimeUtils.toDate(schoolYear.endDate),
               key: "selection",
             },
           ]}

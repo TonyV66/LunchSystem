@@ -148,7 +148,7 @@ const GradeLevelLunchTimesTable: React.FC<GradeLevelLunchTimesTableProps> = ({
                         }}
                       >
                         <Typography variant="body2" color="text.secondary">
-                          Lunch times are assigned by classroom schedule
+                          Lunchtimes assigned by classroom schedule
                         </Typography>
                       </TableCell>
                     ) : (

@@ -19,6 +19,10 @@ import { GradeLevel } from "../../models/GradeLevel";
 import { DayOfWeek } from "../../models/DayOfWeek";
 import { Role } from "../../models/User";
 import StudentLunchtimeEditor from "./StudentLunchtimeEditor";
+import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
+import { LocalizationProvider, DatePicker } from "@mui/x-date-pickers";
+import dayjs, { Dayjs } from "dayjs";
+import { DateTimeUtils } from "../../DateTimeUtils";
 
 interface DialogProps {
   student: Student;
@@ -36,7 +40,11 @@ const EditStudentDialog: React.FC<DialogProps> = ({ onClose, student }) => {
     users,
   } = useContext(AppContext);
 
-  const [studentName, setStudentName] = useState<string>(student?.name ?? "");
+  const [studentFirstName, setStudentFirstName] = useState<string>(student?.firstName ?? "");
+  const [studentLastName, setStudentLastName] = useState<string>(student?.lastName ?? "");
+  const [studentBirthDate, setStudentBirthDate] = useState<Dayjs | null>(
+    student?.birthDate ? dayjs(student.birthDate) : null
+  );
 
   const [selectedGrade, setSelectedGrade] = useState<GradeLevel>(
     currentSchoolYear.studentLunchTimes.find(
@@ -136,11 +144,19 @@ const EditStudentDialog: React.FC<DialogProps> = ({ onClose, student }) => {
           ];
 
       const updatedStudent: Student = student
-        ? { ...student, name: studentName }
+        ? { 
+            ...student, 
+            firstName: studentFirstName, 
+            lastName: studentLastName,
+            birthDate: studentBirthDate ? DateTimeUtils.toString(studentBirthDate.toDate()) : "",
+          }
         : {
             id: 0,
-            name: studentName,
+            name: studentFirstName,
+            firstName: studentFirstName,
+            lastName: studentLastName,
             studentId: "",
+            birthDate: studentBirthDate ? DateTimeUtils.toString(studentBirthDate.toDate()) : "",
             parents: [],
           };
       const studentToSave: StudentWithLunchTimes = {
@@ -154,7 +170,7 @@ const EditStudentDialog: React.FC<DialogProps> = ({ onClose, student }) => {
         students.map((student) =>
           student.id === savedStudent.id
             ? savedStudent
-            : { ...student, name: studentName }
+            : { ...student, name: studentFirstName }
         )
       );
 
@@ -190,7 +206,7 @@ const EditStudentDialog: React.FC<DialogProps> = ({ onClose, student }) => {
     }
   };
 
-  const isSaveDisabled = !studentName.length;
+  const isSaveDisabled = !studentFirstName.length || !studentLastName.length || !studentBirthDate;
 
   return (
     <Dialog
@@ -206,13 +222,36 @@ const EditStudentDialog: React.FC<DialogProps> = ({ onClose, student }) => {
         <Stack gap={2} direction="column">
           <TextField
             required
-            label="First & Last Name"
+            label="First Name"
             variant="standard"
-            value={studentName}
+            value={studentFirstName}
             onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
-              setStudentName(event.target.value)
+              setStudentFirstName(event.target.value)
             }
           />
+          <TextField
+            required
+            label="Last Name"
+            variant="standard"
+            value={studentLastName}
+            onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
+              setStudentLastName(event.target.value)
+            }
+          />
+          <LocalizationProvider dateAdapter={AdapterDayjs}>
+            <DatePicker
+              label="Birth Date"
+              value={studentBirthDate}
+              onChange={(newValue) => setStudentBirthDate(newValue)}
+              slotProps={{
+                textField: {
+                  variant: "standard",
+                  fullWidth: true,
+                  required: true,
+                },
+              }}
+            />
+          </LocalizationProvider>
           {currentSchoolYear.id ? (
             <StudentLunchtimeEditor
               schoolYear={currentSchoolYear}

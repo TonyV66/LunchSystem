@@ -15,22 +15,19 @@ import Student from "../../models/Student";
 import { AxiosError } from "axios";
 import { GradeLevel } from "../../models/GradeLevel";
 import { DayOfWeek } from "../../models/DayOfWeek";
-import SchoolYear from "../../models/SchoolYear";
 import StudentLunchtimeEditor from "./StudentLunchtimeEditor";
 import { Role } from "../../models/User";
 
 interface Props {
-  schoolYear: SchoolYear;
   student: Student;
   onClose: (student?: Student) => void;
 }
 
 const StudentLunchtimeDialog: React.FC<Props> = ({
-  schoolYear,
   student,
   onClose,
 }) => {
-  const { setSnackbarErrorMsg, schoolYears, setSchoolYears, users } =
+  const { setSnackbarErrorMsg, schoolYears, setSchoolYears, users, currentSchoolYear, setCurrentSchoolYear } =
     useContext(AppContext);
 
   const teachers = users
@@ -40,7 +37,7 @@ const StudentLunchtimeDialog: React.FC<Props> = ({
     );
 
   const [selectedGrade, setSelectedGrade] = useState<GradeLevel>(
-    schoolYear.studentLunchTimes.find((lt) => lt.studentId === student.id)
+    currentSchoolYear.studentLunchTimes.find((lt) => lt.studentId === student.id)
       ?.grade ?? GradeLevel.PRE_K
   );
 
@@ -68,7 +65,7 @@ const StudentLunchtimeDialog: React.FC<Props> = ({
       [DayOfWeek.SATURDAY]: null,
     };
 
-    schoolYear.studentLunchTimes
+    currentSchoolYear.studentLunchTimes
       .filter((lt) => lt.studentId === student.id)
       .forEach((lt) => {
         if (lt.teacherId) {
@@ -77,7 +74,7 @@ const StudentLunchtimeDialog: React.FC<Props> = ({
       });
 
     setSelectedTeachers(initialTeachers);
-  }, [student, schoolYear]);
+  }, [student, currentSchoolYear]);
 
   const handleGradeSelected = (grade: GradeLevel) => {
     setSelectedGrade(grade);
@@ -132,18 +129,17 @@ const StudentLunchtimeDialog: React.FC<Props> = ({
 
       const savedStudent = await updateStudent(studentToSave);
 
-      setSchoolYears(
-        schoolYears.map((sy) =>
-          sy.id !== schoolYear.id
-            ? sy
-            : {
-                ...sy,
-                studentLunchTimes: sy.studentLunchTimes
-                  .filter((lt) => lt.studentId !== student.id)
-                  .concat(lunchTimes),
-              }
-        )
-      );
+      const updatedSchoolYear = { ...currentSchoolYear };
+      updatedSchoolYear.studentLunchTimes = updatedSchoolYear.studentLunchTimes
+        .filter((lt) => lt.studentId !== student.id)
+        .concat(lunchTimes);
+
+      setSchoolYears([
+        ...schoolYears.filter((sy) => sy.id !== currentSchoolYear.id),
+        updatedSchoolYear,
+      ]);
+
+      setCurrentSchoolYear(updatedSchoolYear);
 
       onClose(savedStudent);
     } catch (error) {
@@ -166,10 +162,10 @@ const StudentLunchtimeDialog: React.FC<Props> = ({
       aria-labelledby="alert-dialog-title"
       aria-describedby="alert-dialog-description"
     >
-      <DialogTitle>{student.name}</DialogTitle>
+      <DialogTitle>{student.firstName + " " + student.lastName}</DialogTitle>
       <DialogContent>
         <StudentLunchtimeEditor
-          schoolYear={schoolYear}
+          schoolYear={currentSchoolYear}
           selectedGrade={selectedGrade}
           selectedTeachers={selectedTeachers}
           teachers={teachers}

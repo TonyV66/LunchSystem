@@ -58,9 +58,10 @@ const SINGLE_PURCHASER_COLUMNS: GridColDef[] = [
 interface OrderHistoryTableProps {
   onShowOrder: (orderId: number) => void;
   purchaser?: User;
+  mb?: number;
 }
 
-const OrderHistoryTable: React.FC<OrderHistoryTableProps> = ({onShowOrder, purchaser}) => {
+const OrderHistoryTable: React.FC<OrderHistoryTableProps> = ({onShowOrder, purchaser, mb}) => {
   const rows: Row[] = [];
 
   const { orders, users } = React.useContext(AppContext);
@@ -81,6 +82,7 @@ const OrderHistoryTable: React.FC<OrderHistoryTableProps> = ({onShowOrder, purch
   return (
     <DataGrid
       sx={{
+        mb,
         borderColor: grey[400],
         backgroundColor: "white",
       }}

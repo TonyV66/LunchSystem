@@ -36,6 +36,21 @@ const SchoolYearsPage: React.FC = () => {
     navigate(SCHOOL_YEAR_URL + "/" + yearId);
   };
 
+  // Sort school years by start date in descending order (newest first)
+  const sortedSchoolYears = [...schoolYears].sort((a, b) => 
+    new Date(b.startDate).getTime() - new Date(a.startDate).getTime()
+  );
+
+  sortedSchoolYears.forEach((year) => {
+    rows.push({
+      id: year.id,
+      name: year.name,
+      startDate: year.startDate,
+      endDate: year.endDate,
+      onEditYear: handleShowSchoolYear,
+    });
+  });
+
   const columns: GridColDef[] = [
     {
       field: "name",
@@ -85,18 +100,16 @@ const SchoolYearsPage: React.FC = () => {
     },
   ];
 
-  schoolYears.forEach((year) => {
-    rows.push({
-      id: year.id,
-      name: year.name,
-      startDate: year.startDate,
-      endDate: year.endDate,
-      onEditYear: handleShowSchoolYear,
-    });
-  });
-
   return (
-    <Box sx={{ p: 2, display: "flex", flexDirection: "column", gap: 2 }}>
+    <Stack
+      pl={2}
+      pr={2}
+      direction="column"
+      gap={1}
+      sx={{
+        height: "100%",
+      }}
+    >
       <Stack
         direction="row"
         justifyContent="space-between"
@@ -126,8 +139,7 @@ const SchoolYearsPage: React.FC = () => {
 
       <DataGrid
         sx={{
-          marginBottom: "10px",
-          gridColumn: "span 2",
+          mb: 2,
           borderColor: grey[400],
           backgroundColor: "white",
           [`.current-year`]: {
@@ -141,7 +153,7 @@ const SchoolYearsPage: React.FC = () => {
       />
 
       {showSchoolYearDialog && <SchoolYearDialog onClose={handleCloseDialog} />}
-    </Box>
+    </Stack>
   );
 };
 

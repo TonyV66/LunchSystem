@@ -101,12 +101,8 @@ const getClassroomStudents = async (
   // Get full student information for these students, including their parents
   schoolYearStudents = await AppDataSource.getRepository(StudentEntity)
     .createQueryBuilder("student")
-    .innerJoin(
-      "student.schoolYears",
-      "schoolYear",
-      "schoolYear.id = :schoolYearId",
-      { schoolYearId }
-    )
+    .innerJoin("student.parents", "parent")
+    .innerJoin("parent.schoolYears", "schoolYear", "schoolYear.id = :schoolYearId", { schoolYearId })
     .leftJoinAndSelect("student.parents", "parents")
     .where("student.id IN (:...studentIds)", { studentIds })
     .getMany();
@@ -267,10 +263,13 @@ const getParentSession = async (user: UserEntity): Promise<SessionInfo> => {
       gradesAssignedByClass: "",
       school: user.school,
       parents: [],
-      students: [],
       orders: [],
       dailyMenus: [],
     };
+  }
+
+  if (!currentSchoolYear) {
+    throw new Error("No school year found");
   }
 
   // Get my children with their parents
@@ -393,7 +392,6 @@ export const getStaffSession = async (
       gradesAssignedByClass: "",
       school: user.school,
       parents: [],
-      students: [],
       orders: [],
       dailyMenus: [],
     };
@@ -575,7 +573,12 @@ export const getSessionInfo = async (
 };
 
 SessionRouter.get<Empty, SessionInfo, Empty, Empty>("/", async (req, res) => {
-  res.send(await getSessionInfo(req.user));
+  const updatedSessionInfo = await getSessionInfo(req.user);
+  if (!updatedSessionInfo) {
+    throw new Error("Failed to get updated session info");
+  }
+
+  res.send(updatedSessionInfo);
 });
 
 export default SessionRouter;

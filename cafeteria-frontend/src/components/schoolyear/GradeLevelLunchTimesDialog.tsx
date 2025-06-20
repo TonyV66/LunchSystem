@@ -28,7 +28,8 @@ const GradeLevelLunchTimesDialog: React.FC<DialogProps> = ({
   grade,
   onClose,
 }) => {
-  const { setSnackbarMsg, setSnackbarErrorMsg, schoolYears, setSchoolYears } = useContext(AppContext);
+  const { setSnackbarMsg, setSnackbarErrorMsg, schoolYears, setSchoolYears, currentSchoolYear, setCurrentSchoolYear } =
+    useContext(AppContext);
 
   const mondayLunchTimes = Array.from(
     new Set(
@@ -39,10 +40,7 @@ const GradeLevelLunchTimesDialog: React.FC<DialogProps> = ({
         .flatMap((slt) => slt.times)
         .concat(
           schoolYear.lunchTimes
-            .filter(
-              (slt) =>
-                slt.dayOfWeek === DayOfWeek.MONDAY
-            )
+            .filter((slt) => slt.dayOfWeek === DayOfWeek.MONDAY)
             .flatMap((slt) => slt.times)
         )
     )
@@ -57,10 +55,7 @@ const GradeLevelLunchTimesDialog: React.FC<DialogProps> = ({
         .flatMap((slt) => slt.times)
         .concat(
           schoolYear.lunchTimes
-            .filter(
-              (slt) =>
-                slt.dayOfWeek === DayOfWeek.TUESDAY
-            )
+            .filter((slt) => slt.dayOfWeek === DayOfWeek.TUESDAY)
             .flatMap((slt) => slt.times)
         )
     )
@@ -75,10 +70,7 @@ const GradeLevelLunchTimesDialog: React.FC<DialogProps> = ({
         .flatMap((slt) => slt.times)
         .concat(
           schoolYear.lunchTimes
-            .filter(
-              (slt) =>
-                slt.dayOfWeek === DayOfWeek.WEDNESDAY
-            )
+            .filter((slt) => slt.dayOfWeek === DayOfWeek.WEDNESDAY)
             .flatMap((slt) => slt.times)
         )
     )
@@ -93,10 +85,7 @@ const GradeLevelLunchTimesDialog: React.FC<DialogProps> = ({
         .flatMap((slt) => slt.times)
         .concat(
           schoolYear.lunchTimes
-            .filter(
-              (slt) =>
-                slt.dayOfWeek === DayOfWeek.THURSDAY
-            )
+            .filter((slt) => slt.dayOfWeek === DayOfWeek.THURSDAY)
             .flatMap((slt) => slt.times)
         )
     )
@@ -111,10 +100,7 @@ const GradeLevelLunchTimesDialog: React.FC<DialogProps> = ({
         .flatMap((slt) => slt.times)
         .concat(
           schoolYear.lunchTimes
-            .filter(
-              (slt) =>
-                slt.dayOfWeek === DayOfWeek.FRIDAY
-            )
+            .filter((slt) => slt.dayOfWeek === DayOfWeek.FRIDAY)
             .flatMap((slt) => slt.times)
         )
     )
@@ -148,7 +134,6 @@ const GradeLevelLunchTimesDialog: React.FC<DialogProps> = ({
     )?.times ?? []
   );
 
-
   const handleSave = async () => {
     try {
       const dailyLunchTimes: DailyLunchTimes[] = [];
@@ -175,33 +160,30 @@ const GradeLevelLunchTimesDialog: React.FC<DialogProps> = ({
 
       await saveGradeLunchTimes(schoolYear.id, grade, dailyLunchTimes);
 
-      const updatedTimes = [...schoolYear.gradeLunchTimes];
-      dailyLunchTimes.forEach((newTime) => {
-        const index = updatedTimes.findIndex(
-          (lt) =>
-            lt.grade === grade &&
-            lt.dayOfWeek === newTime.dayOfWeek
-        );
-        if (index >= 0) {
-          updatedTimes[index] = {
-            ...updatedTimes[index],
-            times: newTime.times,
-          };
-        } else {
-          updatedTimes.push({
-            ...newTime,
-            grade: grade,
-          });
-        }
-      });
+      const gradeLunchTimes = dailyLunchTimes.map((dlt) => ({
+        dayOfWeek: dlt.dayOfWeek,
+        times: dlt.times,
+        grade: grade,
+      }));
+
+      const updatedSchoolYear = {
+        ...schoolYear,
+        gradeLunchTimes: schoolYear.gradeLunchTimes
+        .filter((glt) => glt.grade !== grade)
+        .concat(gradeLunchTimes),
+      };
 
       setSchoolYears(
         schoolYears.map((sy) =>
           sy.id !== schoolYear.id
-            ? schoolYear
-            : { ...sy, lunchTimes: updatedTimes }
+            ? sy
+            : updatedSchoolYear
         )
       );
+
+      if (currentSchoolYear.id === updatedSchoolYear.id) {
+        setCurrentSchoolYear(updatedSchoolYear);
+      }
 
       setSnackbarMsg("Lunch times saved");
 

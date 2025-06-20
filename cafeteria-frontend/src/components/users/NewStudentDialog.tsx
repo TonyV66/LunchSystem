@@ -19,6 +19,10 @@ import { GradeLevel } from "../../models/GradeLevel";
 import { DayOfWeek } from "../../models/DayOfWeek";
 import User, { Role } from "../../models/User";
 import StudentLunchtimeEditor from "./StudentLunchtimeEditor";
+import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
+import { LocalizationProvider, DatePicker } from "@mui/x-date-pickers";
+import { Dayjs } from "dayjs";
+import { DateTimeUtils } from "../../DateTimeUtils";
 
 interface DialogProps {
   parent: User;
@@ -36,7 +40,9 @@ const NewStudentDialog: React.FC<DialogProps> = ({ parent, onClose }) => {
     users,
   } = useContext(AppContext);
 
-  const [studentName, setStudentName] = useState<string>("");
+  const [studentFirstName, setStudentFirstName] = useState<string>("");
+  const [studentLastName, setStudentLastName] = useState<string>("");
+  const [studentBirthDate, setStudentBirthDate] = useState<Dayjs | null>(null);
 
   const [selectedGrade, setSelectedGrade] = useState<GradeLevel>(
     GradeLevel.PRE_K
@@ -108,7 +114,10 @@ const NewStudentDialog: React.FC<DialogProps> = ({ parent, onClose }) => {
 
       const studentToSave: StudentWithLunchTimes = {
         id: 0,
-        name: studentName,
+        name: studentFirstName,
+        firstName: studentFirstName,
+        lastName: studentLastName,
+        birthDate: studentBirthDate ? DateTimeUtils.toString(studentBirthDate.toDate()) : "",
         studentId: "",
         parents: [],
         lunchTimes,
@@ -148,7 +157,7 @@ const NewStudentDialog: React.FC<DialogProps> = ({ parent, onClose }) => {
     }
   };
 
-  const isSaveDisabled = !studentName.length;
+  const isSaveDisabled = !studentFirstName.length || !studentLastName.length || !studentBirthDate;
 
   return (
     <Dialog
@@ -164,13 +173,37 @@ const NewStudentDialog: React.FC<DialogProps> = ({ parent, onClose }) => {
         <Stack gap={2} direction="column">
           <TextField
             required
-            label="First & Last Name"
+            label="First Name"
             variant="standard"
-            value={studentName}
+            value={studentFirstName}
             onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
-              setStudentName(event.target.value)
+              setStudentFirstName(event.target.value)
             }
           />
+
+          <TextField
+            required
+            label="Last Name"
+            variant="standard"
+            value={studentLastName}
+            onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
+              setStudentLastName(event.target.value)
+            }
+          />
+
+          <LocalizationProvider dateAdapter={AdapterDayjs}>
+            <DatePicker
+              label="Birth Date"
+              value={studentBirthDate}
+              onChange={(newValue) => setStudentBirthDate(newValue)}
+              slotProps={{
+                textField: {
+                  variant: "standard",
+                  fullWidth: true,
+                },
+              }}
+            />
+          </LocalizationProvider>
 
           <StudentLunchtimeEditor
             schoolYear={currentSchoolYear}

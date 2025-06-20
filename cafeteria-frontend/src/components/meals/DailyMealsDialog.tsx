@@ -106,7 +106,7 @@ const StudentMealsTable: React.FC<StudentMealsTableProps> = ({
     return <></>;
   }
 
-  return <MealsTable title={student.name} meals={meals} />;
+  return <MealsTable title={student.firstName + " " + student.lastName} meals={meals} />;
 };
 
 const StaffMealsTable: React.FC<StaffMealsTableProps> = ({
@@ -195,10 +195,10 @@ const DailyMealsDialog: React.FC<DialogProps> = ({ date, onClose, user }) => {
                   staffMember={user}
                 ></StaffMealsTable>
                 {Array.from(siblings)
-                  .sort((s1, s2) => {
-                    return s1.name
-                      .toLowerCase()
-                      .localeCompare(s2.name.toLowerCase());
+                  .sort((s1, s2) => { 
+                    const s1Name = s1.firstName + " " + s1.lastName;
+                    const s2Name = s2.firstName + " " + s2.lastName;
+                    return s1Name.toLowerCase().localeCompare(s2Name.toLowerCase());
                   })
                   .map((student) => (
                     <StudentMealsTable

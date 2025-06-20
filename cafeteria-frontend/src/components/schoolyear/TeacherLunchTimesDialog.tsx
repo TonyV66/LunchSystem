@@ -28,7 +28,7 @@ const TeacherLunchTimesDialog: React.FC<DialogProps> = ({
   teacher,
   onClose,
 }) => {
-  const { setSnackbarMsg, setSnackbarErrorMsg, schoolYears, setSchoolYears } =
+  const { setSnackbarMsg, setSnackbarErrorMsg, schoolYears, setSchoolYears, currentSchoolYear, setCurrentSchoolYear } =
     useContext(AppContext);
 
   const mondayLunchTimes = Array.from(
@@ -172,32 +172,31 @@ const TeacherLunchTimesDialog: React.FC<DialogProps> = ({
         dailyLunchTimes
       );
 
-      const updatedTimes = [...schoolYear.teacherLunchTimes];
-      dailyLunchTimes.forEach((newTime) => {
-        const index = updatedTimes.findIndex(
-          (lt) =>
-            lt.teacherId === teacher.id && lt.dayOfWeek === newTime.dayOfWeek
-        );
-        if (index >= 0) {
-          updatedTimes[index] = {
-            ...updatedTimes[index],
-            times: newTime.times,
-          };
-        } else {
-          updatedTimes.push({
-            ...newTime,
-            teacherId: teacher.id,
-          });
-        }
-      });
+      const teacherLunchTimes = dailyLunchTimes.map((dlt) => ({
+        dayOfWeek: dlt.dayOfWeek,
+        times: dlt.times,
+        teacherId: teacher.id,
+      }));
+
+      const updatedSchoolYear = {
+        ...schoolYear,
+        teacherLunchTimes: schoolYear.teacherLunchTimes
+          .filter((glt) => glt.teacherId !== teacher.id)
+          .concat(teacherLunchTimes),
+      };
 
       setSchoolYears(
         schoolYears.map((sy) =>
           sy.id !== schoolYear.id
-            ? schoolYear
-            : { ...sy, teacherLunchTimes: updatedTimes }
+            ? sy
+            : updatedSchoolYear
         )
       );
+
+      if (currentSchoolYear.id === updatedSchoolYear.id) {
+        setCurrentSchoolYear(updatedSchoolYear);
+      }
+
       setSnackbarMsg("Teacher lunch times saved successfully");
       onClose();
     } catch (error) {

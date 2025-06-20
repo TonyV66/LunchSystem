@@ -7,8 +7,6 @@ import {
   DialogContent,
   DialogTitle,
   Divider,
-  IconButton,
-  Stack,
   Typography,
 } from "@mui/material";
 import { AppContext } from "../../AppContextProvider";
@@ -22,8 +20,6 @@ import { GradeLevel } from "../../models/GradeLevel";
 import SchoolYear from "../../models/SchoolYear";
 import StudentLunchtimePanel from "../users/StudentLunchtimePanel";
 import { DayOfWeek } from "../../models/DayOfWeek";
-import { Edit } from "@mui/icons-material";
-import StudentLunchtimeDialog from "../users/StudentLunchtimeDialog";
 import MealDesigner from "./MealDesigner";
 import StudentAutoCompleteSelector from "../users/StudentAutoCompleteSelector";
 import { donate } from "../../api/CafeteriaClient";
@@ -36,10 +32,7 @@ interface DialogProps {
   onClose: () => void;
 }
 
-const DonateMealDialog: React.FC<DialogProps> = ({
-  menu,
-  onClose,
-}) => {
+const DonateMealDialog: React.FC<DialogProps> = ({ menu, onClose }) => {
   const { users, orders, setOrders, setSnackbarErrorMsg, currentSchoolYear } =
     useContext(AppContext);
 
@@ -51,7 +44,6 @@ const DonateMealDialog: React.FC<DialogProps> = ({
   const [typeOfOrder, setTypeOfOrder] = useState<TypeOfOrder>("meal");
   const [isAddToCartEnabled, setIsAddToCartEnabled] = useState(false);
   const [confirmDialogMsg, setConfirmDialogMsg] = useState<string>();
-  const [showEditStudentDialog, setShowEditStudentDialog] = useState(false);
 
   const dayOfWeek = DateTimeUtils.toDate(menu.date).getDay();
 
@@ -101,7 +93,7 @@ const DonateMealDialog: React.FC<DialogProps> = ({
       if (isMealOrdered) {
         setConfirmDialogMsg(
           "A meal and/or drink has already been ordered for " +
-            selectedStudent.name +
+            selectedStudent.firstName + " " + selectedStudent.lastName +
             " on " +
             DateTimeUtils.toString(
               menu.date,
@@ -193,10 +185,6 @@ const DonateMealDialog: React.FC<DialogProps> = ({
 
   const handlDrinkChanged = (menuItems: PantryItem[]) => {
     setSelectedDrink(menuItems.length ? menuItems[0] : undefined);
-  };
-
-  const handleCloseStudentDialog = () => {
-    setShowEditStudentDialog(false);
   };
 
   useEffect(() => {
@@ -358,29 +346,16 @@ const DonateMealDialog: React.FC<DialogProps> = ({
             textAlign: "left",
           }}
         >
-          <Box>
+          <Box sx={{ display: "grid", gap: 3, gridTemplateColumns: "1fr 1fr" }}>
             <StudentAutoCompleteSelector
               value={selectedStudent}
               onChange={setSelectedStudent}
               label="Select Student"
             />
-          </Box>
-          <Box>
-            <Stack direction="row" alignItems="center" gap={1} flexWrap="wrap">
-              <IconButton
-                size="small"
-                color="primary"
-                disabled={!selectedStudent}
-                onClick={() => setShowEditStudentDialog(true)}
-              >
-                <Edit />
-              </IconButton>
-              <StudentLunchtimePanel
-                schoolYear={currentSchoolYear}
-                student={selectedStudent || undefined}
-                dayOfWeek={dayOfWeek as DayOfWeek}
-              />
-            </Stack>
+            <StudentLunchtimePanel
+              student={selectedStudent || undefined}
+              dayOfWeek={dayOfWeek as DayOfWeek}
+            />
           </Box>
           <Divider />
           <MealDesigner
@@ -420,15 +395,6 @@ const DonateMealDialog: React.FC<DialogProps> = ({
             : menu.drinkOnlyPrice.toFixed(2)}
         </Button>
       </DialogActions>
-      {showEditStudentDialog && selectedStudent ? (
-        <StudentLunchtimeDialog
-          schoolYear={currentSchoolYear}
-          student={selectedStudent}
-          onClose={handleCloseStudentDialog}
-        />
-      ) : (
-        <></>
-      )}
     </Dialog>
   );
 };

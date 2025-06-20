@@ -43,7 +43,6 @@ export default class SchoolYearEntity {
   @JoinTable({name: 'school_year_parents'})
   parents: UserEntity[];
 
-  @ManyToMany(() => StudentEntity, (student) => student.schoolYears)
-  @JoinTable({name: 'school_year_students'})
-  students: StudentEntity[];
+  // Removing the students relationship as it's redundant
+  // Students can be accessed through parents
 }

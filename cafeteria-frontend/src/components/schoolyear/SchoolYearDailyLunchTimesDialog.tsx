@@ -18,6 +18,7 @@ import { AppContext } from "../../AppContextProvider";
 import { AxiosError } from "axios";
 import TimesList from "./TimesList";
 import { DayOfWeek } from "../../models/DayOfWeek";
+import DailyLunchTimes from "../../models/DailyLunchTimes";
 
 interface DialogProps {
   schoolYear: SchoolYear;
@@ -36,13 +37,13 @@ const SchoolYearDailyLunchTimesDialog: React.FC<DialogProps> = ({
     setShowGlassPane,
     schoolYears,
     setSchoolYears,
+    currentSchoolYear,
+    setCurrentSchoolYear,
   } = useContext(AppContext);
   const [newTime, setNewTime] = React.useState<Dayjs | null>(null);
   const [availTimes, setAvailtTimes] = useState<string[]>(
     Array.from(
-      new Set(
-        schoolYear.lunchTimes.flatMap((slt) => slt.times)
-      )
+      new Set(schoolYear.lunchTimes.flatMap((slt) => slt.times))
     ).sort()
   );
   const [selectedTimes, setSelectedTimes] = useState<string[]>(
@@ -76,7 +77,7 @@ const SchoolYearDailyLunchTimesDialog: React.FC<DialogProps> = ({
       const timeString = newTime.format("HH:mm");
       if (!availTimes.includes(timeString)) {
         setAvailtTimes(availTimes.concat(timeString).sort());
-      } 
+      }
       if (!selectedTimes.includes(timeString)) {
         setSelectedTimes(selectedTimes.concat(timeString));
       }
@@ -87,34 +88,31 @@ const SchoolYearDailyLunchTimesDialog: React.FC<DialogProps> = ({
   const handleSave = async () => {
     try {
       setShowGlassPane(true);
+      const newLunchTimes: DailyLunchTimes = {
+        dayOfWeek,
+        times: selectedTimes,
+      };
       const updatedLunchTimes = await saveSchoolYearLunchTimes(
         schoolYear.id.toString(),
-        {
-          dayOfWeek,
-          times: selectedTimes,
-        }
+        newLunchTimes
       );
 
-      const updatedTimes = [...schoolYear.lunchTimes];
-      updatedLunchTimes.forEach((newTime) => {
-        const index = updatedTimes.findIndex(
-          (lt) =>
-            lt.dayOfWeek === newTime.dayOfWeek
-        );
-        if (index >= 0) {
-          updatedTimes[index] = newTime;
-        } else {
-          updatedTimes.push(newTime);
-        }
-      });
+      const updatedSchoolYear = {
+        ...schoolYear,
+        lunchTimes: updatedLunchTimes,
+      };
 
       setSchoolYears(
         schoolYears.map((sy) =>
           sy.id !== schoolYear.id
-            ? schoolYear
-            : { ...sy, lunchTimes: updatedTimes }
+            ? sy
+            : updatedSchoolYear
         )
       );
+
+      if (currentSchoolYear.id === updatedSchoolYear.id) {
+        setCurrentSchoolYear(updatedSchoolYear);
+      }
 
       setSnackbarMsg("Lunch times saved");
 
@@ -128,8 +126,6 @@ const SchoolYearDailyLunchTimesDialog: React.FC<DialogProps> = ({
             axiosError.response?.statusText ??
             "Unknown server error")
       );
-
-      // TODO: Show error message to user
     }
   };
 
@@ -172,7 +168,11 @@ const SchoolYearDailyLunchTimesDialog: React.FC<DialogProps> = ({
         <Button variant="contained" onClick={() => onClose()}>
           Cancel
         </Button>
-        <Button disabled={(availTimes.length === 0) || newTime ? true : false} variant="contained" onClick={() => handleSave()}>
+        <Button
+          disabled={availTimes.length === 0 || newTime ? true : false}
+          variant="contained"
+          onClick={() => handleSave()}
+        >
           OK
         </Button>
       </DialogActions>

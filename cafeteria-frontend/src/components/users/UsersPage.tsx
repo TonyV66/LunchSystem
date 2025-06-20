@@ -1,7 +1,6 @@
 import React from "react";
 import {
   Fab,
-  IconButton,
   Tab,
   Tabs,
   Menu as PulldownMenu,
@@ -11,62 +10,13 @@ import {
 } from "@mui/material";
 import { AppContext } from "../../AppContextProvider";
 import { useContext, useState } from "react";
-import { Add, MoreVert } from "@mui/icons-material";
-import User, { Role, ROLE_NAMES } from "../../models/User";
-import { grey } from "@mui/material/colors";
-import {
-  DataGrid,
-  GridColDef,
-  GridRenderCellParams,
-  GridValidRowModel,
-} from "@mui/x-data-grid";
+import { Add } from "@mui/icons-material";
+import User, { Role } from "../../models/User";
 import { useNavigate } from "react-router-dom";
 import { STUDENTS_URL, USERS_URL } from "../../MainAppPanel";
 import { UserOrderHistoryDialog } from "../orders/UserOrderHistoryDialog";
 import EditUserDialog from "./EditUserDialog";
-
-interface Row {
-  id: number;
-  username: string;
-  role: Role;
-  onShowMenu: undefined | ((userId: number, menuAnchor: HTMLElement) => void);
-}
-
-const roleCellRenderer = (
-  params: GridRenderCellParams<GridValidRowModel, Role>
-) => ROLE_NAMES[params.row.role];
-
-const actionCellRenderer = (
-  params: GridRenderCellParams<
-    GridValidRowModel,
-    (userId: number, menuAnchor: null | HTMLElement) => void
-  >
-) => {
-  console.log(params);
-  return (
-    <IconButton
-      color="primary"
-      disabled={!params.value}
-      onClick={(event) =>
-        params.value!(params.id as number, event.currentTarget)
-      }
-      size="small"
-    >
-      <MoreVert />
-    </IconButton>
-  );
-};
-
-const columns: GridColDef[] = [
-  { field: "username", headerName: "User Name", minWidth: 150 },
-  { field: "role", headerName: "Role", flex: 1, renderCell: roleCellRenderer },
-  {
-    field: "onShowMenu",
-    headerName: "Actions",
-    width: 80,
-    renderCell: actionCellRenderer,
-  },
-];
+import UsersTable from "./UsersTable";
 
 interface AdminMenuProps {
   anchor: HTMLElement;
@@ -153,17 +103,6 @@ const UsersPage: React.FC = () => {
     setAction(null);
   };
 
-  const rows: Row[] = [];
-
-  users.forEach((usr) => {
-    rows.push({
-      id: usr.id,
-      username: usr.userName,
-      role: usr.role,
-      onShowMenu: user.id !== usr.id ? handleShowPopupMenu : undefined,
-    });
-  });
-
   const handleTabSelected = (event: React.SyntheticEvent, newValue: string) => {
     navigate(newValue);
   };
@@ -229,16 +168,10 @@ const UsersPage: React.FC = () => {
           <Add />
         </Fab>
       </Stack>
-      <DataGrid
-        sx={{
-          mb: 2,
-          borderColor: grey[400],
-          backgroundColor: "white",
-        }}
-        density="compact"
-        rows={rows}
-        disableRowSelectionOnClick
-        columns={columns}
+      <UsersTable
+        users={users}
+        currentUser={user}
+        onShowMenu={handleShowPopupMenu}
       />
       {showNewUserDialog || action === "edit" ? (
         <EditUserDialog

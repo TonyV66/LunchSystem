@@ -20,14 +20,14 @@ const StudentAutoCompleteSelector: React.FC<StudentAutoCompleteSelectorProps> = 
 
   // Sort students by name
   const sortedStudents = useMemo(() => {
-    return [...students].sort((a, b) => a.name.localeCompare(b.name));
+    return [...students].sort((a, b) => (a.firstName + " " + a.lastName).localeCompare(b.firstName + " " + b.lastName));
   }, [students]);
 
   // Custom filter function for student names
   const filterOptions = (options: Student[], { inputValue }: { inputValue: string }) => {
     const searchTerm = inputValue.toLowerCase().trim();
     const ops = options.filter(option => 
-      option.name.toLowerCase().includes(searchTerm)
+      (option.firstName + " " + option.lastName).toLowerCase().includes(searchTerm)
     );
     if (searchTerm.length >= 2) {
       console.log("Here I am");
@@ -43,9 +43,9 @@ const StudentAutoCompleteSelector: React.FC<StudentAutoCompleteSelectorProps> = 
       options={sortedStudents}
       renderOption={(props, item) => (
         <li {...props} key={item.id}>
-          {item.name}
+          {item.firstName + " " + item.lastName}
         </li>)}
-      getOptionLabel={(option) => option.name}
+      getOptionLabel={(option) => option.firstName + " " + option.lastName}
       filterOptions={filterOptions}
       isOptionEqualToValue={(option, value) => option.id === value.id}
       renderInput={(params) => (

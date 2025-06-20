@@ -47,7 +47,7 @@ import DailyMealsDialog from "../meals/DailyMealsDialog";
 import OrderMealDialog from "../shoppingcart/OrderMealDialog";
 import { Role } from "../../models/User";
 import CafeteriaDialog from "../cafeteria/CafeteriaDialog";
-import ClassroomMealsDialog from "../meals/ClassroomMealsDialog";
+import MealReportDialog from "../meals/MealReportDialog";
 import { AxiosError } from "axios";
 import OrderDatesDialog from "./OrderDatesDialog";
 import DonateMealDialog from "../shoppingcart/DonateMealDialog";
@@ -406,7 +406,7 @@ const AdminMealButtons: React.FC<AdminMealButtonProps> = ({
             disabled={!hasOrderedMeals}
             onClick={handleShowClassroomReport}
           >
-            Classroom Reports
+            Adminstrator&apos;s Report
           </MenuItem>
           <MenuItem
             disabled={!hasOrderedMeals}
@@ -460,7 +460,7 @@ const AdminMealButtons: React.FC<AdminMealButtonProps> = ({
         <></>
       )}
       {showClassroomReport ? (
-        <ClassroomMealsDialog
+        <MealReportDialog
           date={menu!.date}
           onClose={() => setShowClassroomReport(false)}
         />
@@ -668,7 +668,7 @@ const TeacherMealButtons: React.FC<CafeteriaMealButtonProps> = ({
         <></>
       )}
       {showReport ? (
-        <ClassroomMealsDialog
+        <MealReportDialog
           teacherId={user.id}
           date={date}
           onClose={() => setShowReport(false)}

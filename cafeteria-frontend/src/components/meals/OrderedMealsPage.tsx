@@ -54,6 +54,7 @@ const OrderedMealsPage: React.FC = () => {
         <Box minWidth={"600px"}>
           <OrderedMealsTable
             students={siblings}
+            staffMembers={[]}
             startDate={DateTimeUtils.toString(new Date())}
             orders={orders}
             highlightMealsNotOrderedByMe={true}

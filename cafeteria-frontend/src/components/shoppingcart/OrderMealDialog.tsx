@@ -7,8 +7,6 @@ import {
   DialogContent,
   DialogTitle,
   Divider,
-  IconButton,
-  Stack,
   Typography,
 } from "@mui/material";
 import { AppContext } from "../../AppContextProvider";
@@ -25,8 +23,6 @@ import OrderForSelector from "./OrderForSelector";
 import LunchtimeSelector from "./LunchtimeSelector";
 import StudentLunchtimePanel from "../users/StudentLunchtimePanel";
 import { DayOfWeek } from "../../models/DayOfWeek";
-import { Edit } from "@mui/icons-material";
-import StudentLunchtimeDialog from "../users/StudentLunchtimeDialog";
 import MealDesigner from "./MealDesigner";
 
 type TypeOfOrder = "meal" | "drink";
@@ -47,7 +43,6 @@ const addMealTimeToShoppingCart = (
 ) => {
   if (!time) return;
 
-  // Initialize mealTimes array if it doesn't exist
   if (!shoppingCart.mealTimes) {
     shoppingCart.mealTimes = [];
   }
@@ -78,7 +73,7 @@ const OrderMealDialog: React.FC<DialogProps> = ({
     shoppingCart,
     setShoppingCart,
     scheduledMenus,
-    currentSchoolYear
+    currentSchoolYear,
   } = useContext(AppContext);
 
   const [selectedPersonId, setSelectedPersonId] = useState<number>(0);
@@ -91,9 +86,6 @@ const OrderMealDialog: React.FC<DialogProps> = ({
   const [isAddToCartEnabled, setIsAddToCartEnabled] = useState(false);
   const [confirmDialogMsg, setConfirmDialogMsg] = useState<string>();
   const [showNewStudentDialog, setShowNewStudentDialog] = useState(false);
-  const [showEditStudentDialog, setShowEditStudentDialog] = useState(false);
-
-
 
   const siblings = students.filter((s) => s.parents.includes(user.id));
 
@@ -171,7 +163,7 @@ const OrderMealDialog: React.FC<DialogProps> = ({
       if (hasMealInCart) {
         setConfirmDialogMsg(
           "A meal and/or drink is already in your cart for " +
-            (selectedStudent?.name ?? "you") +
+            (selectedStudent ? selectedStudent.firstName + " " + selectedStudent.lastName : "you") +
             " on " +
             DateTimeUtils.toString(
               menu.date,
@@ -183,7 +175,7 @@ const OrderMealDialog: React.FC<DialogProps> = ({
       } else if (isMealOrdered) {
         setConfirmDialogMsg(
           "A meal and/or drink has already been ordered for " +
-            (selectedStudent?.name ?? "you") +
+            (selectedStudent ? selectedStudent.firstName + " " + selectedStudent.lastName : "you") +
             " on " +
             DateTimeUtils.toString(
               menu.date,
@@ -272,7 +264,6 @@ const OrderMealDialog: React.FC<DialogProps> = ({
 
   const handleCloseStudentDialog = (student?: Student) => {
     setShowNewStudentDialog(false);
-    setShowEditStudentDialog(false);
     if (student) {
       setSelectedPersonId(student.id);
     }
@@ -434,13 +425,21 @@ const OrderMealDialog: React.FC<DialogProps> = ({
             textAlign: "left",
           }}
         >
-          <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: "1fr 1fr" }}>
+          <Box sx={{ display: "grid", gap: 3, gridTemplateColumns: "1fr 1fr" }}>
             <OrderForSelector
               selectedPersonId={selectedPersonId}
               userRole={user.role}
               students={siblings}
               onPersonSelected={handlePersonSelected}
             />
+            {selectedPersonId !== MY_ID && (
+              <Box>
+                <StudentLunchtimePanel
+                  student={selectedStudent}
+                  dayOfWeek={dayOfWeek as DayOfWeek}
+                />
+              </Box>
+            )}
             {showLunchtimeSelector ? (
               <LunchtimeSelector
                 selectedTime={selectedTime}
@@ -452,30 +451,6 @@ const OrderMealDialog: React.FC<DialogProps> = ({
               <></>
             )}
           </Box>
-          {selectedPersonId !== MY_ID && (
-            <Box>
-              <Stack
-                direction="row"
-                alignItems="center"
-                gap={1}
-                flexWrap="wrap"
-              >
-                <IconButton
-                  size="small"
-                  color="primary"
-                  disabled={!selectedStudent}
-                  onClick={() => setShowEditStudentDialog(true)}
-                >
-                  <Edit />
-                </IconButton>
-                <StudentLunchtimePanel
-                  schoolYear={currentSchoolYear}
-                  student={selectedStudent}
-                  dayOfWeek={dayOfWeek as DayOfWeek}
-                />
-              </Stack>
-            </Box>
-          )}
           <Divider />
           <MealDesigner
             menu={menu}
@@ -515,16 +490,7 @@ const OrderMealDialog: React.FC<DialogProps> = ({
         </Button>
       </DialogActions>
       {showNewStudentDialog ? (
-        <NewStudentDialog
-          parent={user}
-          onClose={handleCloseStudentDialog}
-        />
-      ) : showEditStudentDialog ? (
-        <StudentLunchtimeDialog
-          schoolYear={currentSchoolYear}
-          student={selectedStudent!}
-          onClose={handleCloseStudentDialog}
-        />
+        <NewStudentDialog parent={user} onClose={handleCloseStudentDialog} />
       ) : (
         <></>
       )}

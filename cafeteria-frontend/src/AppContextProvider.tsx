@@ -188,9 +188,11 @@ const AppContextProvider: React.FC<React.PropsWithChildren> = (props) => {
     const initSession = async () => {
       try {
         const sessionInfo = await fetchSessionInfo();
-        sessionInfo.students.sort((s1, s2) =>
-          s1.name.toLowerCase().localeCompare(s2.name.toLowerCase())
-        );
+        sessionInfo.students.sort((s1, s2) => {
+          const s1Name = s1.firstName + " " + s1.lastName;
+          const s2Name = s2.firstName + " " + s2.lastName;
+          return s1Name.toLowerCase().localeCompare(s2Name.toLowerCase());
+        });
         setUser(sessionInfo.user);
         setUsers(sessionInfo.users);
         setStudents(sessionInfo.students);

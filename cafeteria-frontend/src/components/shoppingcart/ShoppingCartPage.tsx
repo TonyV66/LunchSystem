@@ -24,10 +24,10 @@ import {
 } from "react-square-web-payments-sdk";
 import { CreditCard as SavedCreditCard } from "../../models/CreditCard";
 import { GiftCard as SavedGiftCard } from "../../models/GiftCard";
-
 import ShoppingCartTable from "./ShoppingCartTable";
 import { AxiosError } from "axios";
 import { grey } from "@mui/material/colors";
+import ConfirmDialog from "../ConfirmDialog";
 
 const PaymentOptions: React.FC<{
   onCardSelected: (selectedCard: string) => void;
@@ -185,9 +185,7 @@ const ShoppingCartPage: React.FC = () => {
   const [showThankYou, setShowThankYou] = useState(false);
   const [saveCard, setSaveCard] = useState(false);
   const [sendEmail, setSendEmail] = useState(false);
-  const [savedCreditCards, setSavedCreditCards] = useState<SavedCreditCard[]>(
-    []
-  );
+  const [savedCreditCards, setSavedCreditCards] = useState<SavedCreditCard[]>([]);
   const [savedGiftCards, setSavedGiftCards] = useState<SavedGiftCard[]>([]);
 
   const navigate = useNavigate();
@@ -217,7 +215,6 @@ const ShoppingCartPage: React.FC = () => {
   }, [shoppingCart]);
 
   const handleCheckout = async (paymentToken: string) => {
-
     try {
       const completedOrder = await checkout(
         paymentToken,
@@ -239,6 +236,11 @@ const ShoppingCartPage: React.FC = () => {
     }
   };
 
+  const handleThankYouClose = () => {
+    setShowThankYou(false);
+    navigate(MEALS_URL);
+  };
+
   const handlePaymentChanged = (paymentMethod: string) => {
     if (paymentMethod !== "giftcard" && paymentMethod !== "creditcard") {
       setSaveCard(false);
@@ -252,30 +254,6 @@ const ShoppingCartPage: React.FC = () => {
       return item.isDrinkOnly ? menu.drinkOnlyPrice : menu.price;
     })
     .reduce((p1, p2) => p1 + p2, 0);
-
-  if (showThankYou) {
-    return (
-      <Box
-        sx={{
-          maxHeight: "100%",
-          pt: 2,
-          pb: 2,
-          display: "flex",
-          flexDirection: "column",
-          justifyContent: "center",
-          alignItems: "center",
-          gap: 2,
-        }}
-      >
-        <Typography variant="h6" fontWeight="bold">
-          Thank You For Your Order
-        </Typography>
-        <Button variant="contained" onClick={() => navigate(MEALS_URL)}>
-          Show All My Upcoming Ordered Meals
-        </Button>
-      </Box>
-    );
-  }
 
   return (
     <Box
@@ -386,6 +364,19 @@ const ShoppingCartPage: React.FC = () => {
             </Button>
           </Box>
         </Box>
+      )}
+      {showThankYou && (
+        <ConfirmDialog
+          open={true}
+          onOk={handleThankYouClose}
+          hideCancelButton={true}
+          onCancel={handleThankYouClose}
+          title="Thank You For Your Order"
+        >
+          <Typography>
+            Your order has been successfully placed. Click OK to view your upcoming ordered meals.
+          </Typography>
+        </ConfirmDialog>
       )}
     </Box>
   );
