@@ -5,8 +5,6 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
-  TextField,
-  Stack,
 } from "@mui/material";
 import { AppContext } from "../../AppContextProvider";
 import {
@@ -17,27 +15,25 @@ import Student from "../../models/Student";
 import { AxiosError } from "axios";
 import { GradeLevel } from "../../models/GradeLevel";
 import { DayOfWeek } from "../../models/DayOfWeek";
-import User, { Role } from "../../models/User";
-import StudentLunchtimeEditor from "./StudentLunchtimeEditor";
-import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
-import { LocalizationProvider, DatePicker } from "@mui/x-date-pickers";
+import User from "../../models/User";
 import { Dayjs } from "dayjs";
 import { DateTimeUtils } from "../../DateTimeUtils";
+import NewStudentPanel from "./NewStudentPanel";
 
 interface DialogProps {
   parent: User;
   onClose: (student?: Student) => void;
 }
 
-const NewStudentDialog: React.FC<DialogProps> = ({ parent, onClose }) => {
+const ParentNewStudentDialog: React.FC<DialogProps> = ({ parent, onClose }) => {
   const {
     students,
     setStudents,
     setSnackbarErrorMsg,
     schoolYears,
     currentSchoolYear,
+    setCurrentSchoolYear,
     setSchoolYears,
-    users,
   } = useContext(AppContext);
 
   const [studentFirstName, setStudentFirstName] = useState<string>("");
@@ -59,23 +55,6 @@ const NewStudentDialog: React.FC<DialogProps> = ({ parent, onClose }) => {
     [DayOfWeek.FRIDAY]: null,
     [DayOfWeek.SATURDAY]: null,
   });
-
-  const teachers = users
-    .filter((user) => user.role === Role.TEACHER)
-    .sort((t1, t2) =>
-      t1.name.toLowerCase().localeCompare(t2.name.toLowerCase())
-    );
-
-  const handleGradeSelected = (grade: GradeLevel) => {
-    setSelectedGrade(grade);
-  };
-
-  const handleTeacherChange = (day: DayOfWeek, teacherId: number) => {
-    setSelectedTeachers((prev) => ({
-      ...prev,
-      [day]: teacherId,
-    }));
-  };
 
   const handleSaveStudent = async () => {
     try {
@@ -127,23 +106,28 @@ const NewStudentDialog: React.FC<DialogProps> = ({ parent, onClose }) => {
       savedStudent.parents = [parent.id];
       setStudents(students.concat(savedStudent));
 
-      setSchoolYears(
-        schoolYears.map((sy) =>
-          sy.id !== currentSchoolYear.id
-            ? sy
-            : {
-                ...sy,
-                studentLunchTimes: sy.studentLunchTimes
-                  .filter((lt) => lt.studentId !== savedStudent.id)
-                  .concat(
-                    lunchTimes.map((lt) => ({
-                      ...lt,
-                      studentId: savedStudent.id,
-                    }))
-                  ),
-              }
-        )
-      );
+      if (currentSchoolYear.id) {
+        const updatedSchoolYear = {
+          ...schoolYears.find((sy) => sy.id === currentSchoolYear.id)!,
+        };
+        updatedSchoolYear.studentLunchTimes =
+          currentSchoolYear.studentLunchTimes
+            .filter((lt) => lt.studentId !== savedStudent.id)
+            .concat(
+              lunchTimes.map((lt) => ({ ...lt, studentId: savedStudent.id }))
+            );
+
+        setCurrentSchoolYear(updatedSchoolYear);
+        setSchoolYears(
+          schoolYears.map((sy) =>
+            sy.id !== updatedSchoolYear.id
+              ? sy
+              : updatedSchoolYear
+          )
+        );
+
+      }
+
 
       onClose(savedStudent);
     } catch (error) {
@@ -170,50 +154,18 @@ const NewStudentDialog: React.FC<DialogProps> = ({ parent, onClose }) => {
     >
       <DialogTitle>Add Student</DialogTitle>
       <DialogContent>
-        <Stack gap={2} direction="column">
-          <TextField
-            required
-            label="First Name"
-            variant="standard"
-            value={studentFirstName}
-            onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
-              setStudentFirstName(event.target.value)
-            }
-          />
-
-          <TextField
-            required
-            label="Last Name"
-            variant="standard"
-            value={studentLastName}
-            onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
-              setStudentLastName(event.target.value)
-            }
-          />
-
-          <LocalizationProvider dateAdapter={AdapterDayjs}>
-            <DatePicker
-              label="Birth Date"
-              value={studentBirthDate}
-              onChange={(newValue) => setStudentBirthDate(newValue)}
-              slotProps={{
-                textField: {
-                  variant: "standard",
-                  fullWidth: true,
-                },
-              }}
-            />
-          </LocalizationProvider>
-
-          <StudentLunchtimeEditor
-            schoolYear={currentSchoolYear}
-            selectedGrade={selectedGrade}
-            selectedTeachers={selectedTeachers}
-            teachers={teachers}
-            onGradeSelected={handleGradeSelected}
-            onTeacherChange={handleTeacherChange}
-          />
-        </Stack>
+        <NewStudentPanel
+          studentFirstName={studentFirstName}
+          setStudentFirstName={setStudentFirstName}
+          studentLastName={studentLastName}
+          setStudentLastName={setStudentLastName}
+          studentBirthDate={studentBirthDate}
+          setStudentBirthDate={setStudentBirthDate}
+          selectedGrade={selectedGrade}
+          setSelectedGrade={setSelectedGrade}
+          selectedTeachers={selectedTeachers}
+          setSelectedTeachers={setSelectedTeachers}
+        />
       </DialogContent>
       <DialogActions>
         <Button variant="contained" onClick={() => onClose()}>
@@ -231,4 +183,4 @@ const NewStudentDialog: React.FC<DialogProps> = ({ parent, onClose }) => {
   );
 };
 
-export default NewStudentDialog;
+export default ParentNewStudentDialog;

@@ -204,6 +204,21 @@ export const updateStudent = async (student: StudentWithLunchTimes) => {
   return response.data;
 };
 
+export const updateStudentLunchTimes = async (studentId: number, lunchTimes: StudentLunchTime[]) => {
+  const response: AxiosResponse<StudentLunchTime[]> = await http.put(
+    API_BASE_URL + "/student/" + studentId + "/lunchtimes",
+    lunchTimes
+  );
+  return response.data;
+};
+
+export const associateStudentWithUser = async (studentId: number, userId: number) => {
+  const response: AxiosResponse<Student> = await http.put(
+    API_BASE_URL + "/student/" + studentId + "/associate/" + userId
+  );
+  return response.data;
+};
+
 export const updateUser = async (user: User) => {
   const response: AxiosResponse<User> = await http.put(
     API_BASE_URL + "/user",

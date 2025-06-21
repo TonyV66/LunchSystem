@@ -11,30 +11,24 @@ import {
 import { AppContext } from "../../AppContextProvider";
 import { useContext, useState } from "react";
 import { Add } from "@mui/icons-material";
-import User, { Role } from "../../models/User";
+import User from "../../models/User";
 import { useNavigate } from "react-router-dom";
 import { STUDENTS_URL, USERS_URL } from "../../MainAppPanel";
 import { UserOrderHistoryDialog } from "../orders/UserOrderHistoryDialog";
 import EditUserDialog from "./EditUserDialog";
 import UsersTable from "./UsersTable";
+import { SiblingsDialog } from "./SiblingsDialog";
 
-interface AdminMenuProps {
+interface UserMenuProps {
   anchor: HTMLElement;
+  onOrderHistory: () => void;
+  onChildren: () => void;
   onEdit: () => void;
   onClose: () => void;
 }
 
-interface ParentMenuProps {
-  anchor: HTMLElement;
-  onOrderHistory: () => void;
-  onClose: () => void;
-}
 
-const ParentMenu: React.FC<ParentMenuProps> = ({
-  anchor,
-  onOrderHistory,
-  onClose,
-}) => {
+const UserMenu: React.FC<UserMenuProps> = ({ anchor, onEdit, onOrderHistory, onClose, onChildren }) => {
   return (
     <PulldownMenu
       id="demo-positioned-menu"
@@ -52,33 +46,13 @@ const ParentMenu: React.FC<ParentMenuProps> = ({
       }}
     >
       <MenuItem onClick={onOrderHistory}>Order History</MenuItem>
-    </PulldownMenu>
-  );
-};
-
-const StaffMenu: React.FC<AdminMenuProps> = ({ anchor, onEdit, onClose }) => {
-  return (
-    <PulldownMenu
-      id="demo-positioned-menu"
-      aria-labelledby="demo-positioned-button"
-      anchorEl={anchor}
-      open={true}
-      onClose={onClose}
-      anchorOrigin={{
-        vertical: "top",
-        horizontal: "left",
-      }}
-      transformOrigin={{
-        vertical: "top",
-        horizontal: "left",
-      }}
-    >
+      <MenuItem onClick={onChildren}>Children</MenuItem>
       <MenuItem onClick={onEdit}>Edit</MenuItem>
     </PulldownMenu>
   );
 };
 
-type MenuAction = "edit" | "delete" | "history";
+type MenuAction = "edit" | "delete" | "history" | "children";
 
 const UsersPage: React.FC = () => {
   const { users, user, currentSchoolYear } = useContext(AppContext);
@@ -124,6 +98,11 @@ const UsersPage: React.FC = () => {
 
   const handleCloseMenu = () => {
     setTargetUser(null);
+    setPulldownMenuAnchor(null);
+  };
+
+  const handleChildren = () => {
+    setAction("children");
     setPulldownMenuAnchor(null);
   };
 
@@ -182,24 +161,26 @@ const UsersPage: React.FC = () => {
         <></>
       )}
       {targetUser && pulldownMenuAnchor ? (
-        targetUser.role !== Role.PARENT ? (
-          <StaffMenu
+          <UserMenu
             anchor={pulldownMenuAnchor!}
+            onOrderHistory={handleOrderHistory}
+            onChildren={handleChildren}
             onEdit={handleEditUser}
             onClose={handleCloseMenu}
           />
-        ) : (
-          <ParentMenu
-            anchor={pulldownMenuAnchor!}
-            onOrderHistory={handleOrderHistory}
-            onClose={handleCloseMenu}
-          />
-        )
       ) : (
         <></>
       )}
       {action === "history" && targetUser ? (
         <UserOrderHistoryDialog
+          user={targetUser}
+          onClose={handleActionComplete}
+        />
+      ) : (
+        <></>
+      )}
+      {action === "children" && targetUser ? (
+        <SiblingsDialog
           user={targetUser}
           onClose={handleActionComplete}
         />

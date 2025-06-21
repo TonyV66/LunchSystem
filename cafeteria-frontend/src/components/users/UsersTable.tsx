@@ -1,5 +1,5 @@
 import React from "react";
-import { IconButton } from "@mui/material";
+import { IconButton, Link, Dialog, DialogTitle, DialogContent, List, ListItem, DialogActions, Button, Typography } from "@mui/material";
 import { MoreVert } from "@mui/icons-material";
 import { grey } from "@mui/material/colors";
 import {
@@ -10,13 +10,14 @@ import {
 } from "@mui/x-data-grid";
 import User, { Role, ROLE_NAMES } from "../../models/User";
 import { AppContext } from "../../AppContextProvider";
+import Student from "../../models/Student";
 
 interface Row {
   id: number;
   username: string;
   name: string;
   email: string;
-  students: string;
+  students: { name: string; count: number; students: Student[]; onShowAll: () => void };
   role: Role;
   onShowMenu: undefined | ((userId: number, menuAnchor: HTMLElement) => void);
 }
@@ -46,11 +47,37 @@ const actionCellRenderer = (
   );
 };
 
+const studentsCellRenderer = (
+  params: GridRenderCellParams<GridValidRowModel, { name: string; count: number; students: Student[]; onShowAll: () => void }>
+) => {
+  const { name, count, onShowAll } = params.value!;
+  
+  if (count <= 1) {
+    return <span>{name}</span>;
+  }
+  
+  return (
+    <Link
+      component="button"
+      variant="body2"
+      onClick={onShowAll}
+      sx={{ textDecoration: 'underline', cursor: 'pointer' }}
+    >
+      {name + " +" + (count - 1) }
+    </Link>
+  );
+};
+
 const columns: GridColDef[] = [
   { field: "username", headerName: "Username", minWidth: 150 },
   { field: "name", headerName: "Name", minWidth: 200 },
   { field: "email", headerName: "Email", minWidth: 250 },
-  { field: "students", headerName: "Student(s)", minWidth: 200 },
+  { 
+    field: "students", 
+    headerName: "Children", 
+    minWidth: 200,
+    renderCell: studentsCellRenderer
+  },
   { field: "role", headerName: "Role", flex: 1, renderCell: roleCellRenderer },
   {
     field: "onShowMenu",
@@ -66,8 +93,20 @@ interface UsersTableProps {
   onShowMenu: (userId: number, menuAnchor: null | HTMLElement) => void;
 }
 
-const UsersTable: React.FC<UsersTableProps> = ({ users, currentUser, onShowMenu }) => {
+const UsersTable: React.FC<UsersTableProps> = ({ users, onShowMenu }) => {
   const { students, orders } = React.useContext(AppContext);
+  const [selectedStudents, setSelectedStudents] = React.useState<Student[]>([]);
+  const [showStudentsDialog, setShowStudentsDialog] = React.useState(false);
+  
+  const handleShowAllStudents = (students: Student[]) => {
+    setSelectedStudents(students);
+    setShowStudentsDialog(true);
+  };
+  
+  const handleCloseStudentsDialog = () => {
+    setShowStudentsDialog(false);
+    setSelectedStudents([]);
+  };
   
   const rows: Row[] = users.map((usr) => {
     // Find students that belong to this user
@@ -105,24 +144,47 @@ const UsersTable: React.FC<UsersTableProps> = ({ users, currentUser, onShowMenu 
       username: usr.userName,
       name: `${usr.firstName} ${usr.lastName}`,
       email: usr.email,
-      students: studentName,
+      students: {
+        name: studentName,
+        count: sortedStudents.length,
+        students: sortedStudents,
+        onShowAll: () => handleShowAllStudents(sortedStudents)
+      },
       role: usr.role,
-      onShowMenu: currentUser.id !== usr.id ? onShowMenu : undefined,
+      onShowMenu,
     };
   });
 
   return (
-    <DataGrid
-      sx={{
-        mb: 2,
-        borderColor: grey[400],
-        backgroundColor: "white",
-      }}
-      density="compact"
-      rows={rows}
-      disableRowSelectionOnClick
-      columns={columns}
-    />
+    <>
+      <DataGrid
+        sx={{
+          mb: 2,
+          borderColor: grey[400],
+          backgroundColor: "white",
+        }}
+        density="compact"
+        rows={rows}
+        disableRowSelectionOnClick
+        columns={columns}
+      />
+      
+      <Dialog open={showStudentsDialog} onClose={handleCloseStudentsDialog} maxWidth="xs" fullWidth>
+        <DialogTitle>All Students</DialogTitle>
+        <DialogContent>
+          <List dense>
+            {selectedStudents.map((student) => (
+              <ListItem key={student.id}>
+                <Typography variant="body2">{student.firstName} {student.lastName}</Typography>
+              </ListItem>
+            ))}
+          </List>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseStudentsDialog}>Close</Button>
+        </DialogActions>
+      </Dialog>
+    </>
   );
 };
 

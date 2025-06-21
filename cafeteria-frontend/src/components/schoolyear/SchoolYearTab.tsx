@@ -48,14 +48,7 @@ const SchoolYearTab: React.FC<SchoolYearTabProps> = ({ schoolYear }) => {
           new Date(schoolYear.startDate) > new Date(currentSchoolYear.endDate)))
   );
 
-  const handleSchoolYearChanged = (updatedSchoolYear?: SchoolYear) => {
-    if (updatedSchoolYear) {
-      setSchoolYears(
-        schoolYears.map((year) =>
-          year.id === updatedSchoolYear.id ? updatedSchoolYear : year
-        )
-      );
-    }
+  const handleSchoolYearChanged = () => {
     setIsEditDialogOpen(false);
   };
 

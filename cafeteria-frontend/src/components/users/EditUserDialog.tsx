@@ -27,7 +27,7 @@ interface DialogProps {
 }
 
 const EditUserDialog: React.FC<DialogProps> = ({ user, onClose }) => {
-  const { users, setUsers, setSnackbarErrorMsg, setSnackbarMsg } =
+  const { users, setUsers, setSnackbarErrorMsg, setSnackbarMsg, user: loggedInUser } =
     useContext(AppContext);
 
   const [role, setRole] = useState(
@@ -134,36 +134,6 @@ const EditUserDialog: React.FC<DialogProps> = ({ user, onClose }) => {
           <TextField
             fullWidth
             required={true}
-            label="Email"
-            variant="standard"
-            value={email}
-            onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
-              setEmail(event.target.value)
-            }
-          />
-          <FormControl fullWidth>
-            <InputLabel id="userRoleLabel">Role</InputLabel>
-            <Select
-              labelId="userRoleLabel"
-              variant="standard"
-              id="userRoleSelector"
-              value={role}
-              label="Role"
-              onChange={(event: SelectChangeEvent) =>
-                handleRoleChanged(event.target.value)
-              }
-            >
-              {availRoles.map((ar) => (
-                <MuiMenuItem key={ar} value={ar.toString()}>
-                  {roleNames[ar]}
-                </MuiMenuItem>
-              ))}
-            </Select>
-          </FormControl>
-
-          <TextField
-            fullWidth
-            required={true}
             label="First Name"
             variant="standard"
             value={firstName}
@@ -181,6 +151,37 @@ const EditUserDialog: React.FC<DialogProps> = ({ user, onClose }) => {
               setLastName(event.target.value)
             }
           />
+          <TextField
+            fullWidth
+            required={true}
+            label="Email"
+            variant="standard"
+            value={email}
+            onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
+              setEmail(event.target.value)
+            }
+          />
+          <FormControl fullWidth>
+            <InputLabel id="userRoleLabel">Role</InputLabel>
+            <Select
+              labelId="userRoleLabel"
+              variant="standard"
+              id="userRoleSelector"
+              value={role}
+              label="Role"
+              disabled={loggedInUser?.role === user?.role}
+              onChange={(event: SelectChangeEvent) =>
+                handleRoleChanged(event.target.value)
+              }
+            >
+              {availRoles.map((ar) => (
+                <MuiMenuItem key={ar} value={ar.toString()}>
+                  {roleNames[ar]}
+                </MuiMenuItem>
+              ))}
+            </Select>
+          </FormControl>
+
         </Box>
       </DialogContent>
       <DialogActions>

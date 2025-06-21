@@ -15,7 +15,7 @@ import { DateTimeFormat, DateTimeUtils } from "../../DateTimeUtils";
 import ConfirmDialog from "../ConfirmDialog";
 import { ShoppingCart, ShoppingCartItem } from "../../models/ShoppingCart";
 import User, { Role } from "../../models/User";
-import NewStudentDialog from "../users/NewStudentDialog";
+import ParentNewStudentDialog from "../users/ParentNewStudentDialog";
 import Student from "../../models/Student";
 import { GradeLevel } from "../../models/GradeLevel";
 import SchoolYear from "../../models/SchoolYear";
@@ -490,7 +490,7 @@ const OrderMealDialog: React.FC<DialogProps> = ({
         </Button>
       </DialogActions>
       {showNewStudentDialog ? (
-        <NewStudentDialog parent={user} onClose={handleCloseStudentDialog} />
+        <ParentNewStudentDialog parent={user} onClose={handleCloseStudentDialog} />
       ) : (
         <></>
       )}

@@ -57,10 +57,8 @@ export const UserOrderHistoryDialog: React.FC<{
           </Typography>
         </Toolbar>
       </AppBar>
-      <Box p={2}>
-        <Box hidden={orderDetailsId ? true : false}>
-          <OrderHistoryTable purchaser={user} onShowOrder={setOrderDetailsId} />
-        </Box>
+      <Box flexGrow={1} p={2}>
+        <OrderHistoryTable hidden={orderDetailsId ? true : false} purchaser={user} onShowOrder={setOrderDetailsId} />
         {orderDetailsId ? (
           <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
             <Box>

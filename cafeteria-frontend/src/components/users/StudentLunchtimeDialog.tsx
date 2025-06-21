@@ -8,8 +8,7 @@ import {
 } from "@mui/material";
 import { AppContext } from "../../AppContextProvider";
 import {
-  updateStudent,
-  StudentWithLunchTimes,
+  updateStudentLunchTimes,
 } from "../../api/CafeteriaClient";
 import Student from "../../models/Student";
 import { AxiosError } from "axios";
@@ -20,7 +19,7 @@ import { Role } from "../../models/User";
 
 interface Props {
   student: Student;
-  onClose: (student?: Student) => void;
+  onClose: () => void;
 }
 
 const StudentLunchtimeDialog: React.FC<Props> = ({
@@ -122,26 +121,24 @@ const StudentLunchtimeDialog: React.FC<Props> = ({
         },
       ];
 
-      const studentToSave: StudentWithLunchTimes = {
-        ...student,
-        lunchTimes,
-      };
+      await updateStudentLunchTimes(student.id, lunchTimes);
 
-      const savedStudent = await updateStudent(studentToSave);
+      if (currentSchoolYear.id) {
+        const updatedSchoolYear = { ...currentSchoolYear };
+        updatedSchoolYear.studentLunchTimes = updatedSchoolYear.studentLunchTimes
+          .filter((lt) => lt.studentId !== student.id)
+          .concat(lunchTimes);
+  
+        setSchoolYears([
+          ...schoolYears.filter((sy) => sy.id !== currentSchoolYear.id),
+          updatedSchoolYear,
+        ]);
+  
+        setCurrentSchoolYear(updatedSchoolYear);  
+      }
 
-      const updatedSchoolYear = { ...currentSchoolYear };
-      updatedSchoolYear.studentLunchTimes = updatedSchoolYear.studentLunchTimes
-        .filter((lt) => lt.studentId !== student.id)
-        .concat(lunchTimes);
 
-      setSchoolYears([
-        ...schoolYears.filter((sy) => sy.id !== currentSchoolYear.id),
-        updatedSchoolYear,
-      ]);
-
-      setCurrentSchoolYear(updatedSchoolYear);
-
-      onClose(savedStudent);
+      onClose();
     } catch (error) {
       const axiosError = error as AxiosError;
       setSnackbarErrorMsg(

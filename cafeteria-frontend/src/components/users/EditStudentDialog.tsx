@@ -36,12 +36,17 @@ const EditStudentDialog: React.FC<DialogProps> = ({ onClose, student }) => {
     setSnackbarErrorMsg,
     schoolYears,
     currentSchoolYear,
+    setCurrentSchoolYear,
     setSchoolYears,
     users,
   } = useContext(AppContext);
 
-  const [studentFirstName, setStudentFirstName] = useState<string>(student?.firstName ?? "");
-  const [studentLastName, setStudentLastName] = useState<string>(student?.lastName ?? "");
+  const [studentFirstName, setStudentFirstName] = useState<string>(
+    student?.firstName ?? ""
+  );
+  const [studentLastName, setStudentLastName] = useState<string>(
+    student?.lastName ?? ""
+  );
   const [studentBirthDate, setStudentBirthDate] = useState<Dayjs | null>(
     student?.birthDate ? dayjs(student.birthDate) : null
   );
@@ -144,11 +149,13 @@ const EditStudentDialog: React.FC<DialogProps> = ({ onClose, student }) => {
           ];
 
       const updatedStudent: Student = student
-        ? { 
-            ...student, 
-            firstName: studentFirstName, 
+        ? {
+            ...student,
+            firstName: studentFirstName,
             lastName: studentLastName,
-            birthDate: studentBirthDate ? DateTimeUtils.toString(studentBirthDate.toDate()) : "",
+            birthDate: studentBirthDate
+              ? DateTimeUtils.toString(studentBirthDate.toDate())
+              : "",
           }
         : {
             id: 0,
@@ -156,7 +163,9 @@ const EditStudentDialog: React.FC<DialogProps> = ({ onClose, student }) => {
             firstName: studentFirstName,
             lastName: studentLastName,
             studentId: "",
-            birthDate: studentBirthDate ? DateTimeUtils.toString(studentBirthDate.toDate()) : "",
+            birthDate: studentBirthDate
+              ? DateTimeUtils.toString(studentBirthDate.toDate())
+              : "",
             parents: [],
           };
       const studentToSave: StudentWithLunchTimes = {
@@ -168,30 +177,30 @@ const EditStudentDialog: React.FC<DialogProps> = ({ onClose, student }) => {
       savedStudent.parents = student.parents;
       setStudents(
         students.map((student) =>
-          student.id === savedStudent.id
-            ? savedStudent
-            : { ...student, name: studentFirstName }
+          student.id === savedStudent.id ? savedStudent : student
         )
       );
 
       if (currentSchoolYear.id) {
+        const updatedSchoolYear = {
+          ...schoolYears.find((sy) => sy.id === currentSchoolYear.id)!,
+        };
+        updatedSchoolYear.studentLunchTimes =
+          currentSchoolYear.studentLunchTimes
+            .filter((lt) => lt.studentId !== savedStudent.id)
+            .concat(
+              lunchTimes.map((lt) => ({ ...lt, studentId: savedStudent.id }))
+            );
+
+        setCurrentSchoolYear(updatedSchoolYear);
         setSchoolYears(
           schoolYears.map((sy) =>
-            sy.id !== currentSchoolYear.id
+            sy.id !== updatedSchoolYear.id
               ? sy
-              : {
-                  ...sy,
-                  studentLunchTimes: sy.studentLunchTimes
-                    .filter((lt) => lt.studentId !== savedStudent.id)
-                    .concat(
-                      lunchTimes.map((lt) => ({
-                        ...lt,
-                        studentId: savedStudent.id,
-                      }))
-                    ),
-                }
+              : updatedSchoolYear
           )
         );
+
       }
 
       onClose(savedStudent);
@@ -206,7 +215,8 @@ const EditStudentDialog: React.FC<DialogProps> = ({ onClose, student }) => {
     }
   };
 
-  const isSaveDisabled = !studentFirstName.length || !studentLastName.length || !studentBirthDate;
+  const isSaveDisabled =
+    !studentFirstName.length || !studentLastName.length || !studentBirthDate;
 
   return (
     <Dialog
