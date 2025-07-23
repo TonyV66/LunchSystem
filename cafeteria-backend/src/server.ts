@@ -17,6 +17,7 @@ import LoginRouter from "./routers/LoginRouter";
 import { authorizeRequest } from "./routers/RouterUtils";
 import SchoolYearRouter from "./routers/SchoolYearRouter";
 import ReportsRouter from "./routers/ReportsRouter";
+import SchoolRegistrationRouter from "./routers/SchoolRegistrationRouter";
 
 AppDataSource.initialize()
   .then(async () => {
@@ -52,6 +53,7 @@ AppDataSource.initialize()
     app.use("/api/schoolyear", authorizeRequest, SchoolYearRouter);
     app.use("/api/user", UserRouter);
     app.use("/api/login", LoginRouter);
+    app.use("/api/register", SchoolRegistrationRouter);
     app.use("/reports", ReportsRouter);
 
 

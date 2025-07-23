@@ -23,6 +23,8 @@ export default class SchoolYearEntity {
   endDate: string;
   @Column({default: ''})
   gradesAssignedByClass: string;
+  @Column({default: true})
+  oneTeacherPerStudent: boolean;
 
   @OneToMany(() => SchoolYearLunchTimeEntity, (lunchTime) => lunchTime.schoolYear, {cascade: true})
   lunchTimes: SchoolYearLunchTimeEntity[];

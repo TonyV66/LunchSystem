@@ -71,7 +71,6 @@ export const addUserToSchoolYear = async (
   user: UserEntity,
   schoolYear: SchoolYearEntity
 ) => {
-  const userRepository = AppDataSource.getRepository(UserEntity);
   const userYears = await AppDataSource.createQueryBuilder()
     .relation(UserEntity, "schoolYears")
     .of(user)
@@ -87,6 +86,7 @@ export const addUserToSchoolYear = async (
 };
 
 export const getCurrentSchoolYear = (school: SchoolEntity) => {
+  
   let latestSchoolYear = school!.schoolYears.find((sy) => sy.isCurrent);
   return latestSchoolYear;
 };

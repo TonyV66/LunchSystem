@@ -102,44 +102,17 @@ const getClassroomStudents = async (
   schoolYearStudents = await AppDataSource.getRepository(StudentEntity)
     .createQueryBuilder("student")
     .innerJoin("student.parents", "parent")
-    .innerJoin("parent.schoolYears", "schoolYear", "schoolYear.id = :schoolYearId", { schoolYearId })
+    .innerJoin(
+      "parent.schoolYears",
+      "schoolYear",
+      "schoolYear.id = :schoolYearId",
+      { schoolYearId }
+    )
     .leftJoinAndSelect("student.parents", "parents")
     .where("student.id IN (:...studentIds)", { studentIds })
     .getMany();
 
   return schoolYearStudents;
-};
-
-const getOrdersForStudents = async (
-  schoolYearId: number,
-  students: StudentEntity[]
-): Promise<OrderEntity[]> => {
-  const orderRepository = AppDataSource.getRepository(OrderEntity);
-  const studentIds = students.map((student) => student.id);
-
-  const orders = await orderRepository.find({
-    where: {
-      schoolYear: { id: schoolYearId },
-      meals: {
-        student: { id: In(studentIds) },
-      },
-    },
-    relations: {
-      user: true,
-      meals: {
-        student: true,
-        items: true,
-      },
-    },
-  });
-
-  // Filter meals to only include those for the specified students
-  return orders.map((order) => ({
-    ...order,
-    meals: order.meals.filter(
-      (meal) => meal.student && studentIds.includes(meal.student.id)
-    ),
-  }));
 };
 
 const getStaff = async (school: School, role?: Role): Promise<UserEntity[]> => {
@@ -148,7 +121,7 @@ const getStaff = async (school: School, role?: Role): Promise<UserEntity[]> => {
     select: { pwd: false },
     where: {
       school,
-      role: role != undefined ? role + 1 : Not(Role.PARENT + 1),
+      role: role != undefined ? role : Not(Role.PARENT),
     },
   });
 };
@@ -187,6 +160,7 @@ const getOrdersForFamilyMembers = async (
       relations: {
         meals: {
           student: true,
+          staffMember: true,
           items: true,
         },
       },
@@ -204,6 +178,7 @@ const getOrdersForFamilyMembers = async (
     relations: {
       meals: {
         student: true,
+        staffMember: true,
         items: true,
       },
       user: true,
@@ -261,6 +236,7 @@ const getParentSession = async (user: UserEntity): Promise<SessionInfo> => {
       gradeLunchTimes: [],
       studentLunchTimes: [],
       gradesAssignedByClass: "",
+      oneTeacherPerStudent: true,
       school: user.school,
       parents: [],
       orders: [],
@@ -346,6 +322,11 @@ const getParentSession = async (user: UserEntity): Promise<SessionInfo> => {
 export const getStaffSession = async (
   user: UserEntity
 ): Promise<SessionInfo> => {
+  
+  if (user.role === Role.STAFF) {
+    return await getParentSession(user);
+  }
+
   const pantryRepository = AppDataSource.getRepository(PantryItemEntity);
   const menuRepository = AppDataSource.getRepository(MenuEntity);
   const dailyMenuRepository = AppDataSource.getRepository(DailyMenuEntity);
@@ -390,6 +371,7 @@ export const getStaffSession = async (
       gradeLunchTimes: [],
       studentLunchTimes: [],
       gradesAssignedByClass: "",
+      oneTeacherPerStudent: true,
       school: user.school,
       parents: [],
       orders: [],
@@ -427,81 +409,45 @@ export const getStaffSession = async (
     relations: { items: true },
   });
 
-  if (user.role === Role.TEACHER) {
-    students = await getClassroomStudents(currentSchoolYear.id, user);
-    studentDtos = students.map((student) => new Student(student));
+  users = await getUsers(currentSchoolYear.id);
 
-    let familyOrders = await getOrdersForFamilyMembers(
-      currentSchoolYear,
-      user,
-      myChildren
+  const studentMap = new Map<number, StudentEntity>();
+  users.forEach((user) => {
+    if (user.students) {
+      user.students.forEach((student) => {
+        if (!studentMap.has(student.id)) {
+          studentMap.set(student.id, student);
+        }
+      });
+    }
+  });
+  students = Array.from(studentMap.values());
+
+  studentDtos = students.map((student) => {
+    const studentDto = new Student(student);
+    studentDto.parents = Array.from(
+      new Set(
+        users
+          .filter((user) => user.students?.some((s) => s.id === student.id))
+          .map((user) => user.id)
+      )
     );
+    return studentDto;
+  });
 
-    let classroomOrders = (
-      await getOrdersForStudents(currentSchoolYear.id, students)
-    ).filter((o) => !familyOrders.find((o2) => o2.id === o.id));
+  studentLunchTimes = await getStudentLunchTimes(currentSchoolYear.id);
 
-    const studentIds = myChildren
-      .map((child) => child.id)
-      .concat(students.map((student) => student.id));
-
-    orders = familyOrders.concat(classroomOrders).map((o) => ({
-      ...o,
-      meals:
-        o.user.id === user.id
-          ? o.meals
-          : o.meals.filter((m) => studentIds.includes(m.student!.id)),
-    }));
-    studentLunchTimes = await getStudentLunchTimes(
-      currentSchoolYear.id,
-      studentIds
-    );
-
-    orders.forEach((o) => {
-      if (!users.find((u) => o.user.id === u.id)) {
-        users.push(o.user);
-      }
-    });
-  } else {
-    users = await getUsers(currentSchoolYear.id);
-
-    const studentMap = new Map<number, StudentEntity>();
-    users.forEach((user) => {
-      if (user.students) {
-        user.students.forEach((student) => {
-          if (!studentMap.has(student.id)) {
-            studentMap.set(student.id, student);
-          }
-        });
-      }
-    });
-    students = Array.from(studentMap.values());
-
-    studentDtos = students.map((student) => {
-      const studentDto = new Student(student);
-      studentDto.parents = Array.from(
-        new Set(
-          users
-            .filter((user) => user.students?.some((s) => s.id === student.id))
-            .map((user) => user.id)
-        )
-      );
-      return studentDto;
-    });
-
-    studentLunchTimes = await getStudentLunchTimes(currentSchoolYear.id);
-
-    orders = await orderRepository.find({
-      where: { schoolYear: { id: currentSchoolYear.id } },
-      relations: {
-        user: true,
-        meals: {
-          student: true,
-          items: true,
-        },
+  orders = await orderRepository.find({
+    where: { schoolYear: { id: currentSchoolYear.id } },
+    relations: {
+      user: true,
+      meals: {
+        student: true,
+        staffMember: true,
+        items: true,
       },
-    });
-  }
+    },
+  });
 
   if (user.role === Role.ADMIN) {
     menus = await menuRepository.find({
@@ -526,9 +472,7 @@ export const getStaffSession = async (
   });
 
   // Ensure all myChildren are included in the students array
-  const studentMap = new Map(
-    studentDtos.map((student) => [student.id, student])
-  );
+  new Map(studentDtos.map((student) => [student.id, student]));
   myChildren.forEach((child) => {
     if (!studentMap.has(child.id)) {
       studentDtos.push(new Student(child));

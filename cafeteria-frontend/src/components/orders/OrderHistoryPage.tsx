@@ -37,7 +37,7 @@ const OrderHistoryPage: React.FC<{ purchaser?: User }> = ({ purchaser }) => {
       </Stack>
       <OrderHistoryTable
         mb={2}
-        purchaser={purchaser}
+        user={purchaser}
         onShowOrder={setOrderId}
       ></OrderHistoryTable>
       {orderId ? (

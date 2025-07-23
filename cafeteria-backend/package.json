@@ -23,15 +23,18 @@
     "typescript": "^5.6.3"
   },
   "dependencies": {
+    "@types/multer": "^1.4.13",
     "axios": "^1.9.0",
     "bcryptjs": "^3.0.2",
     "body-parser": "^1.20.3",
+    "csv-parser": "^3.2.0",
     "decimal.js": "^10.4.3",
     "dotenv": "^16.4.7",
     "express": "^4.21.1",
     "jsonwebtoken": "^9.0.2",
+    "multer": "^2.0.1",
     "mysql2": "^3.11.4",
-    "puppeteer": "^24.9.0",
+    "playwright": "^1.35.0",
     "reflect-metadata": "^0.2.2",
     "square": "^39.1.1",
     "typeorm": "^0.3.20"

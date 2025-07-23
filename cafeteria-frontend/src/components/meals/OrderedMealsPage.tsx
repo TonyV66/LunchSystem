@@ -9,10 +9,8 @@ import { DateTimeUtils } from "../../DateTimeUtils";
 import { Role } from "../../models/User";
 
 const OrderedMealsPage: React.FC = () => {
-  const { orders, students, user } = useContext(AppContext);
+  const { user } = useContext(AppContext);
   const navigate = useNavigate();
-
-  const siblings = students.filter(s => s.parents.includes(user.id))
 
   const handleOrder = () => {
     navigate(CALENDAR_URL);
@@ -53,10 +51,8 @@ const OrderedMealsPage: React.FC = () => {
       <Box sx={{ pl: 2, pr: 2, overflowX: "auto" }}>
         <Box minWidth={"600px"}>
           <OrderedMealsTable
-            students={siblings}
-            staffMembers={[]}
+            user={user}
             startDate={DateTimeUtils.toString(new Date())}
-            orders={orders}
             highlightMealsNotOrderedByMe={true}
           />
         </Box>

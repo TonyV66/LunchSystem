@@ -8,10 +8,10 @@ import {
   TableRow,
   Paper,
   IconButton,
-  Box,
   Tooltip,
   Stack,
-  Chip,
+  Typography,
+  Switch,
 } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
 import SchoolYear from "../../models/SchoolYear";
@@ -20,6 +20,8 @@ import { DayOfWeek } from "../../models/DayOfWeek";
 import TeacherLunchTimesDialog from "./TeacherLunchTimesDialog";
 import { Role } from "../../models/User";
 import { DateTimeUtils } from "../../DateTimeUtils";
+import { updateSchoolYearTeacherConfig } from "../../api/CafeteriaClient";
+import { getGradeName } from "../../models/GradeLevel";
 
 interface TeacherLunchTimesTableProps {
   schoolYear: SchoolYear;
@@ -28,20 +30,40 @@ interface TeacherLunchTimesTableProps {
 const TeacherLunchTimesTable: React.FC<TeacherLunchTimesTableProps> = ({
   schoolYear,
 }) => {
-  const { users } = useContext(AppContext);
+  const {
+    users,
+    setSnackbarErrorMsg,
+    schoolYears,
+    setSchoolYears,
+    currentSchoolYear,
+    setCurrentSchoolYear,
+  } = useContext(AppContext);
   const [selectedTeacher, setSelectedTeacher] = useState<number | null>(null);
+  const [oneTeacherPerStudent, setOneTeacherPerStudent] = useState(
+    schoolYear.oneTeacherPerStudent
+  );
 
   const teachers = users.filter((user) => user.role === Role.TEACHER);
 
-  const getLunchTimes = (teacherId: number, dayOfWeek: DayOfWeek): string[] => {
+  const getLunchTime = (teacherId: number, dayOfWeek: DayOfWeek): string => {
     const lunchTime = schoolYear.teacherLunchTimes.find(
-      (lt) =>
-        lt.teacherId === teacherId &&
-        lt.dayOfWeek === dayOfWeek
+      (lt) => lt.teacherId === teacherId && lt.dayOfWeek === dayOfWeek
     );
-    return (
-      lunchTime?.times.map((time) => DateTimeUtils.toTwelveHourTime(time)) ?? []
+    return lunchTime?.times[0]
+      ? DateTimeUtils.toTwelveHourTime(lunchTime.times[0])
+      : "";
+  };
+
+  const getLunchTimeGrades = (
+    teacherId: number,
+    dayOfWeek: DayOfWeek
+  ): string => {
+    const lunchTime = schoolYear.teacherLunchTimes.find(
+      (lt) => lt.teacherId === teacherId && lt.dayOfWeek === dayOfWeek
     );
+    return lunchTime?.grades
+      ? lunchTime.grades.map((grade) => getGradeName(grade)).join(", ")
+      : "";
   };
 
   const handleEditClick = (teacherId: number) => {
@@ -52,8 +74,66 @@ const TeacherLunchTimesTable: React.FC<TeacherLunchTimesTableProps> = ({
     setSelectedTeacher(null);
   };
 
+  const handleOneTeacherPerStudent = async (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const newValue = event.target.checked;
+    setOneTeacherPerStudent(newValue);
+
+    try {
+      await updateSchoolYearTeacherConfig(schoolYear.id, newValue);
+
+      const updatedSchoolYear = {
+        ...schoolYears.find((year) => year.id === schoolYear.id)!,
+        oneTeacherPerStudent: newValue,
+      };
+
+      // Update the school year in the context
+      setSchoolYears(
+        schoolYears.map((year) =>
+          year.id === updatedSchoolYear.id ? updatedSchoolYear : year
+        )
+      );
+
+      // Update current school year if it's the one being modified
+      if (currentSchoolYear.id === updatedSchoolYear.id) {
+        setCurrentSchoolYear(updatedSchoolYear);
+      }
+    } catch (error) {
+      // Revert the local state if the API call fails
+      setOneTeacherPerStudent(!newValue);
+      console.error("Failed to update setting:", error);
+      setSnackbarErrorMsg("Failed to update teacher configuration");
+    }
+  };
+
   return (
-    <Box>
+    <Stack gap={2}>
+      <Stack direction="row" gap={2} alignItems="center">
+        <Typography variant="body2" fontWeight="bold">
+          Students assigned to only one lunchtime teacher:
+        </Typography>
+        <Stack direction="row" alignItems="center">
+          <Typography
+            variant="body2"
+            fontWeight={!oneTeacherPerStudent ? "bold" : "normal"}
+          >
+            No
+          </Typography>
+          <Switch
+            checked={oneTeacherPerStudent}
+            onChange={handleOneTeacherPerStudent}
+            color="primary"
+          />
+          <Typography
+            variant="body2"
+            fontWeight={oneTeacherPerStudent ? "bold" : "normal"}
+          >
+            Yes
+          </Typography>
+        </Stack>
+      </Stack>
+
       <TableContainer component={Paper}>
         <Table size="small">
           <TableHead>
@@ -72,6 +152,7 @@ const TeacherLunchTimesTable: React.FC<TeacherLunchTimesTableProps> = ({
                   borderColor: "divider",
                   width: "17%",
                   fontWeight: "bold",
+                  textAlign: "center",
                 }}
               >
                 Monday
@@ -82,6 +163,7 @@ const TeacherLunchTimesTable: React.FC<TeacherLunchTimesTableProps> = ({
                   borderColor: "divider",
                   width: "17%",
                   fontWeight: "bold",
+                  textAlign: "center",
                 }}
               >
                 Tuesday
@@ -92,6 +174,7 @@ const TeacherLunchTimesTable: React.FC<TeacherLunchTimesTableProps> = ({
                   borderColor: "divider",
                   width: "17%",
                   fontWeight: "bold",
+                  textAlign: "center",
                 }}
               >
                 Wednesday
@@ -102,6 +185,7 @@ const TeacherLunchTimesTable: React.FC<TeacherLunchTimesTableProps> = ({
                   borderColor: "divider",
                   width: "17%",
                   fontWeight: "bold",
+                  textAlign: "center",
                 }}
               >
                 Thursday
@@ -112,6 +196,7 @@ const TeacherLunchTimesTable: React.FC<TeacherLunchTimesTableProps> = ({
                   borderColor: "divider",
                   width: "17%",
                   fontWeight: "bold",
+                  textAlign: "center",
                 }}
               >
                 Friday
@@ -133,74 +218,59 @@ const TeacherLunchTimesTable: React.FC<TeacherLunchTimesTableProps> = ({
                   {teacher.name}
                 </TableCell>
                 <TableCell
-                  sx={{ borderRight: 1, borderColor: "divider", width: "17%" }}
+                  sx={{
+                    borderRight: 1,
+                    borderColor: "divider",
+                    width: "17%",
+                    textAlign: "center",
+                  }}
                 >
-                  <Stack direction="row" gap={1} flexWrap="wrap">
-                    {getLunchTimes(teacher.id, DayOfWeek.MONDAY).map((lt) => (
-                      <Chip
-                        key={DayOfWeek.MONDAY.toString() + ":" + lt.toString()}
-                        variant="outlined"
-                        size="small"
-                        label={lt}
-                      />
-                    ))}
-                  </Stack>
+                  <Typography variant="body2">
+                    {getLunchTime(teacher.id, DayOfWeek.MONDAY)}
+                  </Typography>
+                  <Typography variant="body2">
+                    {getLunchTimeGrades(teacher.id, DayOfWeek.MONDAY)}
+                  </Typography>
                 </TableCell>
                 <TableCell
-                  sx={{ borderRight: 1, borderColor: "divider", width: "17%" }}
+                  sx={{ borderRight: 1, borderColor: "divider", width: "17%", textAlign: "center" }}
                 >
-                  <Stack direction="row" gap={1} flexWrap="wrap">
-                    {getLunchTimes(teacher.id, DayOfWeek.TUESDAY).map((lt) => (
-                      <Chip
-                        key={DayOfWeek.TUESDAY.toString() + ":" + lt.toString()}
-                        variant="outlined"
-                        size="small"
-                        label={lt}
-                      />
-                    ))}
-                  </Stack>
+                  <Typography variant="body2">
+                    {getLunchTime(teacher.id, DayOfWeek.TUESDAY)}
+                  </Typography>
+                  <Typography variant="body2">
+                    {getLunchTimeGrades(teacher.id, DayOfWeek.TUESDAY)}
+                  </Typography>
                 </TableCell>
                 <TableCell
-                  sx={{ borderRight: 1, borderColor: "divider", width: "17%" }}
+                  sx={{ borderRight: 1, borderColor: "divider", width: "17%", textAlign: "center" }}
                 >
-                  <Stack direction="row" gap={1} flexWrap="wrap">
-                    {getLunchTimes(teacher.id, DayOfWeek.WEDNESDAY).map((lt) => (
-                      <Chip
-                        key={DayOfWeek.WEDNESDAY.toString() + ":" + lt.toString()}
-                        variant="outlined"
-                        size="small"
-                        label={lt}
-                      />
-                    ))}
-                  </Stack>
+                  <Typography variant="body2">
+                    {getLunchTime(teacher.id, DayOfWeek.WEDNESDAY)}
+                  </Typography>
+                  <Typography variant="body2">
+                    {getLunchTimeGrades(teacher.id, DayOfWeek.WEDNESDAY)}
+                  </Typography>
                 </TableCell>
                 <TableCell
-                  sx={{ borderRight: 1, borderColor: "divider", width: "17%" }}
+                  sx={{ borderRight: 1, borderColor: "divider", width: "17%", textAlign: "center" }}
                 >
-                  <Stack direction="row" gap={1} flexWrap="wrap">
-                    {getLunchTimes(teacher.id, DayOfWeek.THURSDAY).map((lt) => (
-                      <Chip
-                        key={DayOfWeek.THURSDAY.toString() + ":" + lt.toString()}
-                        variant="outlined"
-                        size="small"
-                        label={lt}
-                      />
-                    ))}
-                  </Stack>
+                  <Typography variant="body2">
+                    {getLunchTime(teacher.id, DayOfWeek.THURSDAY)}
+                  </Typography>
+                  <Typography variant="body2">
+                    {getLunchTimeGrades(teacher.id, DayOfWeek.THURSDAY)}
+                  </Typography>
                 </TableCell>
                 <TableCell
-                  sx={{ borderRight: 1, borderColor: "divider", width: "17%" }}
+                  sx={{ borderRight: 1, borderColor: "divider", width: "17%", textAlign: "center" }}
                 >
-                  <Stack direction="row" gap={1} flexWrap="wrap">
-                    {getLunchTimes(teacher.id, DayOfWeek.FRIDAY).map((lt) => (
-                      <Chip
-                        key={DayOfWeek.FRIDAY.toString() + ":" + lt.toString()}
-                        variant="outlined"
-                        size="small"
-                        label={lt}
-                      />
-                    ))}
-                  </Stack>
+                  <Typography variant="body2">
+                    {getLunchTime(teacher.id, DayOfWeek.FRIDAY)}
+                  </Typography>
+                  <Typography variant="body2">
+                    {getLunchTimeGrades(teacher.id, DayOfWeek.FRIDAY)}
+                  </Typography>
                 </TableCell>
                 <TableCell sx={{ width: "5%" }}>
                   <Tooltip title="Edit lunch times">
@@ -226,7 +296,7 @@ const TeacherLunchTimesTable: React.FC<TeacherLunchTimesTableProps> = ({
           onClose={handleDialogClose}
         />
       )}
-    </Box>
+    </Stack>
   );
 };
 

@@ -3,9 +3,10 @@ export enum Role {
   TEACHER,
   PARENT,
   CAFETERIA,
+  STAFF,
 }
 
-export const ROLE_NAMES: string[] = ["System Admin.", "Teacher", "Parent", "Cafeteria Worker"];
+export const ROLE_NAMES: string[] = ["System Admin.", "Teacher", "Parent", "Cafeteria", "Staff"];
 
 export const NULL_USER: User = {
   id: 0,
@@ -15,12 +16,13 @@ export const NULL_USER: User = {
   firstName: '',
   lastName: '',
   email: '',
+  phone: '',
   description: '',
   role: Role.PARENT,
   notificationReviewDate: new Date('2020-01-01 00:00:00').toJSON(),
   resetPwd: false,
   forgotPwdUri: null,
-  forgotPwdDate: null
+  forgotPwdDate: null,
 }
 
 export default interface User {
@@ -31,6 +33,7 @@ export default interface User {
   firstName: string;
   lastName: string;
   email: string;
+  phone: string;
   description: string;
   role: Role;
   notificationReviewDate: string;

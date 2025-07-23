@@ -76,6 +76,7 @@ const buildOrder = (
         id: index,
         date: dailyMenu.date,
         time: "",
+        staffMemberId: !shoppingCartItem.studentId ? user.id : undefined,
         studentId: shoppingCartItem.studentId,
         items: entrees
           .concat(sides)
@@ -119,7 +120,7 @@ const ShoppingCartTable: React.FC<ShoppingCartTableProps> = ({
   editable,
   hideTitlebar,
 }) => {
-  const { user, shoppingCart, scheduledMenus, setShoppingCart, students} =
+  const { user, shoppingCart, scheduledMenus, setShoppingCart} =
     useContext(AppContext);
   const [order, setOrder] = useState(buildOrder(shoppingCart, scheduledMenus, user));
 
@@ -140,9 +141,7 @@ const ShoppingCartTable: React.FC<ShoppingCartTableProps> = ({
 
   return (
     <OrderedMealsTable
-      orders={[order]}
-      students={students}
-      staffMembers={[user]}
+      order={order}
       startDate={date}
       endDate={date}
       hideDate={hideDate}

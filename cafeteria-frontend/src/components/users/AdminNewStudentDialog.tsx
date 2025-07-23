@@ -18,9 +18,7 @@ import {
 import Student from "../../models/Student";
 import User from "../../models/User";
 import StudentAutoCompleteSelector from "./StudentAutoCompleteSelector";
-import { Dayjs } from "dayjs";
 import { DayOfWeek } from "../../models/DayOfWeek";
-import { GradeLevel } from "../../models/GradeLevel";
 import NewStudentPanel from "./NewStudentPanel";
 import { AxiosError } from "axios";
 import { AppContext } from "../../AppContextProvider";
@@ -29,7 +27,7 @@ import {
   createStudent,
   StudentWithLunchTimes,
 } from "../../api/CafeteriaClient";
-import { DateTimeUtils } from "../../DateTimeUtils";
+import { StudentLunchTime } from "../../models/StudentLunchTime";
 
 interface DialogProps {
   parent: User;
@@ -51,24 +49,8 @@ const AdminNewStudentDialog: React.FC<DialogProps> = ({ parent, onClose }) => {
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [studentFirstName, setStudentFirstName] = useState<string>("");
   const [studentLastName, setStudentLastName] = useState<string>("");
-  const [studentBirthDate, setStudentBirthDate] = useState<Dayjs | null>(null);
   const [create, setCreate] = useState(true);
-
-  const [selectedGrade, setSelectedGrade] = useState<GradeLevel>(
-    GradeLevel.PRE_K
-  );
-
-  const [selectedTeachers, setSelectedTeachers] = useState<
-    Record<DayOfWeek, number | null>
-  >({
-    [DayOfWeek.SUNDAY]: null,
-    [DayOfWeek.MONDAY]: null,
-    [DayOfWeek.TUESDAY]: null,
-    [DayOfWeek.WEDNESDAY]: null,
-    [DayOfWeek.THURSDAY]: null,
-    [DayOfWeek.FRIDAY]: null,
-    [DayOfWeek.SATURDAY]: null,
-  });
+  const [studentLunchTimes, setStudentLunchTimes] = useState<StudentLunchTime[]>([]);
 
   // State for confirmation dialog
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
@@ -76,7 +58,7 @@ const AdminNewStudentDialog: React.FC<DialogProps> = ({ parent, onClose }) => {
   const [existingParentName, setExistingParentName] = useState<string>("");
 
   const isSaveDisabled = create
-    ? !studentFirstName.length || !studentLastName.length || !studentBirthDate
+    ? !studentFirstName.length || !studentLastName.length
     : !selectedStudent;
 
   const handleCreateStudent = async () => {
@@ -89,7 +71,7 @@ const AdminNewStudentDialog: React.FC<DialogProps> = ({ parent, onClose }) => {
           (lt) =>
             lt.studentId === student.id &&
             lt.dayOfWeek === DayOfWeek.MONDAY &&
-            lt.grade === selectedGrade
+            lt.grade === studentLunchTimes[0].grade
         )
     );
 
@@ -121,50 +103,16 @@ const AdminNewStudentDialog: React.FC<DialogProps> = ({ parent, onClose }) => {
   };
 
   const createNewStudent = async () => {
-    const lunchTimes = [
-      {
-        grade: selectedGrade,
-        dayOfWeek: DayOfWeek.MONDAY,
-        studentId: 0,
-        teacherId: selectedTeachers[DayOfWeek.MONDAY] || undefined,
-      },
-      {
-        grade: selectedGrade,
-        dayOfWeek: DayOfWeek.TUESDAY,
-        studentId: 0,
-        teacherId: selectedTeachers[DayOfWeek.TUESDAY] || undefined,
-      },
-      {
-        grade: selectedGrade,
-        dayOfWeek: DayOfWeek.WEDNESDAY,
-        studentId: 0,
-        teacherId: selectedTeachers[DayOfWeek.WEDNESDAY] || undefined,
-      },
-      {
-        grade: selectedGrade,
-        dayOfWeek: DayOfWeek.THURSDAY,
-        studentId: 0,
-        teacherId: selectedTeachers[DayOfWeek.THURSDAY] || undefined,
-      },
-      {
-        grade: selectedGrade,
-        dayOfWeek: DayOfWeek.FRIDAY,
-        studentId: 0,
-        teacherId: selectedTeachers[DayOfWeek.FRIDAY] || undefined,
-      },
-    ];
 
     const studentToSave: StudentWithLunchTimes = {
       id: 0,
       name: studentFirstName,
       firstName: studentFirstName,
       lastName: studentLastName,
-      birthDate: studentBirthDate
-        ? DateTimeUtils.toString(studentBirthDate.toDate())
-        : "",
+      birthDate: "",
       studentId: "",
       parents: [],
-      lunchTimes,
+      lunchTimes: studentLunchTimes,
     };
 
     const savedStudent = await createStudent(studentToSave);
@@ -178,7 +126,7 @@ const AdminNewStudentDialog: React.FC<DialogProps> = ({ parent, onClose }) => {
       updatedSchoolYear.studentLunchTimes = currentSchoolYear.studentLunchTimes
         .filter((lt) => lt.studentId !== savedStudent.id)
         .concat(
-          lunchTimes.map((lt) => ({ ...lt, studentId: savedStudent.id }))
+          studentLunchTimes.map((lt) => ({ ...lt, studentId: savedStudent.id }))
         );
 
       setCurrentSchoolYear(updatedSchoolYear);
@@ -279,16 +227,9 @@ const AdminNewStudentDialog: React.FC<DialogProps> = ({ parent, onClose }) => {
 
           {create && (
             <NewStudentPanel
-              studentFirstName={studentFirstName}
-              setStudentFirstName={setStudentFirstName}
-              studentLastName={studentLastName}
-              setStudentLastName={setStudentLastName}
-              studentBirthDate={studentBirthDate}
-              setStudentBirthDate={setStudentBirthDate}
-              selectedGrade={selectedGrade}
-              setSelectedGrade={setSelectedGrade}
-              selectedTeachers={selectedTeachers}
-              setSelectedTeachers={setSelectedTeachers}
+              onFirstNameChanged={setStudentFirstName}
+              onLastNameChanged={setStudentLastName}
+              onLunchtimesChanged={setStudentLunchTimes}
             />
           )}
           {!create && (
@@ -326,7 +267,7 @@ const AdminNewStudentDialog: React.FC<DialogProps> = ({ parent, onClose }) => {
         <DialogContent>
           <Alert severity="warning" sx={{ mb: 2 }}>
             A student with the name &ldquo;{existingStudent?.firstName} {existingStudent?.lastName}&rdquo; 
-            in grade {selectedGrade} already exists and is associated with {existingParentName}.
+            in grade {studentLunchTimes[0].grade} already exists and is associated with {existingParentName}.
           </Alert>
           <Typography variant="body2" color="text.secondary">
             Do you want to create a new student record anyway? This will create a separate 

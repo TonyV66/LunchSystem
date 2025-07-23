@@ -64,12 +64,17 @@ const GradeLevelConfigDialog: React.FC<Props> = ({
   const handleSave = async () => {
     try {
       setIsSaving(true);
-      const updatedSchoolYear = await updateGradeLevelConfig(
+      await updateGradeLevelConfig(
         schoolYear.id,
         localSchoolYear.gradesAssignedByClass || []
       );
       setSnackbarMsg("Grade level configuration updated successfully");
 
+      const updatedSchoolYear = {
+        ...schoolYear,
+        gradesAssignedByClass: localSchoolYear.gradesAssignedByClass || [],
+      };
+      
       setSchoolYears(
         schoolYears.map((year) =>
           year.id === updatedSchoolYear.id ? updatedSchoolYear : year
@@ -109,7 +114,7 @@ const GradeLevelConfigDialog: React.FC<Props> = ({
                   By Grade Level
                 </TableCell>
                 <TableCell align="center" sx={{ fontWeight: "bold" }}>
-                  By Classroom
+                  By Teacher
                 </TableCell>
               </TableRow>
             </TableHead>

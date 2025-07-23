@@ -6,6 +6,7 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  Stack,
   Typography,
 } from "@mui/material";
 import SchoolYear from "../../models/SchoolYear";
@@ -13,8 +14,9 @@ import { saveTeacherLunchTimes } from "../../api/CafeteriaClient";
 import { AppContext } from "../../AppContextProvider";
 import { AxiosError } from "axios";
 import TimesList from "./TimesList";
+import GradesList from "./GradesList";
 import { DayOfWeek } from "../../models/DayOfWeek";
-import DailyLunchTimes from "../../models/DailyLunchTimes";
+import { GradeLevel } from "../../models/GradeLevel";
 import User from "../../models/User";
 
 interface DialogProps {
@@ -28,8 +30,14 @@ const TeacherLunchTimesDialog: React.FC<DialogProps> = ({
   teacher,
   onClose,
 }) => {
-  const { setSnackbarMsg, setSnackbarErrorMsg, schoolYears, setSchoolYears, currentSchoolYear, setCurrentSchoolYear } =
-    useContext(AppContext);
+  const {
+    setSnackbarMsg,
+    setSnackbarErrorMsg,
+    schoolYears,
+    setSchoolYears,
+    currentSchoolYear,
+    setCurrentSchoolYear,
+  } = useContext(AppContext);
 
   const mondayLunchTimes = Array.from(
     new Set(
@@ -141,42 +149,75 @@ const TeacherLunchTimesDialog: React.FC<DialogProps> = ({
     )?.times ?? []
   );
 
+  // Add state for selected grades for each day
+  const [selectedMondayGrades, setSelectedMondayGrades] = useState<GradeLevel[]>(
+    schoolYear.teacherLunchTimes.find(
+      (lt) => lt.dayOfWeek === DayOfWeek.MONDAY && lt.teacherId === teacher.id
+    )?.grades ?? []
+  );
+  const [selectedTuesdayGrades, setSelectedTuesdayGrades] = useState<GradeLevel[]>(
+    schoolYear.teacherLunchTimes.find(
+      (lt) => lt.dayOfWeek === DayOfWeek.TUESDAY && lt.teacherId === teacher.id
+    )?.grades ?? []
+  );
+  const [selectedWednesdayGrades, setSelectedWednesdayGrades] = useState<GradeLevel[]>(
+    schoolYear.teacherLunchTimes.find(
+      (lt) => lt.dayOfWeek === DayOfWeek.WEDNESDAY && lt.teacherId === teacher.id
+    )?.grades ?? []
+  );
+  const [selectedThursdayGrades, setSelectedThursdayGrades] = useState<GradeLevel[]>(
+    schoolYear.teacherLunchTimes.find(
+      (lt) => lt.dayOfWeek === DayOfWeek.THURSDAY && lt.teacherId === teacher.id
+    )?.grades ?? []
+  );
+  const [selectedFridayGrades, setSelectedFridayGrades] = useState<GradeLevel[]>(
+    schoolYear.teacherLunchTimes.find(
+      (lt) => lt.dayOfWeek === DayOfWeek.FRIDAY && lt.teacherId === teacher.id
+    )?.grades ?? []
+  );
+
+  // Available grades - you can customize this based on your needs
+
   const handleSave = async () => {
     try {
-      const dailyLunchTimes: DailyLunchTimes[] = [
+      const teacherLunchTimes = [
         {
           dayOfWeek: DayOfWeek.MONDAY,
           times: selectedMondayTimes,
+          teacherId: teacher.id,
+          grades: selectedMondayGrades,
         },
         {
           dayOfWeek: DayOfWeek.TUESDAY,
           times: selectedTuesdayTimes,
+          teacherId: teacher.id,
+          grades: selectedTuesdayGrades,
         },
         {
           dayOfWeek: DayOfWeek.WEDNESDAY,
           times: selectedWednesdayTimes,
+          teacherId: teacher.id,
+          grades: selectedWednesdayGrades,
         },
         {
           dayOfWeek: DayOfWeek.THURSDAY,
           times: selectedThursdayTimes,
+          teacherId: teacher.id,
+          grades: selectedThursdayGrades,
         },
         {
           dayOfWeek: DayOfWeek.FRIDAY,
           times: selectedFridayTimes,
+          teacherId: teacher.id,
+          grades: selectedFridayGrades,
         },
       ];
 
       await saveTeacherLunchTimes(
         schoolYear.id.toString(),
         teacher.id,
-        dailyLunchTimes
+        teacherLunchTimes
       );
-
-      const teacherLunchTimes = dailyLunchTimes.map((dlt) => ({
-        dayOfWeek: dlt.dayOfWeek,
-        times: dlt.times,
-        teacherId: teacher.id,
-      }));
 
       const updatedSchoolYear = {
         ...schoolYear,
@@ -187,9 +228,7 @@ const TeacherLunchTimesDialog: React.FC<DialogProps> = ({
 
       setSchoolYears(
         schoolYears.map((sy) =>
-          sy.id !== schoolYear.id
-            ? sy
-            : updatedSchoolYear
+          sy.id !== schoolYear.id ? sy : updatedSchoolYear
         )
       );
 
@@ -211,68 +250,205 @@ const TeacherLunchTimesDialog: React.FC<DialogProps> = ({
   };
 
   return (
-    <Dialog open={true} onClose={onClose} maxWidth="md" fullWidth>
+    <Dialog open={true} onClose={onClose} maxWidth="md">
       <DialogTitle>
         <Typography variant="h6">
           Edit Lunch Times for {teacher.name}
         </Typography>
       </DialogTitle>
       <DialogContent>
-        <Box
-          sx={{
-            display: "grid",
-            height: "200px",
-            gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr",
-            gridTemplateRows: "auto 1fr",
-            gap: 2,
-          }}
+        <Stack
+          direction="row"
+          justifyContent="stretch"
+          alignItems="stretch"
+          spacing={2}
         >
-          <Typography mt={2} fontWeight="bold" variant="body2">
-            Monday
-          </Typography>
-          <Typography mt={2} fontWeight="bold" variant="body2">
-            Tuesday
-          </Typography>
-          <Typography mt={2} fontWeight="bold" variant="body2">
-            Wednesday
-          </Typography>
-          <Typography mt={2} fontWeight="bold" variant="body2">
-            Thursday
-          </Typography>
-          <Typography mt={2} fontWeight="bold" variant="body2">
-            Friday
-          </Typography>
-          <TimesList
-            availTimes={mondayLunchTimes}
-            selectedTimes={selectedMondayTimes}
-            onSelectedTimesChanged={setSelectedMondayTimes}
-            isSingleSelect={true}
-          />
-          <TimesList
-            availTimes={tuesdayLunchTimes}
-            selectedTimes={selectedTuesdayTimes}
-            onSelectedTimesChanged={setSelectedTuesdayTimes}
-            isSingleSelect={true}
-          />
-          <TimesList
-            availTimes={wednesdayLunchTimes}
-            selectedTimes={selectedWednesdayTimes}
-            onSelectedTimesChanged={setSelectedWednesdayTimes}
-            isSingleSelect={true}
-          />
-          <TimesList
-            availTimes={thursdayLunchTimes}
-            selectedTimes={selectedThursdayTimes}
-            onSelectedTimesChanged={setSelectedThursdayTimes}
-            isSingleSelect={true}
-          />
-          <TimesList
-            availTimes={fridayLunchTimes}
-            isSingleSelect={true}
-            selectedTimes={selectedFridayTimes}
-            onSelectedTimesChanged={setSelectedFridayTimes}
-          />
-        </Box>
+          <Stack direction="column">
+            <Typography fontWeight="bold" variant="body2">
+              Monday
+            </Typography>
+            <Box
+              p={1}
+              sx={{
+                display: "grid",
+                height: "350px",
+                gridTemplateColumns: "1fr",
+                gridTemplateRows: "auto 1fr auto 1fr",
+                backgroundColor: "#f7f7f7",
+                borderRadius: 1,
+                border: "1px solid",
+                borderColor: "divider",
+              }}
+            >
+              <Typography variant="caption">
+                Lunchtime
+              </Typography>
+              <TimesList
+                availTimes={mondayLunchTimes}
+                selectedTimes={selectedMondayTimes}
+                onSelectedTimesChanged={setSelectedMondayTimes}
+                isSingleSelect={true}
+              />
+              <Typography variant="caption" sx={{ mt: 1, display: "block" }}>
+                Grades
+              </Typography>
+              <GradesList
+                availGrades={schoolYear.gradesAssignedByClass}
+                selectedGrades={selectedMondayGrades}
+                onSelectedGradesChanged={setSelectedMondayGrades}
+                isSingleSelect={false}
+              />
+            </Box>
+          </Stack>
+          <Stack direction="column" >
+            <Typography fontWeight="bold" variant="body2">
+              Tuesday
+            </Typography>
+            <Box
+              p={1}
+              sx={{
+                display: "grid",
+                height: "350px",
+                gridTemplateColumns: "1fr",
+                gridTemplateRows: "auto 1fr auto 1fr",
+                backgroundColor: "#f7f7f7",
+                borderRadius: 1,
+                border: "1px solid",
+                borderColor: "divider",
+              }}
+            >
+              <Typography variant="caption">
+                Lunchtime
+              </Typography>
+              <TimesList
+                availTimes={tuesdayLunchTimes}
+                selectedTimes={selectedTuesdayTimes}
+                onSelectedTimesChanged={setSelectedTuesdayTimes}
+                isSingleSelect={true}
+              />
+              <Typography variant="caption" sx={{ mt: 1, display: "block" }}>
+                Grades
+              </Typography>
+              <GradesList
+                availGrades={schoolYear.gradesAssignedByClass}
+                selectedGrades={selectedTuesdayGrades}
+                onSelectedGradesChanged={setSelectedTuesdayGrades}
+                isSingleSelect={false}
+              />
+            </Box>
+          </Stack>
+          <Stack direction="column">
+            <Typography fontWeight="bold" variant="body2">
+              Wednesday
+            </Typography>
+            <Box
+              p={1}
+              sx={{
+                display: "grid",
+                height: "350px",
+                gridTemplateColumns: "1fr",
+                gridTemplateRows: "auto 1fr auto 1fr",
+                backgroundColor: "#f7f7f7",
+                borderRadius: 1,
+                border: "1px solid",
+                borderColor: "divider",
+              }}
+            >
+              <Typography variant="caption">
+                Lunchtime
+              </Typography>
+              <TimesList
+                availTimes={wednesdayLunchTimes}
+                selectedTimes={selectedWednesdayTimes}
+                onSelectedTimesChanged={setSelectedWednesdayTimes}
+                isSingleSelect={true}
+              />
+              <Typography variant="caption" sx={{ mt: 1, display: "block" }}>
+                Grades
+              </Typography>
+              <GradesList
+                availGrades={schoolYear.gradesAssignedByClass}
+                selectedGrades={selectedWednesdayGrades}
+                onSelectedGradesChanged={setSelectedWednesdayGrades}
+                isSingleSelect={false}
+              />
+            </Box>
+          </Stack>
+          <Stack direction="column">
+            <Typography fontWeight="bold" variant="body2">
+              Thursday
+            </Typography>
+            <Box
+              p={1}
+              sx={{
+                display: "grid",
+                height: "350px",
+                gridTemplateColumns: "1fr",
+                gridTemplateRows: "auto 1fr auto 1fr",
+                backgroundColor: "#f7f7f7",
+                borderRadius: 1,
+                border: "1px solid",
+                borderColor: "divider",
+              }}
+            >
+              <Typography variant="caption">
+                Lunchtime
+              </Typography>
+              <TimesList
+                availTimes={thursdayLunchTimes}
+                selectedTimes={selectedThursdayTimes}
+                onSelectedTimesChanged={setSelectedThursdayTimes}
+                isSingleSelect={true}
+              />
+              <Typography variant="caption" sx={{ mt: 1, display: "block" }}>
+                Grades
+              </Typography>
+              <GradesList
+                availGrades={schoolYear.gradesAssignedByClass}
+                selectedGrades={selectedThursdayGrades}
+                onSelectedGradesChanged={setSelectedThursdayGrades}
+                isSingleSelect={false}
+              />
+            </Box>
+          </Stack>
+          <Stack direction="column">
+            <Typography fontWeight="bold" variant="body2">
+              Friday
+            </Typography>
+            <Box
+              p={1}
+              sx={{
+                display: "grid",
+                height: "350px",
+                gridTemplateColumns: "1fr",
+                gridTemplateRows: "auto 1fr auto 1fr",
+                backgroundColor: "#f7f7f7",
+                borderRadius: 1,
+                border: "1px solid",
+                borderColor: "divider",
+              }}
+            >
+              <Typography variant="caption">
+                Lunchtime
+              </Typography>
+              <TimesList
+                availTimes={fridayLunchTimes}
+                isSingleSelect={true}
+                selectedTimes={selectedFridayTimes}
+                onSelectedTimesChanged={setSelectedFridayTimes}
+              />
+              <Typography variant="caption" sx={{ mt: 1, display: "block" }}>
+                Grades
+              </Typography>
+              <GradesList
+                availGrades={schoolYear.gradesAssignedByClass}
+                selectedGrades={selectedFridayGrades}
+                onSelectedGradesChanged={setSelectedFridayGrades}
+                isSingleSelect={false}
+              />
+            </Box>
+          </Stack>
+        </Stack>
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose} variant="contained" color="primary">

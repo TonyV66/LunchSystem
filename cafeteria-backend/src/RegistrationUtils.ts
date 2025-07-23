@@ -73,6 +73,7 @@ export const importStudents = async (
           userName: randomUUID(),
           name: studentImport.parentName,
           email: studentImport.parentEmail,
+          phone: "",
           pwd: "",
           lunchTimes: [],
           role: Role.PARENT,
@@ -88,12 +89,12 @@ export const importStudents = async (
           (invite) => invite.email === studentImport.parentEmail
         );
         if (existingInvite) {
-          existingInvite.parents.push(parent!);
+          existingInvite.parents.push(new User(parent!));
         } else {
           invitesToSend.push({
             email: studentImport.parentEmail,
             student: new Student(student!),
-            parents: [parent!],
+            parents: [new User(parent!)],
           });
         }
       } else {

@@ -4,7 +4,6 @@ export interface ShoppingCartMealTime {
 }
 
 export interface ShoppingCart {
-  mealTimes?: ShoppingCartMealTime[];
   items: ShoppingCartItem[];
 }
 

@@ -20,12 +20,14 @@ import UsersPage from "./components/users/UsersPage";
 import StudentsPage from "./components/users/StudentsPage";
 import AdminSettingsPage from "./components/settings/AdminSettingsPage";
 import ChangePasswordPage from "./components/settings/ChangePasswordPage";
-import InvitationPanel from "./components/users/InvitationPanel";
 import RegistrationPanel from "./components/users/RegistrationPanel";
 import ChangeForgottenPwdPanel from "./components/users/ChangeForgottenPwdPanel";
 import PageNotFound from "./components/PageNotFound";
 import SchoolYearsPage from "./components/schoolyear/SchoolYearsPage";
 import SchoolYearTabsPanel from "./components/schoolyear/SchoolYearTabsPanel";
+import UserImportTest from "./components/users/UserImportTest";
+import FamilyPage from "./components/users/FamilyPage";
+import ClassroomStudentsPage from "./components/users/ClassroomStudentsPage";
 
 const App: React.FC = () => {
   const { user } = useContext(AppContext);
@@ -33,15 +35,11 @@ const App: React.FC = () => {
   let defaultUrl = ACCOUNT_URL;
   switch (user.role) {
     case Role.ADMIN:
-      defaultUrl = CALENDAR_URL;
-      break;
     case Role.TEACHER:
-      defaultUrl = CALENDAR_URL;
-      break;
     case Role.CAFETERIA:
       defaultUrl = CALENDAR_URL;
       break;
-    case Role.PARENT:
+    default:
       defaultUrl = MEALS_URL;
       break;
   }
@@ -49,24 +47,12 @@ const App: React.FC = () => {
   return (
     <BrowserRouter>
       <Routes>
-        {!user.id || user.role === Role.PARENT ? (
-          <>
-            <Route path="/invite/:inviteId" element={<InvitationPanel />} />
-            <Route
-              path="/register/:inviteId"
-              element={
-                user.id ? <Navigate to={"/"} replace /> : <RegistrationPanel />
-              }
-            />
-            <Route
-              path="/login/:inviteId"
-              element={user.id ? <Navigate to={"/"} replace /> : <LoginPanel />}
-            />
-          </>
-        ) : (
-          <></>
-        )}
-
+        <Route
+          path="/register"
+          element={
+            user.id ? <Navigate to={"/"} replace /> : <RegistrationPanel />
+          }
+        />
         <Route
           path="/login"
           element={
@@ -104,10 +90,6 @@ const App: React.FC = () => {
                 element={<OrderedMealsPage></OrderedMealsPage>}
               />
               <Route
-                path="orders"
-                element={<OrderHistoryPage purchaser={user}></OrderHistoryPage>}
-              />
-              <Route
                 path="cart"
                 element={<ShoppingCartPage></ShoppingCartPage>}
               />
@@ -129,10 +111,6 @@ const App: React.FC = () => {
               />
               <Route path="users" element={<UsersPage></UsersPage>} />
               <Route path="students" element={<StudentsPage></StudentsPage>} />
-              <Route
-                path="orders"
-                element={<OrderHistoryPage></OrderHistoryPage>}
-              />
               <Route path="account" element={<AdminSettingsPage />} />
               <Route path="years" element={<SchoolYearsPage />} />
               <Route path="year/:yearId" element={<SchoolYearTabsPanel />} />
@@ -144,6 +122,7 @@ const App: React.FC = () => {
                 path="year/:yearId/grades"
                 element={<SchoolYearTabsPanel />}
               />
+              <Route path="import-test" element={<UserImportTest />} />
             </>
           ) : (
             <></>
@@ -151,6 +130,7 @@ const App: React.FC = () => {
 
           {user.role === Role.CAFETERIA ? (
             <>
+              <Route path="students" element={<StudentsPage></StudentsPage>} />
               <Route path="calendar" element={<CalendarPage></CalendarPage>} />
               <Route
                 path="cart"
@@ -168,6 +148,11 @@ const App: React.FC = () => {
 
           {user.role === Role.TEACHER ? (
             <>
+              <Route path="students" element={<StudentsPage></StudentsPage>} />
+              <Route
+                path="classroom"
+                element={<ClassroomStudentsPage></ClassroomStudentsPage>}
+              />
               <Route path="calendar" element={<CalendarPage></CalendarPage>} />
               <Route
                 path="cart"
@@ -183,6 +168,15 @@ const App: React.FC = () => {
             <></>
           )}
 
+          <Route
+            path="orders"
+            element={
+              <OrderHistoryPage
+                purchaser={user.role === Role.ADMIN ? undefined : user}
+              ></OrderHistoryPage>
+            }
+          />
+          <Route path="family" element={<FamilyPage></FamilyPage>} />
           <Route path="notifications" element={<NotificationsPage />} />
         </Route>
         <Route path="*" element={<PageNotFound />} />

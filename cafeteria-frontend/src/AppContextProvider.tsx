@@ -42,6 +42,10 @@ export interface AppContextType extends SessionInfo {
 }
 
 const DEFAULT_SYSTEM_DEFAULTS: School = {
+  name: "",
+  registrationCode: "",
+  openRegistration: false,
+  squareAppAccessToken: "",
   orderStartPeriodCount: 2,
   orderStartPeriodType: 0,
   orderStartRelativeTo: 0,
@@ -98,6 +102,7 @@ const AppContextProvider: React.FC<React.PropsWithChildren> = (props) => {
   const [schoolYears, setSchoolYears] = useState<SchoolYear[]>([]);
   const [currentSchoolYear, setCurrentSchoolYear] = useState<SchoolYear>({
     id: 0,
+    oneTeacherPerStudent: true,
     name: "",
     startDate: "",
     endDate: "",

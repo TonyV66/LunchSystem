@@ -12,13 +12,10 @@ import GradeLunchTimeEntity from "../entity/GradeLunchTimeEntity";
 import { GradeLevel } from "../models/GradeLevel";
 import TeacherLunchTimeEntity from "../entity/TeacherLunchTimeEntity";
 import UserEntity from "../entity/UserEntity";
-import { DailyMenuEntity } from "../entity/MenuEntity";
-import StudentEntity from "../entity/StudentEntity";
 import { OrderEntity } from "../entity/OrderEntity";
-import Student from "../models/Student";
-import StudentLunchTime from "../models/StudentLunchTime";
 import { getStaffSession, SessionInfo } from "./SessionRouter";
-import { Not, LessThan, In } from "typeorm";
+import { Not, LessThan, In, IsNull } from "typeorm";
+import StudentEntity from "../entity/StudentEntity";
 
 const SchoolYearRouter: Router = express.Router();
 
@@ -171,20 +168,23 @@ SchoolYearRouter.post<
 
     for (const dlt of req.body) {
       const newTimes = dlt.times.sort().join("|");
+      const newGrades = (dlt as any).grades ? (dlt as any).grades.join("|") : "";
       const dailyTimes = schoolYear.teacherLunchTimes.find(
         (lt) => lt.dayOfWeek === dlt.dayOfWeek && lt.teacher.id === teacher.id
       );
 
       if (dailyTimes) {
-        if (dailyTimes.time !== newTimes) {
+        if (dailyTimes.time !== newTimes || dailyTimes.grades !== newGrades) {
           await teacherLunchTimeRepository.update(dailyTimes.id, {
             time: newTimes,
+            grades: newGrades,
           });
         }
       } else {
         await teacherLunchTimeRepository.save({
           dayOfWeek: dlt.dayOfWeek,
           time: newTimes,
+          grades: newGrades,
           schoolYear: schoolYear,
           teacher: teacher,
         });
@@ -280,6 +280,47 @@ SchoolYearRouter.put<
   res.send(new SchoolYear(updatedSchoolYear!));
 });
 
+SchoolYearRouter.put<
+  { schoolYearId: string },
+  SchoolYear | string,
+  { oneTeacherPerStudent: boolean },
+  {}
+>("/:schoolYearId/teacher-config", authorizeRequest, async (req, res) => {
+  if (req.user.role !== Role.ADMIN) {
+    res.status(403).send("Unauthorized");
+    return;
+  }
+
+  const schoolYearRepository = AppDataSource.getRepository(SchoolYearEntity);
+
+  const schoolYear = await schoolYearRepository.findOne({
+    where: {
+      id: parseInt(req.params.schoolYearId),
+    },
+    relations: { school: true },
+  });
+
+  if (!schoolYear) {
+    res.status(404).send("School year not found");
+    return;
+  }
+
+  if (schoolYear.school.id !== req.user.school.id) {
+    res.status(403).send("Unauthorized");
+    return;
+  }
+
+  await schoolYearRepository.update(schoolYear.id, {
+    oneTeacherPerStudent: req.body.oneTeacherPerStudent,
+  });
+
+  const updatedSchoolYear = await schoolYearRepository.findOne({
+    where: { id: schoolYear.id },
+  });
+
+  res.send(new SchoolYear(updatedSchoolYear!));
+});
+
 SchoolYearRouter.post<
   { schoolYearId: string; grade: string },
   {},
@@ -343,6 +384,7 @@ SchoolYearRouter.put<{ schoolYearId: string }, SessionInfo | string, {}, {}>(
     const schoolYearRepository = AppDataSource.getRepository(SchoolYearEntity);
     const userRepository = AppDataSource.getRepository(UserEntity);
     const orderRepository = AppDataSource.getRepository(OrderEntity);
+    const studentRepository = AppDataSource.getRepository(StudentEntity);
 
     const schoolYear = await schoolYearRepository.findOne({
       where: { id: parseInt(req.params.schoolYearId) },
@@ -410,6 +452,9 @@ SchoolYearRouter.put<{ schoolYearId: string }, SessionInfo | string, {}, {}>(
         for (const user of previousYearUsers) {
           await addUserToSchoolYear(user, schoolYear);
         }
+
+        // Clean up unused user accounts from all previous school years
+        await cleanupUnusedUserAccounts(req.user.school.id, schoolYear.startDate);
       }
     }
 
@@ -423,5 +468,93 @@ SchoolYearRouter.put<{ schoolYearId: string }, SessionInfo | string, {}, {}>(
     res.send(updatedSessionInfo);
   }
 );
+
+// Helper function to clean up unused user accounts
+async function cleanupUnusedUserAccounts(schoolId: number, currentSchoolYearStartDate: string) {
+  const userRepository = AppDataSource.getRepository(UserEntity);
+  const studentRepository = AppDataSource.getRepository(StudentEntity);
+  const orderRepository = AppDataSource.getRepository(OrderEntity);
+
+  // Get all parent users from previous school years with lastLoginDate = null
+  const unusedUsers = await userRepository.find({
+    where: {
+      school: { id: schoolId },
+      role: Role.PARENT,
+      lastLoginDate: IsNull()
+    },
+    relations: {
+      students: true,
+      schoolYears: true
+    }
+  });
+
+  // Filter out users from the current school year
+  const usersFromPreviousYears = unusedUsers.filter(user => 
+    !user.schoolYears.some(sy => sy.startDate >= currentSchoolYearStartDate) && user.role === Role.PARENT
+  );
+
+  for (const user of usersFromPreviousYears) {
+    let shouldDeleteUser = true;
+
+    // Check if user has students with purchased meals
+    for (const student of user.students) {
+      // Check if student has any meals purchased
+      const studentMeals = await orderRepository.find({
+        where: {
+          meals: {
+            student: { id: student.id }
+          }
+        }
+      });
+
+      if (studentMeals.length > 0) {
+        // Student has purchased meals, check if user is the only parent
+        const studentWithParents = await studentRepository.findOne({
+          where: { id: student.id },
+          relations: { parents: true }
+        });
+
+        if (studentWithParents && studentWithParents.parents.length === 1) {
+          // User is the only parent and student has meals, don't delete the user
+          shouldDeleteUser = false;
+          break;
+        }
+      }
+    }
+
+    if (shouldDeleteUser) {
+      // Delete students that have no purchased meals
+      for (const student of user.students) {
+        const studentMeals = await orderRepository.find({
+          where: {
+            meals: {
+              student: { id: student.id }
+            }
+          }
+        });
+
+        if (studentMeals.length === 0) {
+          // Remove the user-student association before deleting the student
+          await AppDataSource.createQueryBuilder()
+            .relation(UserEntity, "students")
+            .of(user)
+            .remove(student);
+          
+          // Delete the student
+          await studentRepository.remove(student);
+        }
+      }
+
+      // Remove all user-student associations before deleting the user
+      await AppDataSource.createQueryBuilder()
+        .relation(UserEntity, "students")
+        .of(user)
+        .remove(user.students);
+
+      // Delete the unused user account
+      await userRepository.remove(user);
+    }
+  }
+}
 
 export default SchoolYearRouter;

@@ -13,7 +13,7 @@ interface StudentAutoCompleteSelectorProps {
 const StudentAutoCompleteSelector: React.FC<StudentAutoCompleteSelectorProps> = ({
   value,
   onChange,
-  label = 'Select Student',
+  label = 'Enter Student Name',
   disabled = false,
 }) => {
   const { students, orders, users, user } = useContext(AppContext);
@@ -111,7 +111,7 @@ const StudentAutoCompleteSelector: React.FC<StudentAutoCompleteSelectorProps> = 
         <TextField
           {...params}
           label={label}
-          variant="outlined"
+          variant="standard"
           fullWidth
         />
       )}

@@ -1,4 +1,7 @@
 export default interface School {
+  name: string;
+  registrationCode: string;
+  openRegistration: boolean;
   orderStartPeriodCount: number;
   orderStartPeriodType: number;
   orderStartRelativeTo: number;
@@ -10,5 +13,6 @@ export default interface School {
   mealPrice: number;
   drinkOnlyPrice: number;
   squareAppId: string;
+  squareAppAccessToken: string;
   squareLocationId: string;
 }

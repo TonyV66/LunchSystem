@@ -16,6 +16,7 @@ export default interface SchoolYear {
   gradeLunchTimes: GradeLunchTime[]
   studentLunchTimes: StudentLunchTime[];
   gradesAssignedByClass: GradeLevel[];
+  oneTeacherPerStudent: boolean;
 }
 
 const startOfMonth = new Date();
@@ -40,4 +41,5 @@ export const NO_SCHOOL_YEAR: SchoolYear = {
   gradeLunchTimes: [],
   studentLunchTimes: [],
   gradesAssignedByClass: [],
+  oneTeacherPerStudent: true,
 }

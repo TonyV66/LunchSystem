@@ -14,7 +14,7 @@ import { GradeLevel } from "../models/GradeLevel";
 export default class StudentLunchTimeEntity {
   @PrimaryGeneratedColumn()
   id: number;
-  @Column({ type: "enum", enum: DayOfWeek, nullable: false })
+  @Column({ nullable: false })
   dayOfWeek: number;
   @Column({ default: '' })
   time: string;

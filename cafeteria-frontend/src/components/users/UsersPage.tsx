@@ -13,11 +13,12 @@ import { useContext, useState } from "react";
 import { Add } from "@mui/icons-material";
 import User from "../../models/User";
 import { useNavigate } from "react-router-dom";
-import { STUDENTS_URL, USERS_URL } from "../../MainAppPanel";
+import { FAMILY_URL, STUDENTS_URL, USERS_URL } from "../../MainAppPanel";
 import { UserOrderHistoryDialog } from "../orders/UserOrderHistoryDialog";
 import EditUserDialog from "./EditUserDialog";
 import UsersTable from "./UsersTable";
 import { SiblingsDialog } from "./SiblingsDialog";
+import UserImportDialog from "./UserImportDialog";
 
 interface UserMenuProps {
   anchor: HTMLElement;
@@ -27,8 +28,13 @@ interface UserMenuProps {
   onClose: () => void;
 }
 
-
-const UserMenu: React.FC<UserMenuProps> = ({ anchor, onEdit, onOrderHistory, onClose, onChildren }) => {
+const UserMenu: React.FC<UserMenuProps> = ({
+  anchor,
+  onEdit,
+  onOrderHistory,
+  onClose,
+  onChildren,
+}) => {
   return (
     <PulldownMenu
       id="demo-positioned-menu"
@@ -57,6 +63,7 @@ type MenuAction = "edit" | "delete" | "history" | "children";
 const UsersPage: React.FC = () => {
   const { users, user, currentSchoolYear } = useContext(AppContext);
   const [showNewUserDialog, setShowNewUserDialog] = useState(false);
+  const [showImportDialog, setShowImportDialog] = useState(false);
   const [pulldownMenuAnchor, setPulldownMenuAnchor] =
     useState<null | HTMLElement>(null);
   const [targetUser, setTargetUser] = useState<null | User>(null);
@@ -106,6 +113,10 @@ const UsersPage: React.FC = () => {
     setPulldownMenuAnchor(null);
   };
 
+  const handleCloseImportDialog = () => {
+    setShowImportDialog(false);
+  };
+
   return (
     <Stack
       pl={2}
@@ -125,6 +136,7 @@ const UsersPage: React.FC = () => {
         >
           <Tab value={USERS_URL} label="Users" />
           <Tab value={STUDENTS_URL} label="Students" />
+          <Tab value={FAMILY_URL} label="Family" />
         </Tabs>
         <Stack direction="column">
           <Typography variant="body2" fontWeight="bold">
@@ -142,7 +154,6 @@ const UsersPage: React.FC = () => {
           onClick={() => setShowNewUserDialog(true)}
           color="primary"
           disabled={!currentSchoolYear.id}
-          sx={{ marginTop: "8px" }}
         >
           <Add />
         </Fab>
@@ -161,13 +172,13 @@ const UsersPage: React.FC = () => {
         <></>
       )}
       {targetUser && pulldownMenuAnchor ? (
-          <UserMenu
-            anchor={pulldownMenuAnchor!}
-            onOrderHistory={handleOrderHistory}
-            onChildren={handleChildren}
-            onEdit={handleEditUser}
-            onClose={handleCloseMenu}
-          />
+        <UserMenu
+          anchor={pulldownMenuAnchor!}
+          onOrderHistory={handleOrderHistory}
+          onChildren={handleChildren}
+          onEdit={handleEditUser}
+          onClose={handleCloseMenu}
+        />
       ) : (
         <></>
       )}
@@ -180,13 +191,14 @@ const UsersPage: React.FC = () => {
         <></>
       )}
       {action === "children" && targetUser ? (
-        <SiblingsDialog
-          user={targetUser}
-          onClose={handleActionComplete}
-        />
+        <SiblingsDialog user={targetUser} onClose={handleActionComplete} />
       ) : (
         <></>
       )}
+      <UserImportDialog
+        open={showImportDialog}
+        onClose={handleCloseImportDialog}
+      />
     </Stack>
   );
 };

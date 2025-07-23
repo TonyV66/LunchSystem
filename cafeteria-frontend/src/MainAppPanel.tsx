@@ -15,7 +15,6 @@ import {
   CalendarMonth,
   EventRepeat,
   Fastfood,
-  Home,
   Logout,
   People,
   ReceiptLong,
@@ -23,7 +22,7 @@ import {
   ShoppingCart,
   SpeakerNotes,
 } from "@mui/icons-material";
-import { NULL_USER, Role } from "./models/User";
+import User, { NULL_USER, Role } from "./models/User";
 import { grey, red } from "@mui/material/colors";
 import { DateTimeUtils } from "./DateTimeUtils";
 
@@ -41,6 +40,8 @@ export const CART_URL = "/cart";
 export const CALENDAR_URL = "/calendar";
 export const ORDERS_URL = "/orders";
 export const STUDENTS_URL = "/students";
+export const CLASSROOM_URL = "/classroom";
+export const FAMILY_URL = "/family";
 export const SCHOOL_YEARS_URL = "/years";
 export const SCHOOL_YEAR_URL = "/year";
 
@@ -73,19 +74,7 @@ const OrderedMealsSidebarButton: React.FC<SidebarButtonProps> = ({
   onClick,
   isSelected,
 }) => {
-  const {user} = useContext(AppContext);
-  return user.role === Role.PARENT ? (
-    <Home
-      onClick={() => onClick(SidebarSelection.MEALS)}
-      sx={{
-        cursor: !isSelected ? "pointer" : undefined,
-        p: 1,
-        backgroundColor: isSelected ? ALT_COLOR : undefined,
-        color: isSelected ? primaryColor : ALT_COLOR,
-      }}
-      fontSize="large"
-    />
-  ) : (
+  return (
     <Fastfood
       onClick={() => onClick(SidebarSelection.MEALS)}
       sx={{
@@ -260,7 +249,7 @@ const getSidebarSelection = (path: string) => {
     return SidebarSelection.MEALS;
   } else if (
     matchRoutes(
-      [{ path: USERS_URL }, { path: STUDENTS_URL }],
+      [{ path: USERS_URL }, { path: STUDENTS_URL }, { path: CLASSROOM_URL }, { path: FAMILY_URL }],
       path
     )
   ) {
@@ -284,7 +273,19 @@ const getSidebarSelection = (path: string) => {
 
 }
 
+const getDefaultUsersUrl = (user: User) => {
+  if (user.role === Role.ADMIN) {
+    return USERS_URL;
+  } else if (user.role === Role.TEACHER) {
+    return CLASSROOM_URL;
+  } else if (user.role === Role.CAFETERIA) {
+    return STUDENTS_URL;
+  }
+  return FAMILY_URL;
+}
+
 const AdminSidebar: React.FC<SidebarProps> = ({ onLogout }) => {
+  const { user } = useContext(AppContext);
   const [selection, setSelection] = useState<SidebarSelection>();
   const location = useLocation();
 
@@ -296,6 +297,7 @@ const AdminSidebar: React.FC<SidebarProps> = ({ onLogout }) => {
   }, [location]);
 
   const navigate = useNavigate();
+
 
   return (
     <Box
@@ -320,13 +322,13 @@ const AdminSidebar: React.FC<SidebarProps> = ({ onLogout }) => {
         onClick={() => navigate(ORDERS_URL)}
         isSelected={selection === SidebarSelection.ORDERS}
       />
+      <UsersButton
+        onClick={() => navigate(getDefaultUsersUrl(user))}
+        isSelected={selection === SidebarSelection.USERS}
+      />
       <NotificationsButton
         onClick={() => navigate(NOTIFICATIONS_URL)}
         isSelected={selection === SidebarSelection.NOTIFICATIONS}
-      />
-      <UsersButton
-        onClick={() => navigate(USERS_URL)}
-        isSelected={selection === SidebarSelection.USERS}
       />
       <SchoolYearsButton
         onClick={() => navigate(SCHOOL_YEARS_URL)}
@@ -428,6 +430,10 @@ const ParentSidebar: React.FC<SidebarProps> = ({ onLogout }) => {
         onClick={() => navigate(ORDERS_URL)}
         isSelected={selection === SidebarSelection.ORDERS}
       />
+      <UsersButton
+        onClick={() => navigate(getDefaultUsersUrl(user))}
+        isSelected={selection === SidebarSelection.USERS}
+      />
       <NotificationsButton
         onClick={() => navigate(NOTIFICATIONS_URL)}
         isSelected={selection === SidebarSelection.NOTIFICATIONS}
@@ -504,6 +510,10 @@ const CafeteriaSidebar: React.FC<SidebarProps> = ({ onLogout }) => {
         onClick={() => navigate(CALENDAR_URL)}
         isSelected={selection === SidebarSelection.CALENDAR}
       />
+      <UsersButton
+        onClick={() => navigate(getDefaultUsersUrl(user))}
+        isSelected={selection === SidebarSelection.USERS}
+      />
       <NotificationsButton
         onClick={() => navigate(NOTIFICATIONS_URL)}
         isSelected={selection === SidebarSelection.NOTIFICATIONS}
@@ -517,6 +527,10 @@ const CafeteriaSidebar: React.FC<SidebarProps> = ({ onLogout }) => {
       <ShoppingCartButton
         onClick={() => navigate(CART_URL)}
         isSelected={selection === SidebarSelection.CART}
+      />
+      <OrdersButton
+        onClick={() => navigate(ORDERS_URL)}
+        isSelected={selection === SidebarSelection.ORDERS}
       />
       <Divider sx={{ borderColor: "white", width: "100%" }} />
       <SettingsButton
@@ -589,6 +603,10 @@ const TeacherSidebar: React.FC<SidebarProps> = ({ onLogout }) => {
         onClick={() => navigate(CALENDAR_URL)}
         isSelected={selection === SidebarSelection.CALENDAR}
       />
+      <UsersButton
+        onClick={() => navigate(getDefaultUsersUrl(user))}
+        isSelected={selection === SidebarSelection.USERS}
+      />
       <NotificationsButton
         onClick={() => navigate(NOTIFICATIONS_URL)}
         isSelected={selection === SidebarSelection.NOTIFICATIONS}
@@ -602,6 +620,10 @@ const TeacherSidebar: React.FC<SidebarProps> = ({ onLogout }) => {
       <ShoppingCartButton
         onClick={() => navigate(CART_URL)}
         isSelected={selection === SidebarSelection.CART}
+      />
+      <OrdersButton
+        onClick={() => navigate(ORDERS_URL)}
+        isSelected={selection === SidebarSelection.ORDERS}
       />
       <Divider sx={{ borderColor: "white", width: "100%" }} />
       <SettingsButton

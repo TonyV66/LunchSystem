@@ -8,10 +8,11 @@ import {
 } from "@mui/x-data-grid";
 import { green, grey } from "@mui/material/colors";
 import { AppContext } from "../../AppContextProvider";
-import { Add, Edit } from "@mui/icons-material";
+import { Add, CloudUpload, Edit } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
 import { SCHOOL_YEAR_URL } from "../../MainAppPanel";
 import SchoolYearDialog from "./SchoolYearDialog";
+import UserImportDialog from "../users/UserImportDialog";
 
 interface Row {
   id: number;
@@ -25,9 +26,18 @@ const SchoolYearsPage: React.FC = () => {
   const { schoolYears, currentSchoolYear } = useContext(AppContext);
   const navigate = useNavigate();
   const [showSchoolYearDialog, setShowSchoolYearDialog] = useState(false);
+  const [showImportDialog, setShowImportDialog] = useState(false);
 
   const handleCloseDialog = () => {
     setShowSchoolYearDialog(false);
+  };
+
+  const handleOpenImportDialog = () => {
+    setShowImportDialog(true);
+  };
+
+  const handleCloseImportDialog = () => {
+    setShowImportDialog(false);
   };
 
   const rows: Row[] = [];
@@ -37,8 +47,8 @@ const SchoolYearsPage: React.FC = () => {
   };
 
   // Sort school years by start date in descending order (newest first)
-  const sortedSchoolYears = [...schoolYears].sort((a, b) => 
-    new Date(b.startDate).getTime() - new Date(a.startDate).getTime()
+  const sortedSchoolYears = [...schoolYears].sort(
+    (a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime()
   );
 
   sortedSchoolYears.forEach((year) => {
@@ -79,7 +89,7 @@ const SchoolYearsPage: React.FC = () => {
     {
       field: "onEditYear",
       headerName: "Actions",
-      width: 80,
+      width: 100,
       cellClassName: (params) => {
         return params.id === currentSchoolYear.id ? "current-year" : "";
       },
@@ -89,13 +99,24 @@ const SchoolYearsPage: React.FC = () => {
           (yearId: number) => void
         >
       ) => (
-        <IconButton
-          color="primary"
-          onClick={() => params.value!(params.id as number)}
-          size="small"
-        >
-          <Edit />
-        </IconButton>
+        <Stack direction="row" justifyContent="flex-end" gap={1}>
+          {params.id === currentSchoolYear.id && (
+            <IconButton
+              color="primary"
+              size="small"
+              onClick={handleOpenImportDialog}
+            >
+              <CloudUpload />
+            </IconButton>
+          )}
+          <IconButton
+            color="primary"
+            onClick={() => params.value!(params.id as number)}
+            size="small"
+          >
+            <Edit />
+          </IconButton>
+        </Stack>
       ),
     },
   ];
@@ -153,6 +174,10 @@ const SchoolYearsPage: React.FC = () => {
       />
 
       {showSchoolYearDialog && <SchoolYearDialog onClose={handleCloseDialog} />}
+      <UserImportDialog
+        open={showImportDialog}
+        onClose={handleCloseImportDialog}
+      />
     </Stack>
   );
 };

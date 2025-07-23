@@ -1,4 +1,4 @@
-import React, { useContext, useState } from "react";
+import React, { useContext, useEffect, useState } from "react";
 import {
   Button,
   Dialog,
@@ -15,14 +15,12 @@ import {
 } from "../../api/CafeteriaClient";
 import Student from "../../models/Student";
 import { AxiosError } from "axios";
-import { GradeLevel } from "../../models/GradeLevel";
-import { DayOfWeek } from "../../models/DayOfWeek";
-import { Role } from "../../models/User";
 import StudentLunchtimeEditor from "./StudentLunchtimeEditor";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { LocalizationProvider, DatePicker } from "@mui/x-date-pickers";
 import dayjs, { Dayjs } from "dayjs";
 import { DateTimeUtils } from "../../DateTimeUtils";
+import { StudentLunchTime } from "../../models/StudentLunchTime";
 
 interface DialogProps {
   student: Student;
@@ -38,7 +36,6 @@ const EditStudentDialog: React.FC<DialogProps> = ({ onClose, student }) => {
     currentSchoolYear,
     setCurrentSchoolYear,
     setSchoolYears,
-    users,
   } = useContext(AppContext);
 
   const [studentFirstName, setStudentFirstName] = useState<string>(
@@ -51,102 +48,15 @@ const EditStudentDialog: React.FC<DialogProps> = ({ onClose, student }) => {
     student?.birthDate ? dayjs(student.birthDate) : null
   );
 
-  const [selectedGrade, setSelectedGrade] = useState<GradeLevel>(
-    currentSchoolYear.studentLunchTimes.find(
-      (lt) => lt.studentId === student.id
-    )?.grade ?? GradeLevel.PRE_K
-  );
+  const [studentLunchTimes, setStudentLunchTimes] = useState<StudentLunchTime[]>([])
 
-  const [selectedTeachers, setSelectedTeachers] = useState<
-    Record<DayOfWeek, number | null>
-  >({
-    [DayOfWeek.SUNDAY]: null,
-    [DayOfWeek.MONDAY]: null,
-    [DayOfWeek.TUESDAY]: null,
-    [DayOfWeek.WEDNESDAY]: null,
-    [DayOfWeek.THURSDAY]: null,
-    [DayOfWeek.FRIDAY]: null,
-    [DayOfWeek.SATURDAY]: null,
-  });
+  useEffect(() => {
+    setStudentLunchTimes(currentSchoolYear.studentLunchTimes.filter(slt => slt.studentId === student.id))
+  }, [currentSchoolYear, student.id])
 
-  // Initialize selected teachers from existing student lunch times
-  React.useEffect(() => {
-    if (student) {
-      const initialTeachers: Record<DayOfWeek, number | null> = {
-        [DayOfWeek.SUNDAY]: null,
-        [DayOfWeek.MONDAY]: null,
-        [DayOfWeek.TUESDAY]: null,
-        [DayOfWeek.WEDNESDAY]: null,
-        [DayOfWeek.THURSDAY]: null,
-        [DayOfWeek.FRIDAY]: null,
-        [DayOfWeek.SATURDAY]: null,
-      };
-
-      currentSchoolYear.studentLunchTimes
-        .filter((lt) => lt.studentId === student.id)
-        .forEach((lt) => {
-          if (lt.teacherId) {
-            initialTeachers[lt.dayOfWeek as DayOfWeek] = lt.teacherId;
-          }
-        });
-
-      setSelectedTeachers(initialTeachers);
-    }
-  }, [student, currentSchoolYear]);
-
-  const teachers = users
-    .filter((user) => user.role === Role.TEACHER)
-    .sort((t1, t2) =>
-      t1.name.toLowerCase().localeCompare(t2.name.toLowerCase())
-    );
-
-  const handleGradeSelected = (grade: GradeLevel) => {
-    setSelectedGrade(grade);
-  };
-
-  const handleTeacherChange = (day: DayOfWeek, teacherId: number) => {
-    setSelectedTeachers((prev) => ({
-      ...prev,
-      [day]: teacherId,
-    }));
-  };
 
   const handleSaveStudent = async () => {
     try {
-      const lunchTimes = !currentSchoolYear.id
-        ? []
-        : [
-            {
-              grade: selectedGrade,
-              dayOfWeek: DayOfWeek.MONDAY,
-              studentId: student.id,
-              teacherId: selectedTeachers[DayOfWeek.MONDAY] || undefined,
-            },
-            {
-              grade: selectedGrade,
-              dayOfWeek: DayOfWeek.TUESDAY,
-              studentId: student.id,
-              teacherId: selectedTeachers[DayOfWeek.TUESDAY] || undefined,
-            },
-            {
-              grade: selectedGrade,
-              dayOfWeek: DayOfWeek.WEDNESDAY,
-              studentId: student.id,
-              teacherId: selectedTeachers[DayOfWeek.WEDNESDAY] || undefined,
-            },
-            {
-              grade: selectedGrade,
-              dayOfWeek: DayOfWeek.THURSDAY,
-              studentId: student.id,
-              teacherId: selectedTeachers[DayOfWeek.THURSDAY] || undefined,
-            },
-            {
-              grade: selectedGrade,
-              dayOfWeek: DayOfWeek.FRIDAY,
-              studentId: student.id,
-              teacherId: selectedTeachers[DayOfWeek.FRIDAY] || undefined,
-            },
-          ];
 
       const updatedStudent: Student = student
         ? {
@@ -170,7 +80,7 @@ const EditStudentDialog: React.FC<DialogProps> = ({ onClose, student }) => {
           };
       const studentToSave: StudentWithLunchTimes = {
         ...updatedStudent,
-        lunchTimes: currentSchoolYear.id ? lunchTimes : undefined,
+        lunchTimes: currentSchoolYear.id ? studentLunchTimes : undefined,
       };
 
       const savedStudent = await updateStudent(studentToSave);
@@ -189,7 +99,7 @@ const EditStudentDialog: React.FC<DialogProps> = ({ onClose, student }) => {
           currentSchoolYear.studentLunchTimes
             .filter((lt) => lt.studentId !== savedStudent.id)
             .concat(
-              lunchTimes.map((lt) => ({ ...lt, studentId: savedStudent.id }))
+              studentLunchTimes.map((lt) => ({ ...lt, studentId: savedStudent.id }))
             );
 
         setCurrentSchoolYear(updatedSchoolYear);
@@ -264,12 +174,8 @@ const EditStudentDialog: React.FC<DialogProps> = ({ onClose, student }) => {
           </LocalizationProvider>
           {currentSchoolYear.id ? (
             <StudentLunchtimeEditor
-              schoolYear={currentSchoolYear}
-              selectedGrade={selectedGrade}
-              selectedTeachers={selectedTeachers}
-              teachers={teachers}
-              onGradeSelected={handleGradeSelected}
-              onTeacherChange={handleTeacherChange}
+              student={student}
+              onLunchtimesChanged={setStudentLunchTimes}
             />
           ) : (
             <></>

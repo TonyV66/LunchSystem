@@ -1,8 +1,7 @@
 import { Column, Entity, OneToMany, PrimaryGeneratedColumn } from "typeorm";
 import UserEntity from "./UserEntity";
 import NotificationEntity from "./NotificationEntity";
-import MenuEntity, { DailyMenuEntity, PantryItemEntity } from "./MenuEntity";
-import School from "../models/School";
+import MenuEntity, { PantryItemEntity } from "./MenuEntity";
 import SchoolYearEntity from "./SchoolYearEntity";
 import { DecimalTransformer } from "./DecimalTransformer";
 import StudentEntity from "./StudentEntity";
@@ -13,6 +12,10 @@ export default class SchoolEntity {
   id: number;
   @Column()
   name: string;
+  @Column()
+  registrationCode: string;
+  @Column({default: true})
+  openRegistration: boolean;
   @Column()
   orderStartPeriodCount: number;
   @Column()

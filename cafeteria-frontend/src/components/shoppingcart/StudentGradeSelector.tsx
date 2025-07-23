@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useContext, useState } from "react";
 import {
   FormControl,
   InputLabel,
@@ -7,16 +7,31 @@ import {
   Typography,
 } from "@mui/material";
 import { GradeLevel } from "../../models/GradeLevel";
+import Student from "../../models/Student";
+import { AppContext } from "../../AppContextProvider";
 
 interface StudentGradeSelectorProps {
-  selectedGrade: GradeLevel;
+  student?: Student;
   onGradeSelected: (grade: GradeLevel) => void;
 }
 
 const StudentGradeSelector: React.FC<StudentGradeSelectorProps> = ({
-  selectedGrade,
+  student,
   onGradeSelected,
 }) => {
+  const { currentSchoolYear } = useContext(AppContext);
+  const [selectedGrade, setSelectedGrade] = useState<GradeLevel>(
+    currentSchoolYear.id
+      ? currentSchoolYear.studentLunchTimes.find(
+          (slt) => slt.studentId === student?.id
+        )?.grade ?? GradeLevel.UNKNOWN
+      : GradeLevel.UNKNOWN
+  );
+  const handleGradeSelected = (grade: GradeLevel) => {
+    setSelectedGrade(grade);
+    onGradeSelected(grade);
+  };
+
   return (
     <FormControl variant="standard" id="student-grade-selector">
       <InputLabel id="student-grade-label">Grade</InputLabel>
@@ -26,7 +41,7 @@ const StudentGradeSelector: React.FC<StudentGradeSelectorProps> = ({
         variant="standard"
         value={selectedGrade}
         label="Grade"
-        onChange={(e) => onGradeSelected(e.target.value as GradeLevel)}
+        onChange={(e) => handleGradeSelected(e.target.value as GradeLevel)}
       >
         {selectedGrade === GradeLevel.UNKNOWN ? (
           <MuiMenuItem disabled={true} value={GradeLevel.UNKNOWN}>
@@ -54,4 +69,4 @@ const StudentGradeSelector: React.FC<StudentGradeSelectorProps> = ({
   );
 };
 
-export default StudentGradeSelector; 
+export default StudentGradeSelector;

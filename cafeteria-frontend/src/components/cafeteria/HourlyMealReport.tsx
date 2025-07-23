@@ -14,19 +14,39 @@ import { ExpandMore } from "@mui/icons-material";
 interface StudentMealReportProps {
   student: Student;
   date: string;
+  large?: boolean;
 }
 
 interface StaffMealReportProps {
   staffMember: User;
   date: string;
+  large?: boolean;
 }
 
 interface MealReportProps {
   meals: Meal[];
   title: string;
+  large?: boolean;
 }
 
-const getAssignedLunchtime = (
+const getTeacherLunchtime = (
+  teacher: User | undefined,
+  date: string,
+  schoolYear: SchoolYear
+) => {
+  if (teacher === undefined || teacher.role !== Role.TEACHER) {
+    return undefined;
+  }
+
+  const dayOfWeek = DateTimeUtils.toDate(date).getDay();
+
+  const teacherLunchTime = schoolYear.teacherLunchTimes.find(
+    (tlt) => tlt.teacherId === teacher.id && tlt.dayOfWeek === dayOfWeek
+  );
+  return teacherLunchTime?.times[0];
+};
+
+const getStudentLunchtime = (
   student: Student | undefined,
   date: string,
   schoolYear: SchoolYear,
@@ -74,7 +94,12 @@ const getMealsAtTime = (
       (meal: Meal) =>
         meal.date === date &&
         (meal.time === time ||
-          getAssignedLunchtime(
+          getTeacherLunchtime(
+            teachers.find((teacher) => teacher.id === meal.staffMemberId),
+            date,
+            schoolYear
+          ) === time ||
+          getStudentLunchtime(
             students.find((student) => student.id === meal.studentId),
             date,
             schoolYear,
@@ -100,20 +125,26 @@ const getMealsWithIrregularTimes = (
       (meal) =>
         meal.date === date &&
         !lunchTimes.includes(meal.time) &&
-        !lunchTimes.includes(
-          getAssignedLunchtime(
+        !lunchTimes.includes(meal.studentId ? 
+          getStudentLunchtime(
             students.find((student) => student.id === meal.studentId),
             date,
             schoolYear,
             teachers
+          ) ?? "" :
+          getTeacherLunchtime(
+            teachers.find((teacher) => teacher.id === meal.staffMemberId),
+            date,
+            schoolYear
           ) ?? ""
         )
     );
 };
 
-const HourlyMealReport: React.FC<{ date: string; time?: string }> = ({
+const HourlyMealReport: React.FC<{ date: string; time?: string, large?: boolean }> = ({
   date,
   time,
+  large,
 }) => {
   const { students, users, currentSchoolYear, orders } =
     React.useContext(AppContext);
@@ -164,8 +195,8 @@ const HourlyMealReport: React.FC<{ date: string; time?: string }> = ({
   }
 
   const summaryText = time
-    ? `Meals Served at ${DateTimeUtils.toTwelveHourTime(time)}`
-    : `Meals Served at Other Times`;
+    ? DateTimeUtils.toTwelveHourTime(time)
+    : `Other/Unknown Times`;
 
   return (
     <Accordion elevation={3}>
@@ -173,7 +204,7 @@ const HourlyMealReport: React.FC<{ date: string; time?: string }> = ({
         expandIcon={<ExpandMore />}
         aria-controls="panel1-content"
       >
-        <Typography fontWeight="bold">{summaryText}</Typography>
+        <Typography variant="h6" fontWeight="bold">{summaryText}</Typography>
       </AccordionSummary>
       <AccordionDetails>
         <Box
@@ -188,13 +219,14 @@ const HourlyMealReport: React.FC<{ date: string; time?: string }> = ({
         >
           {sortedStaff.map((staffMember) => (
             <StaffMealReport
+              large={large} 
               key={staffMember.id}
               staffMember={staffMember}
               date={date}
             />
           ))}
           {sortedStudents.map((student) => (
-            <StudentMealReport key={student.id} student={student} date={date} />
+            <StudentMealReport large={large} key={student.id} student={student} date={date} />
           ))}
         </Box>
       </AccordionDetails>
@@ -202,7 +234,7 @@ const HourlyMealReport: React.FC<{ date: string; time?: string }> = ({
   );
 };
 
-const MealReport: React.FC<MealReportProps> = ({ meals, title }) => {
+const MealReport: React.FC<MealReportProps> = ({ meals, title, large }) => {
   if (!meals.length) {
     return <></>;
   }
@@ -224,7 +256,7 @@ const MealReport: React.FC<MealReportProps> = ({ meals, title }) => {
           justifyContent: "center",
         }}
       >
-        <Typography variant="body2">{title}</Typography>
+        <Typography variant={large ? "h6" : "body2"}>{title}</Typography>
       </Box>
       {meals.map((meal) => (
         <Box
@@ -248,7 +280,7 @@ const MealReport: React.FC<MealReportProps> = ({ meals, title }) => {
               );
             })
             .map((item) => (
-              <MenuItemChip key={item.id} menuItem={item} />
+              <MenuItemChip textVariant={large ? "h6" : undefined} key={item.id} menuItem={item} />
             ))}
         </Box>
       ))}
@@ -259,6 +291,7 @@ const MealReport: React.FC<MealReportProps> = ({ meals, title }) => {
 const StaffMealReport: React.FC<StaffMealReportProps> = ({
   staffMember,
   date,
+  large,
 }) => {
   const { orders } = React.useContext(AppContext);
   const meals: Meal[] = orders
@@ -273,12 +306,13 @@ const StaffMealReport: React.FC<StaffMealReportProps> = ({
     staffMember.firstName && staffMember.lastName
       ? staffMember.firstName + " " + staffMember.lastName
       : staffMember.userName;
-  return <MealReport meals={meals} title={title} />;
+  return <MealReport large={large} meals={meals} title={title} />;
 };
 
 const StudentMealReport: React.FC<StudentMealReportProps> = ({
   student,
   date,
+  large,
 }) => {
   const { orders } = React.useContext(AppContext);
   const meals: Meal[] = orders
@@ -289,7 +323,7 @@ const StudentMealReport: React.FC<StudentMealReportProps> = ({
     return <></>;
   }
 
-  return <MealReport meals={meals} title={student.firstName + " " + student.lastName} />;
+  return <MealReport large={large} meals={meals} title={student.firstName + " " + student.lastName} />;
 };
 
 export default HourlyMealReport;

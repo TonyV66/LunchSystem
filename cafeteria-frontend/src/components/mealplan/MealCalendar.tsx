@@ -50,7 +50,6 @@ import CafeteriaDialog from "../cafeteria/CafeteriaDialog";
 import MealReportDialog from "../meals/MealReportDialog";
 import { AxiosError } from "axios";
 import OrderDatesDialog from "./OrderDatesDialog";
-import DonateMealDialog from "../shoppingcart/DonateMealDialog";
 
 interface MealPlanProps {
   menuOrDate: DailyMenu | string;
@@ -132,7 +131,6 @@ const AdminMealButtons: React.FC<AdminMealButtonProps> = ({
   const [editMenu, setEditMenu] = useState(false);
   const [showCafeteriaReport, setShowCafeteriaReport] = useState(false);
   const [showClassroomReport, setShowClassroomReport] = useState(false);
-  const [showDonateMeal, setShowDonateMeal] = useState(false);
   const [addToCart, setAddToCart] = useState(false);
   const [showOrderedMeals, setShowOrderedMeals] = useState(false);
   const [hasMealsInCart, setHasMealsInCart] = useState(
@@ -320,11 +318,6 @@ const AdminMealButtons: React.FC<AdminMealButtonProps> = ({
     }
   };
 
-  const handleShowDonateMeal = () => {
-    setPulldownMenuAnchor(null);
-    setShowDonateMeal(true);
-  };
-
   const handleMealAddedToCart = () => {
     setAddToCart(false);
     setHasMealsInCart(true);
@@ -414,17 +407,14 @@ const AdminMealButtons: React.FC<AdminMealButtonProps> = ({
           >
             Cafeteria Report
           </MenuItem>
-          <MenuItem disabled={today > dateStr} onClick={handleShowDonateMeal}>
-            Order Student Meal
+          <MenuItem disabled={today > dateStr} onClick={handleAddToCart}>
+            Order A Meal
           </MenuItem>
           <MenuItem disabled={today > dateStr} onClick={handleDeleteClicked}>
             Delete
           </MenuItem>
           <Divider />
           <ListSubheader>For My Family</ListSubheader>
-          <MenuItem disabled={today > dateStr} onClick={handleAddToCart}>
-            Order A Meal
-          </MenuItem>
           <MenuItem
             disabled={!hasOrderedMeals && !hasMealsInCart}
             onClick={handleShowOrderedMeals}
@@ -467,17 +457,8 @@ const AdminMealButtons: React.FC<AdminMealButtonProps> = ({
       ) : (
         <></>
       )}
-      {showDonateMeal && menu ? (
-        <DonateMealDialog
-          menu={menu}
-          onClose={() => setShowDonateMeal(false)}
-        />
-      ) : (
-        <></>
-      )}
       {addToCart ? (
         <OrderMealDialog
-          user={user}
           onClose={() => setAddToCart(false)}
           onAddedToCart={handleMealAddedToCart}
           date={menu!.date}
@@ -503,6 +484,11 @@ const TeacherMealButtons: React.FC<CafeteriaMealButtonProps> = ({
 }) => {
   const { orders, students, user, currentSchoolYear, shoppingCart } =
     useContext(AppContext);
+
+  const menu =
+    typeof menuOrDate === "string" ? undefined : (menuOrDate as DailyMenu);
+  const date = menu?.date ?? (menuOrDate as string);
+
   const [showReport, setShowReport] = useState(false);
   const [addToCart, setAddToCart] = useState(false);
   const [showOrderedMeals, setShowOrderedMeals] = useState(false);
@@ -536,10 +522,6 @@ const TeacherMealButtons: React.FC<CafeteriaMealButtonProps> = ({
     setPulldownMenuAnchor(null);
     setShowOrderedMeals(true);
   };
-
-  const menu =
-    typeof menuOrDate === "string" ? undefined : (menuOrDate as DailyMenu);
-  const date = menu?.date ?? (menuOrDate as string);
 
   const dayOfWeek = DateTimeUtils.toDate(date).getDay();
   const today = DateTimeUtils.toString(new Date());
@@ -659,7 +641,6 @@ const TeacherMealButtons: React.FC<CafeteriaMealButtonProps> = ({
       )}
       {addToCart ? (
         <OrderMealDialog
-          user={user}
           onClose={() => setAddToCart(false)}
           onAddedToCart={handleMealAddedToCart}
           date={date}
@@ -732,8 +713,7 @@ const CafeteriaMealButtons: React.FC<CafeteriaMealButtonProps> = ({
 };
 
 const ParentMealButtons: React.FC<ParentMealButtonProps> = ({ menuOrDate }) => {
-  const { orders, shoppingCart, user } =
-    useContext(AppContext);
+  const { orders, shoppingCart, user } = useContext(AppContext);
 
   const menu =
     typeof menuOrDate === "string" ? undefined : (menuOrDate as DailyMenu);
@@ -795,7 +775,10 @@ const ParentMealButtons: React.FC<ParentMealButtonProps> = ({ menuOrDate }) => {
             ? "warning"
             : "primary"
         }
-        disabled={today > date || !currentlyAcceptingOrders && !willAcceptOrderInFuture}
+        disabled={
+          today > date ||
+          (!currentlyAcceptingOrders && !willAcceptOrderInFuture)
+        }
         onClick={
           currentlyAcceptingOrders
             ? () => setAddToCart(true)
@@ -816,7 +799,6 @@ const ParentMealButtons: React.FC<ParentMealButtonProps> = ({ menuOrDate }) => {
       )}
       {addToCart ? (
         <OrderMealDialog
-          user={user}
           onClose={() => setAddToCart(false)}
           onAddedToCart={handleMealAddedToCart}
           date={date}
@@ -869,6 +851,7 @@ const MealPlan: React.FC<MealPlanProps> = ({ menuOrDate, clipboardMenu }) => {
       );
       break;
     case Role.PARENT:
+    case Role.STAFF:
       buttonBar = (
         <ParentMealButtons
           menuOrDate={menu && isDateInCurrentSchoolYear ? menu : date}
@@ -983,10 +966,8 @@ const MonthlyMealPlan: React.FC<MonthlyMealPlanProps> = ({
     nextSchoolDay >= firstWeekdayOfMonth &&
     nextSchoolDay <= lastWeekdayOfMonth
   ) {
-    dates.splice(
-      0,
-      dates.findIndex((date) => date > nextSchoolDay)
-    );
+    const index = dates.findIndex((date) => date > nextSchoolDay);
+    dates.splice(0, index === -1 ? dates.length : index);
     dates.unshift(new Date(nextSchoolDay));
   }
 
@@ -1103,7 +1084,7 @@ interface MealCalendarProps {
 const MealCalendar: React.FC<MealCalendarProps> = ({ clipboardMenu }) => {
   const { currentSchoolYear } = useContext(AppContext);
 
-  const firstDayOfSchoolYear = new Date(currentSchoolYear.startDate);
+  const firstDayOfSchoolYear = new Date(currentSchoolYear.startDate + "T23:59:59");
   while (
     firstDayOfSchoolYear.getDay() === 0 ||
     firstDayOfSchoolYear.getDay() === 6
@@ -1112,7 +1093,7 @@ const MealCalendar: React.FC<MealCalendarProps> = ({ clipboardMenu }) => {
   }
   firstDayOfSchoolYear.setHours(0, 0, 0, 0);
 
-  const lastDayOfSchoolYear = new Date(currentSchoolYear.endDate);
+  const lastDayOfSchoolYear = new Date(currentSchoolYear.endDate + "T23:59:59");
   while (
     lastDayOfSchoolYear.getDay() === 0 ||
     lastDayOfSchoolYear.getDay() === 6
@@ -1122,6 +1103,7 @@ const MealCalendar: React.FC<MealCalendarProps> = ({ clipboardMenu }) => {
   lastDayOfSchoolYear.setHours(23, 59, 59, 999); // Set to end of day
 
   const nextSchoolDay = new Date();
+
   while (nextSchoolDay.getDay() === 0 || nextSchoolDay.getDay() === 6) {
     nextSchoolDay.setDate(nextSchoolDay.getDate() + 1);
   }

@@ -7,10 +7,12 @@ import SchoolYearEntity from "./SchoolYearEntity";
 export default class TeacherLunchTimeEntity {
   @PrimaryGeneratedColumn()
   id: number;
-  @Column({ type: "enum", enum: DayOfWeek })
+  @Column()
   dayOfWeek: number;
   @Column()
   time: string;
+  @Column({ default: "" })
+  grades: string;
 
   @ManyToOne(
     () => SchoolYearEntity,

@@ -16,6 +16,7 @@ export default class SchoolYear {
   gradeLunchTimes: GradeLunchTime[];
   studentLunchTimes: StudentLunchTime[];
   gradesAssignedByClass: GradeLevel[];
+  oneTeacherPerStudent: boolean;
 
   constructor(entity: SchoolYearEntity) {
     this.id = entity.id;
@@ -37,5 +38,6 @@ export default class SchoolYear {
     this.gradesAssignedByClass = entity.gradesAssignedByClass
       ? (entity.gradesAssignedByClass.split("|") as GradeLevel[])
       : [];
+    this.oneTeacherPerStudent = entity.oneTeacherPerStudent;
   }
 }

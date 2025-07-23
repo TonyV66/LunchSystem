@@ -26,6 +26,8 @@ export default class UserEntity {
   @Index()
   @Column()
   userName: string;
+  @Column({default: true})
+  pending: boolean;
   @Column()
   pwd: string;
   @Column()
@@ -34,11 +36,13 @@ export default class UserEntity {
   firstName: string;
   @Column({ default: "" })
   lastName: string;
-  @Column({ nullable: true, unique: true })
+  @Column({ nullable: true })
   email: string;
+  @Column({ default: "" })
+  phone: string;
   @Column({default: ''})
   description: string;
-  @Column({ type: "enum", enum: Role })
+  @Column({ nullable: false, default: Role.PARENT })
   role: Role;
   @Column({ nullable: true })
   paymentSysUserId: string;
@@ -50,6 +54,12 @@ export default class UserEntity {
   forgotPwdUri: string | null;
   @Column({ nullable: true })
   forgotPwdDate: Date;
+  @Column({ type: "timestamp", default: () => "CURRENT_TIMESTAMP" })
+  @Index()
+  creationDate: Date;
+  @Column({ type: "timestamp", nullable: true })
+  @Index()
+  lastLoginDate: Date;
   @OneToMany(() => MealEntity, (meal) => meal.staffMember)
   meals: MealEntity[];
   @OneToMany(() => OrderEntity, (order) => order.user)

@@ -92,8 +92,8 @@ const SchoolYearTabsPanel: React.FC = () => {
       >
         <Tabs value={getSelectedTab()} onChange={handleTabChange}>
           <Tab label="General" />
-          <Tab label="Grade Level Schedules" />
-          <Tab label="Classroom Schedules" />
+          <Tab label="Grade Level Lunchtimes" />
+          <Tab label="Teacher Lunchtimes" />
         </Tabs>
         <Stack direction="column">
           <Typography variant="body2" fontWeight="bold">

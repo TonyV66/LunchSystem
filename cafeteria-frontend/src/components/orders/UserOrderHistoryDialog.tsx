@@ -31,7 +31,7 @@ export const UserOrderHistoryDialog: React.FC<{
   onClose: () => void;
 }> = ({ user, onClose }) => {
   const [orderDetailsId, setOrderDetailsId] = useState<number>();
-  const { orders, users, students } = useContext(AppContext);
+  const { orders } = useContext(AppContext);
 
   return (
     <Dialog
@@ -58,7 +58,7 @@ export const UserOrderHistoryDialog: React.FC<{
         </Toolbar>
       </AppBar>
       <Box flexGrow={1} p={2}>
-        <OrderHistoryTable hidden={orderDetailsId ? true : false} purchaser={user} onShowOrder={setOrderDetailsId} />
+        <OrderHistoryTable hidden={orderDetailsId ? true : false} user={user} onShowOrder={setOrderDetailsId} />
         {orderDetailsId ? (
           <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
             <Box>
@@ -72,9 +72,7 @@ export const UserOrderHistoryDialog: React.FC<{
               </Link>
             </Box>
             <OrderedMealsTable
-              orders={[orders.find((order) => order.id === orderDetailsId)!]}
-              students={students}
-              staffMembers={users}
+              order={orders.find((order) => order.id === orderDetailsId)}
               hideDate={false}
               hidePrice={false}
             ></OrderedMealsTable>

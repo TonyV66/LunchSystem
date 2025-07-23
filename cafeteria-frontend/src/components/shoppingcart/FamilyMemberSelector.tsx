@@ -7,24 +7,21 @@ import {
   SelectChangeEvent,
   Typography,
 } from "@mui/material";
+import { AppContext } from "../../AppContextProvider";
 import { Role } from "../../models/User";
-import Student from "../../models/Student";
 
 interface OrderForSelectorProps {
   selectedPersonId: number;
-  userRole: Role;
-  students: Student[];
   onPersonSelected: (personId: number) => void;
 }
 
 const MY_ID = -1;
 
-const OrderForSelector: React.FC<OrderForSelectorProps> = ({
+const FamilyMemberSelector: React.FC<OrderForSelectorProps> = ({
   selectedPersonId,
-  userRole,
-  students,
   onPersonSelected,
 }) => {
+  const {user, students} = React.useContext(AppContext);
   return (
     <FormControl id="order-for-selector" variant="standard" sx={{ minWidth: "150px" }}>
       <InputLabel id="order-for-label">Meal For</InputLabel>
@@ -39,15 +36,15 @@ const OrderForSelector: React.FC<OrderForSelectorProps> = ({
       >
         {!selectedPersonId && (
           <MuiMenuItem disabled={true} key={0} value={"0"}>
-            <Typography color="textDisabled">Select a {userRole === Role.PARENT ? "student" : "person"}</Typography>
+            <Typography color="textDisabled">Select a {user.role === Role.PARENT ? "student" : "person"}</Typography>
           </MuiMenuItem>
         )}
-        {userRole !== Role.PARENT && (
+        {user.role !== Role.PARENT && (
           <MuiMenuItem color="primary" value={MY_ID.toString()}>
             <Typography color="primary">Me</Typography>
           </MuiMenuItem>
         )}
-        {students.map((student) => (
+        {students.filter(student => student.parents.includes(user.id)).map((student) => (
           <MuiMenuItem key={student.id} value={student.id.toString()}>
             {student.firstName + " " + student.lastName}
           </MuiMenuItem>
@@ -60,4 +57,4 @@ const OrderForSelector: React.FC<OrderForSelectorProps> = ({
   );
 };
 
-export default OrderForSelector; 
+export default FamilyMemberSelector; 

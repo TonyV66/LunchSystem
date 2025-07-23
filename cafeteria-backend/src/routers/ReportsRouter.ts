@@ -1,9 +1,8 @@
 import express from "express";
-import puppeteer from "puppeteer";
+import { chromium } from "playwright";
 import { AppDataSource } from "../data-source";
 import StudentLunchTimeEntity from "../entity/StudentLunchTimeEntity";
-import { getCurrentSchoolYear } from "./RouterUtils";
-import { In, Not } from "typeorm";
+import {  Not } from "typeorm";
 import MealEntity from "../entity/MealEntity";
 import TeacherLunchTimeEntity from "../entity/TeacherLunchTimeEntity";
 import { GradeLevel } from "../models/GradeLevel";
@@ -12,6 +11,7 @@ import StudentEntity from "../entity/StudentEntity";
 import UserEntity from "../entity/UserEntity";
 import { Role } from "../models/User";
 import GradeLunchTimeEntity from "../entity/GradeLunchTimeEntity";
+import { DateTimeFormat, DateTimeUtils } from "../DateTimeUtils";
 
 const router = express.Router();
 
@@ -35,34 +35,14 @@ interface ReportData {
 function getDefaultPageStyle() {
   return `
     <style>
-      body { font-family: Arial, sans-serif; padding: 20px; }
-      table { width: 100%; border-collapse: collapse; margin-bottom: 40px; }
-      th, td { border: 1px solid #333; padding: 8px; text-align: left; }
-      h2 { margin-top: 0; }
+      body { font-family: Arial, sans-serif; padding: 20px; font-size: 14px; }
+      table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+      p { margin: 0; }
+      th, td { border: 1px solid #333; padding: 8px; text-align: left; font-size: 14px; }
+      .page-break { page-break-before: always; }
       .header { 
-        margin-bottom: 20px;
-        padding-bottom: 10px;
-        border-bottom: 2px solid #333;
-      }
-      .subtitle {
-        color: #666;
-        font-size: 14px;
-      }
-      .meal-items {
-        color: #666;
-      }
-      .student-name {
         font-weight: bold;
-      }
-      .summary {
-        margin-top: 20px;
-        padding: 10px;
-        background-color: #f5f5f5;
-        border-radius: 4px;
-      }
-      .summary-item {
-        margin: 5px 0;
-        color: #444;
+        font-size: 1.2em;
       }
     </style>
   `;
@@ -72,8 +52,8 @@ function generateStudentMealsTable(reportData: ReportData, pageBreak: boolean) {
   return `
     <div class="${pageBreak ? "page-break" : ""}">
       <div class="header">
-        <h2>${reportData.title}</h2>
-        <div class="subtitle">${reportData.date} @ ${reportData.time}</div>
+        <p>${reportData.title}<p>
+        <p>${DateTimeUtils.toString(reportData.date, DateTimeFormat.SHORT_DAY_OF_WEEK_DESC)} @ ${reportData.time}</p>
       </div>
       <table>
         <thead>
@@ -84,14 +64,14 @@ function generateStudentMealsTable(reportData: ReportData, pageBreak: boolean) {
         </thead>
         <tbody>
           ${reportData.customers
-            .flatMap((student) =>
-              student.meals.map(
+            .flatMap((customer) =>
+              customer.meals.map(
                 (meal, mealIndex) => `
               <tr>
                 <td class="student-name">${
-                  mealIndex === 0 ? student.name : ""
+                  mealIndex === 0 ? customer.name : ""
                 }</td>
-                <td class="meal-items">${meal.items.join(", ")}</td>
+                <td>${meal.items.join(", ")}</td>
               </tr>
             `
               )
@@ -158,7 +138,7 @@ router.get("/unassigned/:date", async (req, res) => {
     }
 
     // Get current school year
-    const currentSchoolYear = await getCurrentSchoolYear(req.user.school);
+    const currentSchoolYear = await getDebugSchoolYear();
     if (!currentSchoolYear) {
       const html = generateNoMealsPage();
       await generateAndSendPDF(html, res);
@@ -236,7 +216,7 @@ router.get("/staff/:date", async (req, res) => {
     }
 
     // Get current school year
-    const currentSchoolYear = await getCurrentSchoolYear(req.user.school);
+    const currentSchoolYear = await getDebugSchoolYear();
     if (!currentSchoolYear) {
       const html = generateNoMealsPage();
       await generateAndSendPDF(html, res);
@@ -278,7 +258,7 @@ router.get("/cohorts/:date", async (req, res) => {
     }
 
     // Get current school year
-    const currentSchoolYear = await getCurrentSchoolYear(req.user.school);
+    const currentSchoolYear = await getDebugSchoolYear();
     if (!currentSchoolYear) {
       const html = generateNoMealsPage();
       await generateAndSendPDF(html, res);
@@ -422,7 +402,7 @@ const getMealsBeingServed = async (
     },
     relations: {
       student: {
-        lunchTimes: true,
+        lunchTimes: {lunchtimeTeacher: true},
       },
       staffMember: true,
       items: true,
@@ -435,7 +415,7 @@ const getClassroomTeachers = async (
   schoolYear: SchoolYearEntity,
   date: string
 ): Promise<UserEntity[]> => {
-  const dayOfWeek = new Date(date).getDay();
+  const dayOfWeek = DateTimeUtils.toDate(date).getDay();
   const userRepository = AppDataSource.getRepository(UserEntity);
 
   // Find all teachers who have students assigned to them for lunchtime on this day
@@ -462,7 +442,7 @@ const getStudentGradeLevelMap = (
   gradeLevels: GradeLevel[],
   students: StudentEntity[]
 ): Map<GradeLevel, StudentEntity[]> => {
-  const dayOfWeek = new Date(date).getDay();
+  const dayOfWeek = DateTimeUtils.toDate(date).getDay();
   const gradeLevelSet = new Set(gradeLevels);
   
   // Create a map to group students by grade level
@@ -499,7 +479,7 @@ const getClassroomMap = (
   teachers: UserEntity[],
   students: StudentEntity[]
 ): Map<number, StudentEntity[]> => {
-  const dayOfWeek = new Date(date).getDay();
+  const dayOfWeek = DateTimeUtils.toDate(date).getDay();
   const teacherIds = new Set(teachers.map(teacher => teacher.id));
   
   // Create a map to group students by teacher
@@ -552,7 +532,7 @@ const getTeacherLunchTimes = async (
   schoolYear: SchoolYearEntity,
   date: string
 ): Promise<TeacherLunchTimeEntity[]> => {
-  const dayOfWeek = new Date(date).getDay();
+  const dayOfWeek = DateTimeUtils.toDate(date).getDay();
   const teacherLunchTimeRepository = AppDataSource.getRepository(TeacherLunchTimeEntity);
   return await teacherLunchTimeRepository.find({
     where: {
@@ -569,7 +549,7 @@ const getGradeLevelLunchTimes = async (
   schoolYear: SchoolYearEntity,
   date: string
 ): Promise<GradeLunchTimeEntity[]> => {
-  const dayOfWeek = new Date(date).getDay();
+  const dayOfWeek = DateTimeUtils.toDate(date).getDay();
   const gradeLunchTimeRepository = AppDataSource.getRepository(GradeLunchTimeEntity);
   
   return await gradeLunchTimeRepository.find({
@@ -590,7 +570,7 @@ const buildClassroomReportData = (
   date: string,
   teacherLunchTimes: TeacherLunchTimeEntity[]
 ): ReportData[] => {
-  const dayOfWeek = new Date(date).getDay();
+  const dayOfWeek = DateTimeUtils.toDate(date).getDay();
   const reportDataArray: ReportData[] = [];
 
   for (const [teacherId, students] of classroomMap) {
@@ -621,7 +601,7 @@ const buildClassroomReportData = (
     // Create classroom data
     const reportData: ReportData = {
       isClassroom: true,
-      title: `${teacher.firstName} ${teacher.lastName}'s Classroom`.trim(),
+      title: teacher.name.length > 0 ? teacher.name : teacher.firstName + " " + teacher.lastName,
       time: teacherLunchTime?.time
         ? teacherLunchTime.time.split("|")[0]
         : "Not assigned",
@@ -651,7 +631,7 @@ const buildClassroomReportData = (
 
       if (studentMealsForStudent.length > 0) {
         reportData.customers.push({
-          name: student.name,
+          name: student.firstName + " " + student.lastName,
           meals: studentMealsForStudent,
         });
       }
@@ -680,7 +660,7 @@ router.get("/classroom/:teacherId/:date", async (req, res) => {
     }
 
     // Get current school year
-    const currentSchoolYear = await getCurrentSchoolYear(req.user.school);
+    const currentSchoolYear = await getDebugSchoolYear();
     if (!currentSchoolYear) {
       const html = generateNoMealsPage();
       await generateAndSendPDF(html, res);
@@ -712,7 +692,7 @@ router.get("/classroom/:teacherId/:date", async (req, res) => {
     });
 
     // Get students for this teacher
-    const dayOfWeek = new Date(date).getDay();
+    const dayOfWeek = DateTimeUtils.toDate(date).getDay();
     const students = await getClassroomStudents(currentSchoolYear, teacherId, dayOfWeek);
     
     // Create classroom map
@@ -752,7 +732,7 @@ const getGradeLevelReportData = async (
   const reportDataArray: ReportData[] = [];
 
   for (const gradeLevel of gradeLevels) {
-    const dayOfWeek = new Date(date).getDay();
+    const dayOfWeek = DateTimeUtils.toDate(date).getDay();
 
     const students = await getGradeLevelStudents(
       schoolYear,
@@ -795,7 +775,7 @@ const getGradeLevelReportData = async (
         }));
 
       reportData.customers.push({
-        name: student.name,
+        name: student.firstName + " " + student.lastName,
         meals: studentMeals,
       });
     }
@@ -822,7 +802,7 @@ router.get("/grade/:gradeLevel/:date", async (req, res) => {
     }
 
     // Get current school year
-    const currentSchoolYear = await getCurrentSchoolYear(req.user.school);
+    const currentSchoolYear = await getDebugSchoolYear();
     if (!currentSchoolYear) {
       const html = generateNoMealsPage();
       await generateAndSendPDF(html, res);
@@ -859,7 +839,7 @@ const buildGradeLevelReportData = (
   date: string,
   gradeLevelLunchTimes: GradeLunchTimeEntity[]
 ): ReportData[] => {
-  const dayOfWeek = new Date(date).getDay();
+  const dayOfWeek = DateTimeUtils.toDate(date).getDay();
   const reportDataArray: ReportData[] = [];
 
   for (const [gradeLevel, students] of gradeLevelMap) {
@@ -899,7 +879,7 @@ const buildGradeLevelReportData = (
 
       if (studentMealsForStudent.length > 0) {
         reportData.customers.push({
-          name: student.name,
+          name: student.firstName + " " + student.lastName,
           meals: studentMealsForStudent,
         });
       }
@@ -946,7 +926,7 @@ const buildOtherStudentsReportData = (
 
     if (studentMealsForStudent.length > 0) {
       reportData.customers.push({
-        name: student.name,
+        name: student.firstName + " " + student.lastName,
         meals: studentMealsForStudent,
       });
     }
@@ -1001,26 +981,23 @@ const buildStaffReportData = (
 };
 
 async function generateAndSendPDF(html: string, res: express.Response) {
-  // Launch Puppeteer with more flexible options
-  const browser = await puppeteer.launch({
-    executablePath:
-      "/Users/angelo/.cache/puppeteer/chrome/mac-136.0.7103.94/chrome-mac-x64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing",
+  // Launch Playwright browser
+  const browser = await chromium.launch({
     headless: true,
-    args: ["--no-sandbox", "--disable-setuid-sandbox"],
   });
 
   const page = await browser.newPage();
 
   // Set viewport size
-  await page.setViewport({ width: 1200, height: 800 });
+  await page.setViewportSize({ width: 1200, height: 800 });
 
   await page.setContent(html, {
-    waitUntil: ["networkidle0", "domcontentloaded"],
+    waitUntil: "networkidle",
     timeout: 30000,
   });
 
   // Wait a bit to ensure everything is rendered
-  await new Promise((resolve) => setTimeout(resolve, 1000));
+  await page.waitForTimeout(1000);
 
   const pdfBuffer = await page.pdf({
     format: "A4",
@@ -1054,5 +1031,15 @@ async function generateAndSendPDF(html: string, res: express.Response) {
   res.write(pdfBuffer);
   res.end();
 }
+
+const getDebugSchoolYear = async () => {
+  const schoolYearRepository = AppDataSource.getRepository(SchoolYearEntity);
+
+  let schoolYear = await schoolYearRepository.findOne({
+    where: { id: 1 },
+  });
+
+  return schoolYear;
+};
 
 export default router;

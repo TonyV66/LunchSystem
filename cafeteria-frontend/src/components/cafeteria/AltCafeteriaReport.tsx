@@ -25,12 +25,14 @@ interface TimeRowProps {
   menuItems: PantryItem[];
   teachers: User[];
   date: string;
+  large?: boolean;
 }
 
 interface TotalRowProps {
   menuItems: PantryItem[];
   teachers: User[];
   date: string;
+  large?: boolean;
 }
 
 interface AltCafeteriaReportProps {
@@ -77,7 +79,7 @@ const getMenuItems = (
   return orderedItems;
 };
 
-const getAssignedLunchtime = (
+const getStudentLunchtime = (
   student: Student | undefined,
   date: string,
   schoolYear: SchoolYear,
@@ -111,6 +113,23 @@ const getAssignedLunchtime = (
   return gradeLunchTime?.times[0];
 };
 
+const getTeacherLunchtime = (
+  teacher: User | undefined,
+  date: string,
+  schoolYear: SchoolYear
+) => {
+  if (teacher === undefined || teacher.role !== Role.TEACHER) {
+    return undefined;
+  }
+
+  const dayOfWeek = DateTimeUtils.toDate(date).getDay();
+
+  const teacherLunchTime = schoolYear.teacherLunchTimes.find(
+    (tlt) => tlt.teacherId === teacher.id && tlt.dayOfWeek === dayOfWeek
+  );
+  return teacherLunchTime?.times[0];
+};
+
 const getMealsAtTime = (
   orders: Order[],
   teachers: User[],
@@ -125,7 +144,12 @@ const getMealsAtTime = (
       (meal: Meal) =>
         meal.date === date &&
         (meal.time === time ||
-          getAssignedLunchtime(
+          getTeacherLunchtime(
+            teachers.find((teacher) => teacher.id === meal.staffMemberId),
+            date,
+            schoolYear
+          ) === time ||
+          getStudentLunchtime(
             students.find((student) => student.id === meal.studentId),
             date,
             schoolYear,
@@ -183,6 +207,7 @@ const TimeRow: React.FC<TimeRowProps> = ({
   menuItems,
   teachers,
   date,
+  large,
 }) => {
   const { currentSchoolYear, orders, students } = React.useContext(AppContext);
 
@@ -202,7 +227,7 @@ const TimeRow: React.FC<TimeRowProps> = ({
   return (
     <>
       <TableCell>
-        <Typography variant="body1" fontWeight="bold">
+        <Typography variant="h6">
           {DateTimeUtils.toTwelveHourTime(time)}
         </Typography>
       </TableCell>
@@ -218,7 +243,7 @@ const TimeRow: React.FC<TimeRowProps> = ({
             >
               <MenuItemChip
                 menuItem={item}
-                textVariant="body2"
+                textVariant={large ? "h6" : "body2"}
                 qty={quantity}
               />
             </Box>
@@ -229,7 +254,7 @@ const TimeRow: React.FC<TimeRowProps> = ({
   );
 };
 
-const TotalRow: React.FC<TotalRowProps> = ({ menuItems, date }) => {
+const TotalRow: React.FC<TotalRowProps> = ({ menuItems, date, large }) => {
   const { orders } = React.useContext(AppContext);
 
   const itemsWithQuantities = menuItems.map((item) => ({
@@ -248,9 +273,7 @@ const TotalRow: React.FC<TotalRowProps> = ({ menuItems, date }) => {
   return (
     <>
       <TableCell>
-        <Typography variant="body1" fontWeight="bold">
-          Total
-        </Typography>
+        <Typography variant="h6">Total</Typography>
       </TableCell>
       <TableCell>
         <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
@@ -264,7 +287,7 @@ const TotalRow: React.FC<TotalRowProps> = ({ menuItems, date }) => {
             >
               <MenuItemChip
                 menuItem={item}
-                textVariant="body2"
+                textVariant={large ? "h6" : "body2"}
                 qty={quantity}
               />
             </Box>
@@ -292,12 +315,17 @@ const getMealsWithIrregularTimes = (
       (meal) =>
         meal.date === date &&
         !lunchTimes.includes(meal.time) &&
-        !lunchTimes.includes(
-          getAssignedLunchtime(
+        !lunchTimes.includes(meal.studentId ? 
+          getStudentLunchtime(
             students.find((student) => student.id === meal.studentId),
             date,
             schoolYear,
             teachers
+          ) ?? "" :
+          getTeacherLunchtime(
+            teachers.find((teacher) => teacher.id === meal.staffMemberId),
+            date,
+            schoolYear
           ) ?? ""
         )
     );
@@ -307,9 +335,15 @@ interface OtherRowProps {
   menuItems: PantryItem[];
   teachers: User[];
   date: string;
+  large?: boolean;
 }
 
-const OtherRow: React.FC<OtherRowProps> = ({ menuItems, teachers, date }) => {
+const OtherRow: React.FC<OtherRowProps> = ({
+  menuItems,
+  teachers,
+  date,
+  large,
+}) => {
   const { students, currentSchoolYear, orders } = React.useContext(AppContext);
 
   const itemsWithQuantities = menuItems.map((item) => ({
@@ -332,9 +366,7 @@ const OtherRow: React.FC<OtherRowProps> = ({ menuItems, teachers, date }) => {
   return (
     <>
       <TableCell>
-        <Typography variant="body1" fontWeight="bold">
-          Other Times
-        </Typography>
+        <Typography variant="h6">Other/Unknown Times</Typography>
       </TableCell>
       <TableCell>
         <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
@@ -348,7 +380,7 @@ const OtherRow: React.FC<OtherRowProps> = ({ menuItems, teachers, date }) => {
             >
               <MenuItemChip
                 menuItem={item}
-                textVariant="body2"
+                textVariant={large ? "h6" : "body2"}
                 qty={quantity}
               />
             </Box>
@@ -364,6 +396,7 @@ interface DailyOrderedItemsAccordionProps {
   menuItems: PantryItem[];
   teachers: User[];
   mealTimes: string[];
+  large?: boolean;
 }
 
 const DailyOrderedItemsAccordion: React.FC<DailyOrderedItemsAccordionProps> = ({
@@ -371,6 +404,7 @@ const DailyOrderedItemsAccordion: React.FC<DailyOrderedItemsAccordionProps> = ({
   menuItems,
   teachers,
   mealTimes,
+  large,
 }) => {
   return (
     <Accordion elevation={3} defaultExpanded>
@@ -378,7 +412,9 @@ const DailyOrderedItemsAccordion: React.FC<DailyOrderedItemsAccordionProps> = ({
         expandIcon={<ExpandMore />}
         aria-controls="panel1-content"
       >
-        <Typography fontWeight="bold">Ordered Items</Typography>
+        <Typography variant="h6" fontWeight="bold">
+          Ordered Items
+        </Typography>
       </AccordionSummary>
       <AccordionDetails>
         <Box
@@ -398,17 +434,18 @@ const DailyOrderedItemsAccordion: React.FC<DailyOrderedItemsAccordionProps> = ({
             }}
           >
             <TableCell>
-              <Typography fontWeight="bold" variant="body1">
+              <Typography fontWeight="bold" variant="h6">
                 Time
               </Typography>
             </TableCell>
             <TableCell>
-              <Typography fontWeight="bold" variant="body1">
+              <Typography fontWeight="bold" variant="h6">
                 Items
               </Typography>
             </TableCell>
             {mealTimes.map((time) => (
               <TimeRow
+                large={large}
                 key={time}
                 time={time}
                 menuItems={menuItems}
@@ -416,8 +453,18 @@ const DailyOrderedItemsAccordion: React.FC<DailyOrderedItemsAccordionProps> = ({
                 date={date}
               />
             ))}
-            <OtherRow menuItems={menuItems} teachers={teachers} date={date} />
-            <TotalRow menuItems={menuItems} teachers={teachers} date={date} />
+            <OtherRow
+              large={large}
+              menuItems={menuItems}
+              teachers={teachers}
+              date={date}
+            />
+            <TotalRow
+              large={large}
+              menuItems={menuItems}
+              teachers={teachers}
+              date={date}
+            />
           </Box>
         </Box>
       </AccordionDetails>
@@ -450,13 +497,14 @@ const AltCafeteriaReport: React.FC<AltCafeteriaReportProps> = ({ date }) => {
         menuItems={menuItems}
         teachers={teachers}
         mealTimes={mealTimes}
+        large={true}
       />
 
       {/* Hourly meal reports */}
       {mealTimes.map((time) => (
-        <HourlyMealReport key={time} date={date} time={time} />
+        <HourlyMealReport large={true} key={time} date={date} time={time} />
       ))}
-      <HourlyMealReport date={date} />
+      <HourlyMealReport large={true} date={date} />
     </Box>
   );
 };

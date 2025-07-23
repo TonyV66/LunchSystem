@@ -140,7 +140,12 @@ const DailyOrdersForPerson: React.FC<StudentDailyOrdersProps> = ({
 
   const meals = orders
     .flatMap((order) => order.meals)
-    .filter((meal) => meal.date === date && ((student && meal.studentId === student.id) || (staffMember && meal.staffMemberId === staffMember.id)));
+    .filter(
+      (meal) =>
+        meal.date === date &&
+        ((student && meal.studentId === student.id) ||
+          (staffMember && meal.staffMemberId === staffMember.id))
+    );
 
   let title = student ? student.firstName + " " + student.lastName : "Unknown";
   if (staffMember) {
@@ -208,23 +213,41 @@ const DailyOrders: React.FC<DailyOrdersProps> = ({
   students,
   staffMembers,
 }) => {
-
-  const studentIds = new Set<number>(students.map(student => student.id));
-  const staffMemberIds = new Set<number>(staffMembers.map(user => user.id));
+  const studentIds = new Set<number>(students.map((student) => student.id));
+  const staffMemberIds = new Set<number>(staffMembers.map((user) => user.id));
 
   const meals = orders
     .flatMap((order) => order.meals)
-    .filter(meal => meal.date === date && ((meal.studentId && studentIds.has(meal.studentId)) || (meal.staffMemberId && staffMemberIds.has(meal.staffMemberId))));
+    .filter(
+      (meal) =>
+        meal.date === date &&
+        ((meal.studentId && studentIds.has(meal.studentId)) ||
+          (meal.staffMemberId && staffMemberIds.has(meal.staffMemberId)))
+    );
 
-  const studentsWithMeals = students.filter(student => meals.some(meal => meal.studentId === student.id));
-  const staffMembersWithMeals = staffMembers.filter(user => meals.some(meal => meal.staffMemberId === user.id));
+  const studentsWithMeals = students.filter((student) =>
+    meals.some((meal) => meal.studentId === student.id)
+  );
+  const staffMembersWithMeals = staffMembers.filter((user) =>
+    meals.some((meal) => meal.staffMemberId === user.id)
+  );
 
   const uniquePersons: Person[] = [
-    ...Array.from(studentsWithMeals).map(student => ({ student, staffMember: undefined })),
-    ...Array.from(staffMembersWithMeals).map(staffMember => ({ student: undefined, staffMember }))
+    ...Array.from(studentsWithMeals).map((student) => ({
+      student,
+      staffMember: undefined,
+    })),
+    ...Array.from(staffMembersWithMeals).map((staffMember) => ({
+      student: undefined,
+      staffMember,
+    })),
   ].sort((a, b) => {
-    const nameA = a.student ? (a.student.firstName + " " + a.student.lastName) : (a.staffMember?.firstName + " " + a.staffMember?.lastName);
-    const nameB = b.student ? (b.student.firstName + " " + b.student.lastName) : (b.staffMember?.firstName + " " + b.staffMember?.lastName);
+    const nameA = a.student
+      ? a.student.firstName + " " + a.student.lastName
+      : a.staffMember?.firstName + " " + a.staffMember?.lastName;
+    const nameB = b.student
+      ? b.student.firstName + " " + b.student.lastName
+      : b.staffMember?.firstName + " " + b.staffMember?.lastName;
     return nameA.toLowerCase().localeCompare(nameB.toLowerCase());
   });
 
@@ -263,7 +286,11 @@ const DailyOrders: React.FC<DailyOrdersProps> = ({
 
       {uniquePersons.map((person) => (
         <DailyOrdersForPerson
-          key={person.student ? "s" + person.student.id : "m" + person.staffMember!.id}
+          key={
+            person.student
+              ? "s" + person.student.id
+              : "m" + person.staffMember!.id
+          }
           orders={orders}
           date={date}
           student={person.student}
@@ -278,20 +305,22 @@ const DailyOrders: React.FC<DailyOrdersProps> = ({
 };
 
 interface OrdersTableProps {
-  orders: Order[];
+  order?: Order;
+  user?: User;
+  student?: Student;
   startDate?: string;
   endDate?: string;
   hidePrice?: boolean;
   hideDate?: boolean;
   hideTitlebar?: boolean;
-  students: Student[]
-  staffMembers: User[]
   onDelete?: (meal: Meal) => void;
   highlightMealsNotOrderedByMe?: boolean;
 }
 
 const OrderedMealsTable: React.FC<OrdersTableProps> = ({
-  orders,
+  order,
+  user,
+  student,
   onDelete,
   startDate,
   endDate,
@@ -299,18 +328,16 @@ const OrderedMealsTable: React.FC<OrdersTableProps> = ({
   hidePrice,
   hideTitlebar,
   highlightMealsNotOrderedByMe,
-  students,
-  staffMembers,
 }) => {
+  const {orders: allOrders, students: allStudents, users} = useContext(AppContext);
+  const orders = order ? [order] : allOrders;
+  const students = (student ? [student] : allStudents).filter(s => !user || s.parents.includes(user.id));
   const dates = new Set<string>();
   orders
     .flatMap((order) => order.meals)
     .map((meal) => meal.date)
-    .filter(
-      (mealDate) =>
-        (!startDate || mealDate >= startDate) &&
-        (!endDate || mealDate <= endDate)
-    )
+    .filter((mealDate) => !startDate || mealDate >= startDate)
+    .filter((mealDate) => !endDate || mealDate <= endDate)
     .forEach((date) => dates.add(date));
 
   let gridColumns = "auto 1fr";
@@ -435,7 +462,7 @@ const OrderedMealsTable: React.FC<OrdersTableProps> = ({
             <DailyOrders
               key={date}
               students={students}
-              staffMembers={staffMembers}
+              staffMembers={!student ? users : []}
               orders={orders}
               date={date}
               onDelete={onDelete}

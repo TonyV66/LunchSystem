@@ -99,10 +99,11 @@ const EditUserDialog: React.FC<DialogProps> = ({ user, onClose }) => {
     }
   };
 
-  const roleNames = ["System Admin.", "Teacher", "Parent", "Cafeteria"];
+  const roleNames = ["System Admin.", "Teacher", "Parent", "Cafeteria", "Staff"];
 
   const availRoles: Role[] = [
     Role.PARENT,
+    Role.STAFF,
     Role.TEACHER,
     Role.CAFETERIA,
     Role.ADMIN,

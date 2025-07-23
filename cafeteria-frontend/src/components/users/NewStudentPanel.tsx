@@ -1,62 +1,39 @@
-import React, { useContext } from "react";
+import React, { useState } from "react";
 import {
   TextField,
   Stack,
 } from "@mui/material";
-import { AppContext } from "../../AppContextProvider";
-import { GradeLevel } from "../../models/GradeLevel";
-import { DayOfWeek } from "../../models/DayOfWeek";
-import { Role } from "../../models/User";
 import StudentLunchtimeEditor from "./StudentLunchtimeEditor";
-import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
-import { LocalizationProvider, DatePicker } from "@mui/x-date-pickers";
-import { Dayjs } from "dayjs";
+import { StudentLunchTime } from "../../models/StudentLunchTime";
 
 interface NewStudentPanelProps {
-  studentFirstName: string;
-  setStudentFirstName: (value: string) => void;
-  studentLastName: string;
-  setStudentLastName: (value: string) => void;
-  studentBirthDate: Dayjs | null;
-  setStudentBirthDate: (value: Dayjs | null) => void;
-  selectedGrade: GradeLevel;
-  setSelectedGrade: (grade: GradeLevel) => void;
-  selectedTeachers: Record<DayOfWeek, number | null>;
-  setSelectedTeachers: (teachers: Record<DayOfWeek, number | null>) => void;
+  onFirstNameChanged: (value: string) => void;
+  onLastNameChanged: (value: string) => void;
+  onLunchtimesChanged: (lunchTimes: StudentLunchTime[]) => void;
 }
 
 const NewStudentPanel: React.FC<NewStudentPanelProps> = ({
-  studentFirstName,
-  setStudentFirstName,
-  studentLastName,
-  setStudentLastName,
-  studentBirthDate,
-  setStudentBirthDate,
-  selectedGrade,
-  setSelectedGrade,
-  selectedTeachers,
-  setSelectedTeachers,
+  onFirstNameChanged,
+  onLastNameChanged,
+  onLunchtimesChanged,
 }) => {
-  const { currentSchoolYear, users } = useContext(AppContext);
 
-  const teachers = users
-    .filter((user) => user.role === Role.TEACHER)
-    .sort((t1, t2) =>
-      t1.name.toLowerCase().localeCompare(t2.name.toLowerCase())
-    );
+  const [studentFirstName, setStudentFirstName] = useState<string>("");
+  const [studentLastName, setStudentLastName] = useState<string>("");
 
-  const handleGradeSelected = (grade: GradeLevel) => {
-    setSelectedGrade(grade);
+  const handleFirstNameChanged = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setStudentFirstName(event.target.value);
+    onFirstNameChanged(event.target.value);
   };
 
-  const handleTeacherChange = (day: DayOfWeek, teacherId: number) => {
-    const newTeachers = {
-      ...selectedTeachers,
-      [day]: teacherId,
-    };
-    setSelectedTeachers(newTeachers);
+  const handleLastNameChanged = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setStudentLastName(event.target.value);
+    onLastNameChanged(event.target.value);
   };
 
+  const handleLunchtimesChanged = (lunchTimes: StudentLunchTime[]) => {
+    onLunchtimesChanged(lunchTimes);
+  };
   return (
     <Stack gap={2} direction="column">
       <TextField
@@ -64,9 +41,7 @@ const NewStudentPanel: React.FC<NewStudentPanelProps> = ({
         label="First Name"
         variant="standard"
         value={studentFirstName}
-        onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
-          setStudentFirstName(event.target.value)
-        }
+        onChange={handleFirstNameChanged}
       />
 
       <TextField
@@ -74,32 +49,11 @@ const NewStudentPanel: React.FC<NewStudentPanelProps> = ({
         label="Last Name"
         variant="standard"
         value={studentLastName}
-        onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
-          setStudentLastName(event.target.value)
-        }
+        onChange={handleLastNameChanged}
       />
 
-      <LocalizationProvider dateAdapter={AdapterDayjs}>
-        <DatePicker
-          label="Birth Date"
-          value={studentBirthDate}
-          onChange={(newValue) => setStudentBirthDate(newValue)}
-          slotProps={{
-            textField: {
-              variant: "standard",
-              fullWidth: true,
-            },
-          }}
-        />
-      </LocalizationProvider>
-
       <StudentLunchtimeEditor
-        schoolYear={currentSchoolYear}
-        selectedGrade={selectedGrade}
-        selectedTeachers={selectedTeachers}
-        teachers={teachers}
-        onGradeSelected={handleGradeSelected}
-        onTeacherChange={handleTeacherChange}
+        onLunchtimesChanged={handleLunchtimesChanged}
       />
     </Stack>
   );

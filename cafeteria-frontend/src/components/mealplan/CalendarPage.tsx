@@ -27,7 +27,7 @@ const CalendarPage: React.FC = () => {
         flexDirection: "column",
       }}
     >
-      {user.role === Role.PARENT ? (
+      {user.role === Role.PARENT || user.role === Role.STAFF ? (
         <Box
           sx={{
             display: "flex",
@@ -38,8 +38,8 @@ const CalendarPage: React.FC = () => {
             columnGap: 1,
             pl: 2,
             pr: 2,
-            pt: user.role === Role.PARENT ? 1 : 2,
-            pb: user.role === Role.PARENT ? 1 : undefined,
+            pt: 1,
+            pb: 1,
           }}
         >
           <Box flexGrow={1}>

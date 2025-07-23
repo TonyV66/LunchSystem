@@ -72,7 +72,7 @@ export const SiblingsDialog: React.FC<{
           </Fab>
         </Box>
         <Box flexGrow={1} p={2}>
-          <StudentsTable user={user} />
+          <StudentsTable user={user} family={true} />
         </Box>
       </Dialog>
       {showNewStudentDialog && <AdminNewStudentDialog onClose={handleCloseDialog} parent={user} />}

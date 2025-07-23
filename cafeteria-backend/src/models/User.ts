@@ -5,6 +5,7 @@ export enum Role {
   TEACHER,
   PARENT,
   CAFETERIA,
+  STAFF,
 }
 
 export default class User {
@@ -15,6 +16,7 @@ export default class User {
   firstName: string;
   lastName: string;
   email: string;
+  phone: string;
   description: string;
   role: Role;
   notificationReviewDate: Date;
@@ -30,6 +32,7 @@ export default class User {
     this.firstName = entity.firstName;
     this.lastName = entity.lastName;
     this.email = entity.email;
+    this.phone = entity.phone;
     this.description = entity.description;
     this.role = entity.role;
     this.notificationReviewDate = entity.notificationReviewDate;

@@ -63,7 +63,7 @@ export const StudentMealsDialog: React.FC<{
           </Typography>
         </Toolbar>
       </AppBar>
-      {<OrderedMealsTable students={[student]} staffMembers={[]} orders={[order]} hidePrice={true}/>}
+      {<OrderedMealsTable student={student} order={order} hidePrice={true}/>}
     </Dialog>
   );
 };

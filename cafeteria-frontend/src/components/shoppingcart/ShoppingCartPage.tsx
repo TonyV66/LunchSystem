@@ -28,6 +28,7 @@ import ShoppingCartTable from "./ShoppingCartTable";
 import { AxiosError } from "axios";
 import { grey } from "@mui/material/colors";
 import ConfirmDialog from "../ConfirmDialog";
+import { Role } from "../../models/User";
 
 const PaymentOptions: React.FC<{
   onCardSelected: (selectedCard: string) => void;
@@ -44,6 +45,8 @@ const PaymentOptions: React.FC<{
   savedCreditCards,
   savedGiftCards,
 }) => {
+  const { user } = useContext(AppContext);
+
   return (
     <Box sx={{ display: "flex", flexDirection: "column" }}>
       <Typography fontWeight="bold" variant="body1">
@@ -148,6 +151,30 @@ const PaymentOptions: React.FC<{
             />
           </ListItemButton>
         </ListItem>
+        {user.role === Role.ADMIN && (
+          <ListItem disablePadding>
+            <ListItemButton
+              role={undefined}
+              onClick={() => onCardSelected("donate")}
+            >
+              <ListItemIcon sx={{ minWidth: "0px" }}>
+                <Radio
+                  sx={{
+                    paddingLeft: "0px",
+                    paddingTop: "0px",
+                    paddingBottom: "0px",
+                  }}
+                  size="small"
+                  checked={selectedCard === "donate"}
+                  tabIndex={-1}
+                  disableRipple
+                  inputProps={{ "aria-labelledby": "donateLabel" }}
+                />
+              </ListItemIcon>
+              <ListItemText id="donateLabel" primary="Free Meal" />
+            </ListItemButton>
+          </ListItem>
+        )}
       </List>
       {onSendEmail ? (
         <FormControlLabel
@@ -179,13 +206,16 @@ const ShoppingCartPage: React.FC = () => {
     setShoppingCart,
     scheduledMenus,
     setSnackbarErrorMsg,
+    students,
   } = useContext(AppContext);
 
   const [selectedCard, setSelectedCard] = useState("creditcard");
   const [showThankYou, setShowThankYou] = useState(false);
   const [saveCard, setSaveCard] = useState(false);
   const [sendEmail, setSendEmail] = useState(false);
-  const [savedCreditCards, setSavedCreditCards] = useState<SavedCreditCard[]>([]);
+  const [savedCreditCards, setSavedCreditCards] = useState<SavedCreditCard[]>(
+    []
+  );
   const [savedGiftCards, setSavedGiftCards] = useState<SavedGiftCard[]>([]);
 
   const navigate = useNavigate();
@@ -205,6 +235,20 @@ const ShoppingCartPage: React.FC = () => {
         /* empty */
       }
     };
+
+    if (
+      shoppingCart.items
+        .filter((item) => item.studentId)
+        .some(
+          (item) =>
+            !students
+              .find((s) => s.id === item.studentId)
+              ?.parents.includes(user.id)
+        )
+    ) {
+      return;
+    }
+
     getCards();
   }, []);
 
@@ -223,7 +267,6 @@ const ShoppingCartPage: React.FC = () => {
       );
 
       setOrders(orders.concat(completedOrder));
-      setShoppingCart({ items: [] });
       setShowThankYou(true);
     } catch (error) {
       const axiosError = error as AxiosError;
@@ -237,6 +280,7 @@ const ShoppingCartPage: React.FC = () => {
   };
 
   const handleThankYouClose = () => {
+    setShoppingCart({ items: [] });
     setShowThankYou(false);
     navigate(MEALS_URL);
   };
@@ -265,7 +309,7 @@ const ShoppingCartPage: React.FC = () => {
         gap: 2,
       }}
     >
-      <ShoppingCartTable editable={true}></ShoppingCartTable>
+      <ShoppingCartTable hidePrice={selectedCard === "donate"} editable={true}></ShoppingCartTable>
       {selectedCard === "giftcard" || selectedCard === "creditcard" ? (
         <Box
           sx={{
@@ -304,8 +348,11 @@ const ShoppingCartPage: React.FC = () => {
               >
                 {selectedCard === "giftcard" ? <GiftCard /> : <CreditCard />}
               </PaymentForm>
-              {user.firstName.length &&
+              {user.firstName &&
+              user.firstName.length &&
+              user.lastName &&
               user.lastName.length &&
+              user.email &&
               user.email.length ? (
                 <FormControlLabel
                   sx={{ mt: 1 }}
@@ -350,7 +397,7 @@ const ShoppingCartPage: React.FC = () => {
           >
             <PaymentOptions
               sendEmail={sendEmail}
-              onSendEmail={user.email.length ? setSendEmail : undefined}
+              onSendEmail={user.email?.length ? setSendEmail : undefined}
               onCardSelected={handlePaymentChanged}
               savedCreditCards={savedCreditCards}
               savedGiftCards={savedGiftCards}
@@ -374,7 +421,8 @@ const ShoppingCartPage: React.FC = () => {
           title="Thank You For Your Order"
         >
           <Typography>
-            Your order has been successfully placed. Click OK to view your upcoming ordered meals.
+            Your order has been successfully placed. Click OK to view your
+            upcoming ordered meals.
           </Typography>
         </ConfirmDialog>
       )}

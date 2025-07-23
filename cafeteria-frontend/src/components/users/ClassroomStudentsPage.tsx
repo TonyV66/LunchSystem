@@ -7,7 +7,7 @@ import { CLASSROOM_URL, FAMILY_URL, STUDENTS_URL, USERS_URL } from "../../MainAp
 import StudentsTable from "./StudentsTable";
 import { Role } from "../../models/User";
 
-const StudentsPage: React.FC = () => {
+const ClassroomStudentsPage: React.FC = () => {
   const { currentSchoolYear, user } = useContext(AppContext);
 
   const navigate = useNavigate();
@@ -28,7 +28,7 @@ const StudentsPage: React.FC = () => {
     >
       <Stack direction="row" justifyContent="space-between">
         <Tabs
-          value={STUDENTS_URL}
+          value={CLASSROOM_URL}
           onChange={handleTabSelected}
           aria-label="secondary tabs example"
         >
@@ -52,9 +52,9 @@ const StudentsPage: React.FC = () => {
         )}
       </Stack>
 
-      <StudentsTable />
+      <StudentsTable user={user} family={false}/>
     </Stack>
   );
 };
 
-export default StudentsPage;
+export default ClassroomStudentsPage;

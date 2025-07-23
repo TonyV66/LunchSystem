@@ -35,6 +35,7 @@ const getDefaultSchoolYear = (): SchoolYear => {
     teacherLunchTimes: [],
     lunchTimes: [],
     isCurrent: false,
+    oneTeacherPerStudent: true,
     gradesAssignedByClass: [],
   };
 };

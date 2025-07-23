@@ -14,7 +14,6 @@ import {
 import { Close, ExpandMore, Print } from "@mui/icons-material";
 
 import { TransitionProps } from "@mui/material/transitions";
-import { useReactToPrint } from "react-to-print";
 import { AppContext } from "../../AppContextProvider";
 import { DateTimeUtils, DateTimeFormat } from "../../DateTimeUtils";
 import User, { Role } from "../../models/User";
@@ -27,6 +26,7 @@ import Student from "../../models/Student";
 import { StudentLunchTime } from "../../models/StudentLunchTime";
 import SchoolYear from "../../models/SchoolYear";
 import GradeLunchTime from "../../models/GradeLunchTime";
+import { showAdminReport, showClassroomReport } from "../../api/CafeteriaClient";
 
 const buildStaffReportData = (
   mealsBeingServed: Meal[],
@@ -98,7 +98,7 @@ const buildOtherStudentsReportData = (
 
     if (meals.length > 0) {
       reportData.customers.push({
-        name: student.name,
+        name: student.firstName + " " + student.lastName,
         meals,
       });
     }
@@ -114,7 +114,7 @@ const buildGradeLevelReportData = (
   date: string,
   gradeLevelLunchTimes: GradeLunchTime[]
 ): ReportData[] => {
-  const dayOfWeek = new Date(date).getDay();
+  const dayOfWeek = DateTimeUtils.toDate(date).getDay();
   const reportDataArray: ReportData[] = [];
 
   const gradeLevels = Array.from(gradeLevelMap.keys());
@@ -139,7 +139,7 @@ const buildGradeLevelReportData = (
 
     // Create grade level data
     const reportData: ReportData = {
-      title: getGradeName(gradeLevel),
+      title: "Grade: " + getGradeName(gradeLevel),
       time: gradeLunchTime?.times[0] ? gradeLunchTime.times[0] : undefined,
       date: date,
       customers: [],
@@ -153,7 +153,7 @@ const buildGradeLevelReportData = (
 
       if (meals.length > 0) {
         reportData.customers.push({
-          name: student.name,
+          name: student.firstName + " " + student.lastName,
           meals,
         });
       }
@@ -173,7 +173,7 @@ const buildClassroomReportData = (
   date: string,
   teacherLunchTimes: TeacherLunchTime[]
 ): ReportData[] => {
-  const dayOfWeek = new Date(date).getDay();
+  const dayOfWeek = DateTimeUtils.toDate(date).getDay();
   const reportDataArray: ReportData[] = [];
 
   const teacherIds = Array.from(classroomMap.keys());
@@ -208,7 +208,7 @@ const buildClassroomReportData = (
 
     // Create classroom data
     const reportData: ReportData = {
-      title: teacher.firstName + " " + teacher.lastName + "'s Classroom",
+      title: (teacher.name.length > 0 ? teacher.name : teacher.firstName + " " + teacher.lastName),
       time: teacherLunchTime?.times[0] ? teacherLunchTime.times[0] : undefined,
       date: date,
       customers: [],
@@ -230,7 +230,7 @@ const buildClassroomReportData = (
 
       if (meals.length > 0) {
         reportData.customers.push({
-          name: student.name,
+          name: student.firstName + " " + student.lastName,
           meals,
         });
       }
@@ -293,7 +293,7 @@ const getClassroomMap = (
   students: Student[],
   studentLunchTimes: StudentLunchTime[]
 ): Map<number, Student[]> => {
-  const dayOfWeek = new Date(date).getDay();
+  const dayOfWeek = DateTimeUtils.toDate(date).getDay();
   const teacherIds = new Set(teachers.map((teacher) => teacher.id));
 
   // Create a map to group students by teacher
@@ -335,7 +335,7 @@ const getStudentGradeLevelMap = (
   students: Student[],
   studentLunchTimes: StudentLunchTime[]
 ): Map<GradeLevel, Student[]> => {
-  const dayOfWeek = new Date(date).getDay();
+  const dayOfWeek = DateTimeUtils.toDate(date).getDay();
   const gradeLevelSet = new Set(gradeLevels);
 
   // Create a map to group students by grade level
@@ -371,14 +371,14 @@ const getStudentGradeLevelMap = (
 };
 
 const getTeacherLunchTimes = (schoolYear: SchoolYear, date: string) => {
-  const dayOfWeek = new Date(date).getDay();
+  const dayOfWeek = DateTimeUtils.toDate(date).getDay();
   return schoolYear.teacherLunchTimes.filter(
     (lt) => lt.dayOfWeek === dayOfWeek
   );
 };
 
 const getGradeLevelLunchTimes = (schoolYear: SchoolYear, date: string) => {
-  const dayOfWeek = new Date(date).getDay();
+  const dayOfWeek = DateTimeUtils.toDate(date).getDay();
   return schoolYear.gradeLunchTimes.filter((lt) => lt.dayOfWeek === dayOfWeek);
 };
 
@@ -540,9 +540,6 @@ const MealReportDialog: React.FC<DialogProps> = ({
     React.useContext(AppContext);
 
   const reportRef = React.useRef<HTMLDivElement>(null);
-  const handlePrint = useReactToPrint({
-    contentRef: reportRef,
-  });
 
   const reportData = teacherId
     ? getTeacherReportData(
@@ -558,7 +555,11 @@ const MealReportDialog: React.FC<DialogProps> = ({
     event: React.MouseEvent<HTMLButtonElement, MouseEvent>
   ): void {
     event.stopPropagation();
-    handlePrint();
+    if (teacherId) {
+      showClassroomReport(date, teacherId);
+    } else {
+      showAdminReport(date);
+    }
   }
 
   return (

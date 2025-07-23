@@ -26,7 +26,7 @@ export const OrderDialog: React.FC<{
   orderId: number;
   onClose: () => void;
 }> = ({ orderId, onClose }) => {
-  const { orders, students, users } = useContext(AppContext);
+  const { orders } = useContext(AppContext);
   return (
     <Dialog
       open={true}
@@ -50,7 +50,7 @@ export const OrderDialog: React.FC<{
         </Toolbar>
       </AppBar>
       <OrderedMealsTable
-        students={students} staffMembers={users} orders={orders.filter((order) => order.id === orderId)}
+        order={orders.find((order) => order.id === orderId)}
       ></OrderedMealsTable>
     </Dialog>
   );

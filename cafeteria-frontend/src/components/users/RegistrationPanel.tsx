@@ -1,9 +1,8 @@
-import React, { useContext, useEffect, useState } from "react";
+import React, { useContext, useState } from "react";
 
 import { Box, Button, TextField, Typography } from "@mui/material";
-import { getInvitation, register } from "../../api/CafeteriaClient";
+import { register } from "../../api/CafeteriaClient";
 import { AppContext } from "../../AppContextProvider";
-import { useParams } from "react-router-dom";
 import { AxiosError } from "axios";
 import { NO_SCHOOL_YEAR } from "../../models/SchoolYear";
 
@@ -20,33 +19,22 @@ const RegisrationPanel: React.FC = () => {
     setSchool,
     setSnackbarErrorMsg,
     setSchoolYears,
-    setCurrentSchoolYear
+    setCurrentSchoolYear,
   } = useContext(AppContext);
 
-  const { inviteId } = useParams();
   const [userName, setUserName] = useState<string>("");
   const [email, setEmail] = useState<string>("");
   const [firstName, setFirstName] = useState<string>("");
   const [lastName, setLastName] = useState<string>("");
   const [password, setPassword] = useState<string>("");
   const [confirmationPassword, setConfirmationPassword] = useState<string>("");
-
-  useEffect(() => {
-    const fetchInvitation = async () => {
-      const invitation = await getInvitation(inviteId!);
-      if (invitation.user) {
-        setEmail(invitation.user.email);
-        setFirstName(invitation.user.firstName);
-        setLastName(invitation.user.firstName);
-      }
-    };
-    fetchInvitation();
-  }, []);
+  const [schoolCode, setSchoolCode] =
+    useState<string>("");
 
   const handleRegistration = async () => {
     try {
       const loginResponse = await register(
-        inviteId!,
+        schoolCode,
         userName,
         firstName,
         lastName,
@@ -63,7 +51,9 @@ const RegisrationPanel: React.FC = () => {
       setPantryItems(loginResponse.pantryItems);
       setSchool(loginResponse.school);
       setSchoolYears(loginResponse.schoolYears);
-      setCurrentSchoolYear(loginResponse.schoolYears.find((sy) => sy.isCurrent) ?? NO_SCHOOL_YEAR);
+      setCurrentSchoolYear(
+        loginResponse.schoolYears.find((sy) => sy.isCurrent) ?? NO_SCHOOL_YEAR
+      );
 
       localStorage.setItem("jwtToken", loginResponse.jwtToken);
     } catch (error) {
@@ -122,6 +112,17 @@ const RegisrationPanel: React.FC = () => {
           <TextField
             fullWidth
             required
+            label="School Registration Code"
+            variant="standard"
+            value={schoolCode}
+            onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
+              setSchoolCode(event.target.value)
+            }
+          />
+
+          <TextField
+            fullWidth
+            required
             label="First Name"
             variant="standard"
             value={firstName}
@@ -141,6 +142,17 @@ const RegisrationPanel: React.FC = () => {
           />
           <TextField
             fullWidth
+            label="Email"
+            variant="standard"
+            required
+            value={email}
+            onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
+              setEmail(event.target.value)
+            }
+          />
+
+          <TextField
+            fullWidth
             required
             error={
               (userName.length > 0 && userName.length < 5) ||
@@ -152,16 +164,6 @@ const RegisrationPanel: React.FC = () => {
             value={userName}
             onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
               setUserName(event.target.value)
-            }
-          />
-          <TextField
-            fullWidth
-            label="Email"
-            variant="standard"
-            required
-            value={email}
-            onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
-              setEmail(event.target.value)
             }
           />
 
@@ -203,6 +205,7 @@ const RegisrationPanel: React.FC = () => {
             variant="contained"
             color="primary"
             disabled={
+              !schoolCode.length ||
               !firstName.length ||
               !lastName.length ||
               !email.length ||
