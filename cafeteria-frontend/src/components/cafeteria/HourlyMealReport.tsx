@@ -1,5 +1,11 @@
 import * as React from "react";
-import { Accordion, AccordionDetails, AccordionSummary, Box, Typography } from "@mui/material";
+import {
+  Accordion,
+  AccordionDetails,
+  AccordionSummary,
+  Box,
+  Typography,
+} from "@mui/material";
 import { AppContext } from "../../AppContextProvider";
 import { grey } from "@mui/material/colors";
 import Meal from "../../models/Meal";
@@ -125,27 +131,28 @@ const getMealsWithIrregularTimes = (
       (meal) =>
         meal.date === date &&
         !lunchTimes.includes(meal.time) &&
-        !lunchTimes.includes(meal.studentId ? 
-          getStudentLunchtime(
-            students.find((student) => student.id === meal.studentId),
-            date,
-            schoolYear,
-            teachers
-          ) ?? "" :
-          getTeacherLunchtime(
-            teachers.find((teacher) => teacher.id === meal.staffMemberId),
-            date,
-            schoolYear
-          ) ?? ""
+        !lunchTimes.includes(
+          meal.studentId
+            ? getStudentLunchtime(
+                students.find((student) => student.id === meal.studentId),
+                date,
+                schoolYear,
+                teachers
+              ) ?? ""
+            : getTeacherLunchtime(
+                teachers.find((teacher) => teacher.id === meal.staffMemberId),
+                date,
+                schoolYear
+              ) ?? ""
         )
     );
 };
 
-const HourlyMealReport: React.FC<{ date: string; time?: string, large?: boolean }> = ({
-  date,
-  time,
-  large,
-}) => {
+const HourlyMealReport: React.FC<{
+  date: string;
+  time?: string;
+  large?: boolean;
+}> = ({ date, time, large }) => {
   const { students, users, currentSchoolYear, orders } =
     React.useContext(AppContext);
 
@@ -181,9 +188,11 @@ const HourlyMealReport: React.FC<{ date: string; time?: string, large?: boolean 
   });
 
   // Convert Sets to arrays and sort
-  const sortedStaff = Array.from(staffSet).sort((a, b) =>
-    a.name.localeCompare(b.name)
-  );
+  const sortedStaff = Array.from(staffSet).sort((a, b) => {
+    const aName = a.firstName + " " + a.lastName;
+    const bName = b.firstName + " " + b.lastName;
+    return aName.toLowerCase().localeCompare(bName.toLowerCase());
+  });
   const sortedStudents = Array.from(studentSet).sort((a, b) => {
     const aName = a.firstName + " " + a.lastName;
     const bName = b.firstName + " " + b.lastName;
@@ -204,7 +213,9 @@ const HourlyMealReport: React.FC<{ date: string; time?: string, large?: boolean 
         expandIcon={<ExpandMore />}
         aria-controls="panel1-content"
       >
-        <Typography variant="h6" fontWeight="bold">{summaryText}</Typography>
+        <Typography variant="h6" fontWeight="bold">
+          {summaryText}
+        </Typography>
       </AccordionSummary>
       <AccordionDetails>
         <Box
@@ -219,14 +230,19 @@ const HourlyMealReport: React.FC<{ date: string; time?: string, large?: boolean 
         >
           {sortedStaff.map((staffMember) => (
             <StaffMealReport
-              large={large} 
+              large={large}
               key={staffMember.id}
               staffMember={staffMember}
               date={date}
             />
           ))}
           {sortedStudents.map((student) => (
-            <StudentMealReport large={large} key={student.id} student={student} date={date} />
+            <StudentMealReport
+              large={large}
+              key={student.id}
+              student={student}
+              date={date}
+            />
           ))}
         </Box>
       </AccordionDetails>
@@ -280,7 +296,11 @@ const MealReport: React.FC<MealReportProps> = ({ meals, title, large }) => {
               );
             })
             .map((item) => (
-              <MenuItemChip textVariant={large ? "h6" : undefined} key={item.id} menuItem={item} />
+              <MenuItemChip
+                textVariant={large ? "h6" : undefined}
+                key={item.id}
+                menuItem={item}
+              />
             ))}
         </Box>
       ))}
@@ -323,7 +343,13 @@ const StudentMealReport: React.FC<StudentMealReportProps> = ({
     return <></>;
   }
 
-  return <MealReport large={large} meals={meals} title={student.firstName + " " + student.lastName} />;
+  return (
+    <MealReport
+      large={large}
+      meals={meals}
+      title={student.firstName + " " + student.lastName}
+    />
+  );
 };
 
 export default HourlyMealReport;

@@ -19,6 +19,7 @@ export default class User {
   phone: string;
   description: string;
   role: Role;
+  pending: boolean;
   notificationReviewDate: Date;
   resetPwd: boolean;
   forgotPwdUri: string | null;
@@ -35,6 +36,7 @@ export default class User {
     this.phone = entity.phone;
     this.description = entity.description;
     this.role = entity.role;
+    this.pending = entity.pending;
     this.notificationReviewDate = entity.notificationReviewDate;
     this.resetPwd = entity.resetPwd;
     this.forgotPwdUri = entity.forgotPwdUri;

@@ -472,7 +472,7 @@ const DailyOrderedItemsAccordion: React.FC<DailyOrderedItemsAccordionProps> = ({
   );
 };
 
-const AltCafeteriaReport: React.FC<AltCafeteriaReportProps> = ({ date }) => {
+const CafeteriaReport: React.FC<AltCafeteriaReportProps> = ({ date }) => {
   const { scheduledMenus, users, orders, currentSchoolYear } =
     React.useContext(AppContext);
 
@@ -509,4 +509,4 @@ const AltCafeteriaReport: React.FC<AltCafeteriaReportProps> = ({ date }) => {
   );
 };
 
-export default AltCafeteriaReport;
+export default CafeteriaReport;

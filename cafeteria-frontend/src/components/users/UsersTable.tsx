@@ -141,7 +141,7 @@ const UsersTable: React.FC<UsersTableProps> = ({ users, onShowMenu }) => {
     
     return {
       id: usr.id,
-      username: usr.userName,
+      username: usr.pending ? '' : usr.userName,
       name: `${usr.firstName} ${usr.lastName}`,
       email: usr.email,
       students: {

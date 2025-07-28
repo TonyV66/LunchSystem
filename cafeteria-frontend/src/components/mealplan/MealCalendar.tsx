@@ -39,10 +39,6 @@ import {
 } from "../../api/CafeteriaClient";
 import EditMenuDialog from "../menus/EditMenuDialog";
 import DateTimeSelectionDialog from "../DateTimeSelectionDialog";
-import {
-  RelativeDateCountType,
-  RelativeDateTarget,
-} from "../settings/AdminSettingsPage";
 import DailyMealsDialog from "../meals/DailyMealsDialog";
 import OrderMealDialog from "../shoppingcart/OrderMealDialog";
 import { Role } from "../../models/User";
@@ -50,6 +46,7 @@ import CafeteriaDialog from "../cafeteria/CafeteriaDialog";
 import MealReportDialog from "../meals/MealReportDialog";
 import { AxiosError } from "axios";
 import OrderDatesDialog from "./OrderDatesDialog";
+import { RelativeDateTarget } from "../../models/SchoolYear";
 
 interface MealPlanProps {
   menuOrDate: DailyMenu | string;
@@ -163,7 +160,6 @@ const AdminMealButtons: React.FC<AdminMealButtonProps> = ({
   const calculateOrderTime = (
     mealDate: Date,
     periodCount: number,
-    periodType: number,
     relativeTo: number,
     time: string
   ) => {
@@ -171,8 +167,7 @@ const AdminMealButtons: React.FC<AdminMealButtonProps> = ({
       relativeTo === RelativeDateTarget.DAY_MEAL_IS_SERVED
         ? mealDate
         : DateTimeUtils.getFirstDayOfWeek(mealDate);
-    const numDays =
-      periodType === RelativeDateCountType.DAYS ? periodCount : periodCount * 7;
+    const numDays = periodCount;
     const orderDate = DateTimeUtils.addDays(targetDate, -numDays);
     return new Date(DateTimeUtils.toString(orderDate) + " " + time);
   };
@@ -181,7 +176,6 @@ const AdminMealButtons: React.FC<AdminMealButtonProps> = ({
     return calculateOrderTime(
       mealDate,
       school.orderStartPeriodCount,
-      school.orderStartPeriodType,
       school.orderStartRelativeTo,
       school.orderStartTime
     );
@@ -191,7 +185,6 @@ const AdminMealButtons: React.FC<AdminMealButtonProps> = ({
     return calculateOrderTime(
       mealDate,
       school.orderEndPeriodCount,
-      school.orderEndPeriodType,
       school.orderEndRelativeTo,
       school.orderEndTime
     );
@@ -399,7 +392,7 @@ const AdminMealButtons: React.FC<AdminMealButtonProps> = ({
             disabled={!hasOrderedMeals}
             onClick={handleShowClassroomReport}
           >
-            Adminstrator&apos;s Report
+            Teachers / Grades Report
           </MenuItem>
           <MenuItem
             disabled={!hasOrderedMeals}

@@ -31,24 +31,21 @@ export const showGradeReport = (date: string, grade: GradeLevel) => {
   if (newWindow) newWindow.opener = null
 }
 
-// const showCafeteriaReport = (date: string) => {
-//   const newWindow = window.open(REPORTS_BASE_URL, '_blank', 'noopener,noreferrer')
-//   if (newWindow) newWindow.opener = null
-// }
-
 export const showAdminReport = (date: string) => {
   const newWindow = window.open(REPORTS_BASE_URL + "/cohorts/" + date, '_blank', 'noopener,noreferrer')
   if (newWindow) newWindow.opener = null
 }
 
+export const showDailyCafeteriaReport = (date: string) => {
+  const newWindow = window.open(REPORTS_BASE_URL + "/cafeteria/" + date, '_blank', 'noopener,noreferrer')
+  if (newWindow) newWindow.opener = null
+}
 
 export interface Relations {
   students: Student[];
   parents: User[];
   studentLunchTimes: StudentLunchTime[];
 }
-
-
 
 export const http = axios.create();
 
@@ -116,35 +113,18 @@ export const register = async (
   email: string
 ) => {
   const response: AxiosResponse<LoginResponse> = await http.post(
-    API_BASE_URL + "/user/register/" + schoolCode,
-    { username, firstName, lastName, pwd, email }
+    API_BASE_URL + "/user/register",
+    { schoolCode, username, firstName, lastName, pwd, email }
   );
   return response.data;
 };
 
 export const forgotPassword = async (username: string) => {
-  await http.post(API_BASE_URL + "/login/forgot/pwd", { username });
+  await http.post(API_BASE_URL + "/login/pwd/forgot", { username });
 };
 
 export const forgotUserName = async (email: string) => {
   await http.post(API_BASE_URL + "/login/forgot/username", { email });
-};
-
-export const resetPassword = async (
-  verificationCode: string,
-  username: string,
-  password: string
-) => {
-  try {
-    await http.post(
-      API_BASE_URL + "/resetpassword",
-      null,
-      getRequestConfig({ username, verificationCode, password })
-    );
-    return true;
-  } catch {
-    return false;
-  }
 };
 
 export const changePassword = async (
@@ -159,15 +139,11 @@ export const changeForgottenPassword = async (
   userName: string,
   pwd: string
 ) => {
-  await http.put(API_BASE_URL + "/login/forgottenpwd", {
+  await http.put(API_BASE_URL + "/login/pwd/reset", {
     forgottenPwdId,
     userName,
     pwd,
   });
-};
-
-const getRequestConfig = (params: object) => {
-  return { params: params };
 };
 
 export const createPantryItem = async (pantryItem: PantryItem) => {
@@ -236,6 +212,14 @@ export const getRelations = async (firstName: string, lastName: string, grade: G
   return response.data;
 };
 
+
+export const testClassroomReports = async (schoolId: number, date: string) => {
+  await http.post(
+    "/reports/test-email-reports/" + schoolId,
+    { date }
+  );
+  return;
+};
 
 export const updateStudent = async (student: StudentWithLunchTimes) => {
   const response: AxiosResponse<Student> = await http.put(
@@ -307,9 +291,33 @@ export const updateSchoolPrices = async (school: School) => {
   return response.data;
 };
 
+export const updateSchoolEmailReports = async (school: School) => {
+  const response: AxiosResponse<Notification> = await http.put(
+    API_BASE_URL + "/school/emailreports",
+    school
+  );
+  return response.data;
+};
+
 export const updateSchoolRegistration = async (school: School) => {
   const response: AxiosResponse<School> = await http.put(
     API_BASE_URL + "/school/registration",
+    school
+  );
+  return response.data;
+};
+
+export const updateSchoolGeneral = async (school: School) => {
+  const response: AxiosResponse<School> = await http.put(
+    API_BASE_URL + "/school/general",
+    school
+  );
+  return response.data;
+};
+
+export const updateSchoolSquare = async (school: School) => {
+  const response: AxiosResponse<School> = await http.put(
+    API_BASE_URL + "/school/square",
     school
   );
   return response.data;

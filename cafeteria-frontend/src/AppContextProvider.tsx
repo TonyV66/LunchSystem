@@ -47,19 +47,21 @@ const DEFAULT_SYSTEM_DEFAULTS: School = {
   openRegistration: false,
   squareAppAccessToken: "",
   orderStartPeriodCount: 2,
-  orderStartPeriodType: 0,
   orderStartRelativeTo: 0,
   orderStartTime: "00:00",
   orderEndPeriodCount: 1,
-  orderEndPeriodType: 0,
   orderEndRelativeTo: 0,
   orderEndTime: "00:00",
+  emailReportStartPeriodCount: 1,
+  emailReportStartPeriodType: 0,
+  emailReportStartRelativeTo: 0,
+  emailReportStartTime: "00:00",
   mealPrice: 0.0,
   drinkOnlyPrice: 0.0,
   squareAppId: "",
   squareLocationId: "",
+  timezone: "America/New_York",
 };
-
 
 export const INITIAL_APP_CONTEXT: AppContextType = {
   shoppingCart: { items: [] },
@@ -312,6 +314,7 @@ const AppContextProvider: React.FC<React.PropsWithChildren> = (props) => {
         >
           <Alert
             severity={snackbarErrorMsg ? "error" : "success"}
+            variant={snackbarErrorMsg ? "filled" : undefined}
             onClose={handleCloseSnackbar}
           >
             {snackbarMsg || snackbarErrorMsg || undefined}

@@ -1,6 +1,6 @@
 import * as React from "react";
 import Box from "@mui/material/Box";
-import { Divider, Typography } from "@mui/material";
+import { Divider, Typography, Menu, MenuItem, ListItemIcon, ListItemText } from "@mui/material";
 import { useContext, useEffect, useState } from "react";
 
 import {
@@ -21,10 +21,13 @@ import {
   Settings,
   ShoppingCart,
   SpeakerNotes,
+  Lock,
+  AccountCircle,
 } from "@mui/icons-material";
 import User, { NULL_USER, Role } from "./models/User";
 import { grey, red } from "@mui/material/colors";
 import { DateTimeUtils } from "./DateTimeUtils";
+import ChangePasswordDialog from "./components/settings/ChangePasswordDialog";
 
 const ALT_COLOR = "#ffffff";
 
@@ -64,6 +67,71 @@ const primaryColor = "primary.dark";
 interface SidebarProps {
   onLogout: () => void;
 }
+
+interface LogoutButtonProps {
+  onLogout: () => void;
+}
+
+const LogoutButton: React.FC<LogoutButtonProps> = ({ onLogout }) => {
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [changePasswordDialogOpen, setChangePasswordDialogOpen] = useState(false);
+  const open = Boolean(anchorEl);
+
+  const handleClick = (event: React.MouseEvent<HTMLElement>) => {
+    setAnchorEl(event.currentTarget);
+  };
+
+  const handleClose = () => {
+    setAnchorEl(null);
+  };
+
+  const handleLogout = () => {
+    handleClose();
+    onLogout();
+  };
+
+  const handleChangePassword = () => {
+    handleClose();
+    setChangePasswordDialogOpen(true);
+  };
+
+  return (
+    <>
+      <Box onClick={handleClick}>
+        <AccountCircle
+          sx={{ cursor: "pointer", p: 1, color: "#ffffff" }}
+          fontSize="large"
+        />
+      </Box>
+      <Menu
+        anchorEl={anchorEl}
+        open={open}
+        onClose={handleClose}
+        anchorOrigin={{
+          vertical: 'top',
+          horizontal: 'right',
+        }}
+      >
+        <MenuItem onClick={handleChangePassword}>
+          <ListItemIcon>
+            <Lock fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Change Password</ListItemText>
+        </MenuItem>
+        <MenuItem onClick={handleLogout}>
+          <ListItemIcon>
+            <Logout fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Logout</ListItemText>
+        </MenuItem>
+      </Menu>
+      <ChangePasswordDialog
+        open={changePasswordDialogOpen}
+        onClose={() => setChangePasswordDialogOpen(false)}
+      />
+    </>
+  );
+};
 
 interface SidebarButtonProps {
   onClick: (selection: SidebarSelection) => void;
@@ -334,6 +402,10 @@ const AdminSidebar: React.FC<SidebarProps> = ({ onLogout }) => {
         onClick={() => navigate(SCHOOL_YEARS_URL)}
         isSelected={selection === SidebarSelection.YEARS}
       />
+      <SettingsButton
+        onClick={() => navigate(ACCOUNT_URL)}
+        isSelected={selection === SidebarSelection.ACCOUNT}
+      />
       <Divider sx={{ borderColor: "white", width: "100%" }} />
       <OrderedMealsSidebarButton
         onClick={() => navigate(MEALS_URL)}
@@ -344,15 +416,7 @@ const AdminSidebar: React.FC<SidebarProps> = ({ onLogout }) => {
         isSelected={selection === SidebarSelection.CART}
       />
       <Divider sx={{ borderColor: "white", width: "100%" }} />
-      <SettingsButton
-        onClick={() => navigate(ACCOUNT_URL)}
-        isSelected={selection === SidebarSelection.ACCOUNT}
-      />
-      <Logout
-        onClick={onLogout}
-        sx={{ cursor: "pointer", p: 1, color: ALT_COLOR }}
-        fontSize="large"
-      />
+      <LogoutButton onLogout={onLogout} />
     </Box>
   );
 };
@@ -440,15 +504,7 @@ const ParentSidebar: React.FC<SidebarProps> = ({ onLogout }) => {
         showWarning={hasUnreadNotifications}
       />
       <Divider sx={{ borderColor: "white", width: "100%" }} />
-      <SettingsButton
-        onClick={() => navigate(ACCOUNT_URL)}
-        isSelected={selection === SidebarSelection.ACCOUNT}
-      />
-      <Logout
-        onClick={onLogout}
-        sx={{ cursor: "pointer", p: 1, color: ALT_COLOR }}
-        fontSize="large"
-      />
+      <LogoutButton onLogout={onLogout} />
     </Box>
   );
 };
@@ -533,15 +589,7 @@ const CafeteriaSidebar: React.FC<SidebarProps> = ({ onLogout }) => {
         isSelected={selection === SidebarSelection.ORDERS}
       />
       <Divider sx={{ borderColor: "white", width: "100%" }} />
-      <SettingsButton
-        onClick={() => navigate(ACCOUNT_URL)}
-        isSelected={selection === SidebarSelection.ACCOUNT}
-      />
-      <Logout
-        onClick={onLogout}
-        sx={{ cursor: "pointer", p: 1, color: ALT_COLOR }}
-        fontSize="large"
-      />
+      <LogoutButton onLogout={onLogout} />
     </Box>
   );
 };
@@ -626,15 +674,7 @@ const TeacherSidebar: React.FC<SidebarProps> = ({ onLogout }) => {
         isSelected={selection === SidebarSelection.ORDERS}
       />
       <Divider sx={{ borderColor: "white", width: "100%" }} />
-      <SettingsButton
-        onClick={() => navigate(ACCOUNT_URL)}
-        isSelected={selection === SidebarSelection.ACCOUNT}
-      />
-      <Logout
-        onClick={onLogout}
-        sx={{ cursor: "pointer", p: 1, color: ALT_COLOR }}
-        fontSize="large"
-      />
+      <LogoutButton onLogout={onLogout} />
     </Box>
   );
 };

@@ -111,7 +111,7 @@ const TeacherLunchTimesTable: React.FC<TeacherLunchTimesTableProps> = ({
     <Stack gap={2}>
       <Stack direction="row" gap={2} alignItems="center">
         <Typography variant="body2" fontWeight="bold">
-          Students assigned to only one lunchtime teacher:
+          Students have the same lunchtime teacher each day:
         </Typography>
         <Stack direction="row" alignItems="center">
           <Typography

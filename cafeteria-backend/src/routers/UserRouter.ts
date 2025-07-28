@@ -18,13 +18,14 @@ import { randomUUID } from "crypto";
 import Student from "../models/Student";
 import { Credentials, LoginResponse } from "./LoginRouter";
 import { getSessionInfo } from "./SessionRouter";
-import { sendInvitationEmail } from "./EmailUtils";
+import { sendInvitationEmail } from "../utils/EmailUtils";
 import SchoolYearEntity from "../entity/SchoolYearEntity";
 import multer from "multer";
 import csv from "csv-parser";
 import { Readable } from "stream";
 import SchoolEntity from "../entity/SchoolEntity";
 import StudentEntity from "../entity/StudentEntity";
+import { DateTimeUtils } from "../DateTimeUtils";
 
 const UserRouter: Router = express.Router();
 interface Empty {}
@@ -46,7 +47,6 @@ interface RegistrationRequest extends Credentials {
   firstName: string;
   lastName: string;
   email: string;
-  phone: string;
 }
 
 UserRouter.get<{ invitationId: string }, Empty, Empty, Empty>(
@@ -120,21 +120,42 @@ UserRouter.post<{}, LoginResponse | string, RegistrationRequest, {}>(
   async (req, res) => {
     const userRepository = AppDataSource.getRepository(UserEntity);
     const schoolRepository = AppDataSource.getRepository(SchoolEntity);
+    const schoolYearRepository = AppDataSource.getRepository(SchoolYearEntity);
 
-    const existingSchool = await schoolRepository.findOne({
+    const school = await schoolRepository.findOne({
       where: { registrationCode: req.body.schoolCode.toUpperCase() },
     });
 
-    if (!existingSchool) {
+    if (!school) {
       res.status(401).send("Invalid school code.");
       return;
     }
 
-    const existingUser = await userRepository.findOne({
-      where: [{ userName: req.body.username.toLowerCase() }],
+    // Check if there's a current school year and it hasn't ended
+    const currentSchoolYear = await schoolYearRepository.findOne({
+      where: {
+        school: { id: school.id },
+        isCurrent: true,
+      },
     });
 
-    if (existingUser) {
+    if (!currentSchoolYear) {
+      res.status(401).send("Registration is not available. No current school year found.");
+      return;
+    }
+
+    if (DateTimeUtils.toString(new Date()) > currentSchoolYear.endDate) {
+      res.status(401).send("Registration is not available. The current school year has ended.");
+      return;
+    }
+
+    if (
+      await userRepository.findOne({
+        where: {
+          userName: req.body.username.toLowerCase(),
+        },
+      })
+    ) {
       res.status(401).send("Username already exists.");
       return;
     }
@@ -142,40 +163,47 @@ UserRouter.post<{}, LoginResponse | string, RegistrationRequest, {}>(
     let user = await userRepository.findOne({
       where: {
         email: req.body.email.toLowerCase(),
-        school: { id: existingSchool.id },
+        school: { id: school.id },
+        pending: true,
       },
     });
 
     const hash = bcrypt.hashSync(req.body.pwd, 5);
 
-    if (!user) {
-      if (!existingSchool.openRegistration) {
-        res
-          .status(401)
-          .send("No pending invitation found for this email address.");
-        return;
-      } else {
-        user = await userRepository.save({
-          userName: req.body.username.toLowerCase(),
-          pwd: hash,
-          firstName: req.body.firstName,
-          lastName: req.body.lastName,
-          email: req.body.email.toLowerCase(),
-          phone: req.body.phone || "",
-          pending: false,
-        });
+    if (school.openRegistration || user) {
+      user = await userRepository.save({
+        id: user?.id,
+        name: '',
+        userName: req.body.username.toLowerCase(),
+        pwd: hash,
+        firstName: req.body.firstName,
+        lastName: req.body.lastName,
+        email: req.body.email.toLowerCase(),
+        pending: false,
+        school: school,
+      });
+
+      // Associate the user with the current school year
+      if (user) {
+        const existingRelationships = await AppDataSource.createQueryBuilder()
+          .relation(SchoolYearEntity, "parents")
+          .of(currentSchoolYear)
+          .loadMany();
+
+        const relationshipExists = existingRelationships.some(
+          (existingUser) => existingUser.id === user!.id
+        );
+
+        if (!relationshipExists) {
+          await AppDataSource.createQueryBuilder()
+            .relation(SchoolYearEntity, "parents")
+            .of(currentSchoolYear)
+            .add(user);
+        }
       }
-    } else if (!user.pending) {
-      res.status(401).send("User already registered.");
-      return;
     } else {
-      user.pending = false;
-      user.userName = req.body.username.toLowerCase();
-      user.pwd = hash;
-      user.firstName = req.body.firstName;
-      user.lastName = req.body.lastName;
-      user.phone = req.body.phone || "";
-      user = await userRepository.save(user);
+      res.status(401).send("Email address not found.");
+      return;
     }
 
     user = await userRepository.findOne({
@@ -410,10 +438,12 @@ UserRouter.post(
       const stream = Readable.from(buffer);
 
       // Helper function to parse full name into first and last name
-      const parseFullName = (fullName: string): { firstName: string; lastName: string } => {
+      const parseFullName = (
+        fullName: string
+      ): { firstName: string; lastName: string } => {
         const trimmedName = fullName.trim();
         const nameParts = trimmedName.split(/\s+/);
-        
+
         if (nameParts.length === 1) {
           // Only one name provided, use as first name
           return { firstName: nameParts[0], lastName: "" };
@@ -422,9 +452,9 @@ UserRouter.post(
           return { firstName: nameParts[0], lastName: nameParts[1] };
         } else {
           // More than two names, use first as first name and rest as last name
-          return { 
-            firstName: nameParts[0], 
-            lastName: nameParts.slice(1).join(" ") 
+          return {
+            firstName: nameParts[0],
+            lastName: nameParts.slice(1).join(" "),
           };
         }
       };
@@ -436,22 +466,39 @@ UserRouter.post(
           .on("data", (row) => {
             // Map CSV columns to our expected format (case insensitive)
             const csvRow: CsvRowData = {
-              studentId: row["Student_id"] || row["student_id"] || row["studentId"] || "",
-              lastName: row["Last_name"] || row["last_name"] || row["lastName"] || "",
-              firstName: row["First_name"] || row["first_name"] || row["firstName"] || "",
+              studentId:
+                row["Student_id"] ||
+                row["student_id"] ||
+                row["studentId"] ||
+                "",
+              lastName:
+                row["Last_name"] || row["last_name"] || row["lastName"] || "",
+              firstName:
+                row["First_name"] ||
+                row["first_name"] ||
+                row["firstName"] ||
+                "",
               dob: row["dob"] || row["DOB"] || "",
               grade: row["grade"] || row["Grade"] || "",
-              contactName: row["Contact_name"] || row["contact_name"] || row["contactName"] || "",
-              contactPhone: row["Contact_phone"] || row["contact_phone"] || row["contactPhone"] || "",
-              contactEmail: row["Contact_email"] || row["contact_email"] || row["contactEmail"] || "",
+              contactName:
+                row["Contact_name"] ||
+                row["contact_name"] ||
+                row["contactName"] ||
+                "",
+              contactPhone:
+                row["Contact_phone"] ||
+                row["contact_phone"] ||
+                row["contactPhone"] ||
+                "",
+              contactEmail:
+                row["Contact_email"] ||
+                row["contact_email"] ||
+                row["contactEmail"] ||
+                "",
             };
 
             // Only add if we have valid data
-            if (
-              csvRow.studentId &&
-              csvRow.contactName &&
-              csvRow.contactEmail
-            ) {
+            if (csvRow.studentId && csvRow.contactName && csvRow.contactEmail) {
               csvData.push(csvRow);
             }
           })
@@ -465,7 +512,9 @@ UserRouter.post(
       let skippedStudentsCount = 0;
 
       // Step 1: Create users for each unique contact email
-      const uniqueEmails = [...new Set(csvData.map(row => row.contactEmail.toLowerCase()))];
+      const uniqueEmails = [
+        ...new Set(csvData.map((row) => row.contactEmail.toLowerCase())),
+      ];
       const emailToUserMap = new Map<string, UserEntity>();
 
       for (const email of uniqueEmails) {
@@ -486,11 +535,15 @@ UserRouter.post(
         }
 
         // Find the first row with this email to get contact info
-        const firstRowWithEmail = csvData.find(row => row.contactEmail.toLowerCase() === email);
+        const firstRowWithEmail = csvData.find(
+          (row) => row.contactEmail.toLowerCase() === email
+        );
         if (!firstRowWithEmail) continue;
 
         // Parse the contact name into first and last name
-        const { firstName, lastName } = parseFullName(firstRowWithEmail.contactName);
+        const { firstName, lastName } = parseFullName(
+          firstRowWithEmail.contactName
+        );
 
         // Create new user
         const newUser: DeepPartial<UserEntity> = {
@@ -520,7 +573,9 @@ UserRouter.post(
       }
 
       // Step 2: Create all missing student accounts
-      const uniqueStudentIds = [...new Set(csvData.map(row => row.studentId))];
+      const uniqueStudentIds = [
+        ...new Set(csvData.map((row) => row.studentId)),
+      ];
       const studentIdToStudentMap = new Map<string, StudentEntity>();
 
       for (const studentId of uniqueStudentIds) {
@@ -541,7 +596,9 @@ UserRouter.post(
         }
 
         // Find the first row with this studentId to get student info
-        const firstRowWithStudentId = csvData.find(row => row.studentId === studentId);
+        const firstRowWithStudentId = csvData.find(
+          (row) => row.studentId === studentId
+        );
         if (!firstRowWithStudentId) continue;
 
         // Create new student
@@ -569,18 +626,18 @@ UserRouter.post(
 
         const parent = emailToUserMap.get(parentEmail);
         const student = studentIdToStudentMap.get(row.studentId);
-        
+
         if (parent && student) {
           // Check if relationship already exists
           const existingRelationships = await AppDataSource.createQueryBuilder()
             .relation(UserEntity, "students")
             .of(parent)
             .loadMany();
-          
-          const relationshipExists = existingRelationships.some(existingStudent => 
-            existingStudent.studentId === row.studentId
+
+          const relationshipExists = existingRelationships.some(
+            (existingStudent) => existingStudent.studentId === row.studentId
           );
-          
+
           if (!relationshipExists) {
             await AppDataSource.createQueryBuilder()
               .relation(UserEntity, "students")

@@ -5,6 +5,12 @@ import StudentLunchTime from "./StudentLunchTime";
 import TeacherLunchTime from "./TeacherLunchTime";
 import SchoolYearEntity from "../entity/SchoolYearEntity";
 
+export enum RelativeDateTarget {
+  DAY_MEAL_IS_SERVED = 0,
+  WEEK_MEAL_IS_SERVED = 1,
+}
+
+
 export default class SchoolYear {
   id: number;
   name: string;

@@ -3,7 +3,6 @@ import { Typography, Box, Stack } from "@mui/material";
 import SchoolYear from "../../models/SchoolYear";
 import SchoolYearLunchTimesTable from "./SchoolYearLunchTimesTable";
 import SchoolYearDescriptionPanel from "./SchoolYearDescriptionPanel";
-import UserRegistrationConfigPanel from "./UserRegistrationConfigPanel";
 import GradeLevelConfigPanel from "./GradeLevelConfigPanel";
 
 interface SchoolYearTabProps {
@@ -15,7 +14,6 @@ const SchoolYearTab: React.FC<SchoolYearTabProps> = ({ schoolYear }) => {
     <Stack direction="column" gap={2}>
       <Stack direction="row" gap={2}>
         <SchoolYearDescriptionPanel schoolYear={schoolYear} />
-        <UserRegistrationConfigPanel />
         <GradeLevelConfigPanel schoolYear={schoolYear} />
       </Stack>
       <Box>

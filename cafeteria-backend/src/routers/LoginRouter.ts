@@ -6,7 +6,7 @@ import { AppDataSource } from "../data-source";
 import UserEntity from "../entity/UserEntity";
 import { JWT_PRIVATE_KEY, validateAuthorizationToken } from "./RouterUtils";
 import { randomUUID } from "crypto";
-import { sendForgotPasswordEmail, sendForgotUserNameEmail } from "./EmailUtils";
+import { sendForgotPasswordEmail, sendForgotUserNameEmail } from "../utils/EmailUtils";
 
 interface Empty {}
 
@@ -36,7 +36,7 @@ const authorizeRequest: RequestHandler<any, any, any, any> = async (
 };
 
 LoginRouter.post<{}, {}, { username: string }, Empty>(
-  "/forgot/pwd",
+  "/pwd/forgot",
   async (req, res) => {
     const userRepository = AppDataSource.getRepository(UserEntity);
     const user = await userRepository.findOne({
@@ -59,7 +59,6 @@ LoginRouter.post<{}, {}, { username: string }, Empty>(
       forgotPwdId,
       user.firstName,
       user.lastName,
-      "MICS"
     );
     res.sendStatus(200);
   }
@@ -69,21 +68,18 @@ LoginRouter.post<{}, {}, { email: string }, Empty>(
   "/forgot/username",
   async (req, res) => {
     const userRepository = AppDataSource.getRepository(UserEntity);
-    const user = await userRepository.findOne({
+    const users = await userRepository.find({
       where: { email: req.body.email.toLowerCase() },
     });
 
-    if (!user) {
+    if (!users.length) {
       res.status(401).send("Unknown email address.");
       return;
     }
 
     await sendForgotUserNameEmail(
-      user.email,
-      user.userName,
-      user.firstName,
-      user.lastName,
-      "MICS"
+      req.body.email,
+      users.map((user) => user.userName)
     );
     res.sendStatus(200);
   }
@@ -94,7 +90,7 @@ LoginRouter.put<
   {},
   { forgottenPwdId: string; userName: string; pwd: string },
   Empty
->("/forgottenpwd", async (req, res) => {
+>("/pwd/reset", async (req, res) => {
 
   if (!req.body.forgottenPwdId) {
     res.status(401).send("Invalid or expired password reset request.");

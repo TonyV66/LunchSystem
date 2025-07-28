@@ -1,10 +1,8 @@
 import express from "express";
-import { chromium } from "playwright";
 import { AppDataSource } from "../data-source";
 import StudentLunchTimeEntity from "../entity/StudentLunchTimeEntity";
 import {  Not } from "typeorm";
 import MealEntity from "../entity/MealEntity";
-import TeacherLunchTimeEntity from "../entity/TeacherLunchTimeEntity";
 import { GradeLevel } from "../models/GradeLevel";
 import SchoolYearEntity from "../entity/SchoolYearEntity";
 import StudentEntity from "../entity/StudentEntity";
@@ -12,6 +10,9 @@ import UserEntity from "../entity/UserEntity";
 import { Role } from "../models/User";
 import GradeLunchTimeEntity from "../entity/GradeLunchTimeEntity";
 import { DateTimeFormat, DateTimeUtils } from "../DateTimeUtils";
+import { generatePDFBuffer, getClassroomReport, getDailyReport, getDailyCafeteriaReport } from "../utils/ReportUtils";
+import SchoolEntity from "../entity/SchoolEntity";
+import { EmailReportService } from "../services/EmailReportService";
 
 const router = express.Router();
 
@@ -265,72 +266,7 @@ router.get("/cohorts/:date", async (req, res) => {
       return;
     }
 
-    const mealsBeingServed = await getMealsBeingServed(
-      currentSchoolYear,
-      date
-    );
-
-    const studentsBeingServed = getStudentsBeingServed(mealsBeingServed);
-
-    const classroomTeachers = await getClassroomTeachers(
-      currentSchoolYear,
-      date
-    );
-
-    const classroomMap = getClassroomMap(date, classroomTeachers, studentsBeingServed);
-
-    const gradesAssignedByClass = currentSchoolYear.gradesAssignedByClass
-      ? (currentSchoolYear.gradesAssignedByClass.split("|") as GradeLevel[])
-      : [];
-    // Get grade levels not assigned by class
-    const allGradeLevels = Object.values(GradeLevel).filter(
-      (grade) => grade !== GradeLevel.UNKNOWN
-    );
-    const gradeLevelsWithLunchTimes: GradeLevel[] = allGradeLevels.filter(
-      (grade) => !gradesAssignedByClass.includes(grade)
-    );
-    const gradeLevelMap = getStudentGradeLevelMap(
-      date,
-      gradeLevelsWithLunchTimes,
-      studentsBeingServed
-    );
-
-    const teacherLunchTimes = await getTeacherLunchTimes(currentSchoolYear, date);
-    const gradeLevelLunchTimes = await getGradeLevelLunchTimes(currentSchoolYear, date);
-
-    const classroomReportData = buildClassroomReportData(mealsBeingServed,classroomMap, classroomTeachers, date, teacherLunchTimes);
-    const gradeLevelReportData = buildGradeLevelReportData(mealsBeingServed, gradeLevelMap, date, gradeLevelLunchTimes);
-
-    // Find students who are being served meals but not in either map
-    const studentsInClassrooms = new Set<number>();
-    const studentsInGradeLevels = new Set<number>();
-    for (const [teacherId, students] of classroomMap) {
-      for (const student of students) {
-        studentsInClassrooms.add(student.id);
-      }
-    }
-    for (const [gradeLevel, students] of gradeLevelMap) {
-      for (const student of students) {
-        studentsInGradeLevels.add(student.id);
-      }
-    }
-    const otherStudents = studentsBeingServed.filter(student => 
-      !studentsInClassrooms.has(student.id) && !studentsInGradeLevels.has(student.id)
-    );
-    const otherStudentsReportData = buildOtherStudentsReportData(mealsBeingServed, otherStudents, date);
-
-    // Find staff members who are being served meals but not in classroomTeachers array
-    const staffMeals = mealsBeingServed.filter(meal => meal.staffMember);
-    const staffBeingServed = staffMeals
-      .map(meal => meal.staffMember!)
-      .filter((staffMember, index, self) => 
-        index === self.findIndex(s => s.id === staffMember.id)
-      );
-    const otherStaffReportData = buildStaffReportData(mealsBeingServed, staffBeingServed, date);
-
-    const allReportData: ReportData[] = classroomReportData.concat(gradeLevelReportData).concat(otherStudentsReportData).concat(otherStaffReportData);
-
-    const html = generateMealReports(allReportData);
+    const html = await getDailyReport(currentSchoolYear, date);
     await generateAndSendPDF(html, res);
   } catch (error: unknown) {
     const errorMessage =
@@ -342,29 +278,37 @@ router.get("/cohorts/:date", async (req, res) => {
   }
 });
 
-const getClassroomStudents = async (
-  schoolYear: SchoolYearEntity,
-  lunchtimeTeacherId: number,
-  dayOfWeek: number
-): Promise<StudentEntity[]> => {
-  const studentLunchTimeRepository = AppDataSource.getRepository(
-    StudentLunchTimeEntity
-  );
+router.get("/cafeteria/:date", async (req, res) => {
+  try {
+    const date = req.params.date;
+    if (isNaN(Date.parse(date))) {
+      res.status(400).json({ error: "Invalid date format" });
+      return;
+    }
+    const schoolRepository = AppDataSource.getRepository(SchoolEntity);
+    const school = await schoolRepository.findOne({
+      where: {
+        id: 1,
+      },
+    });
 
-  // Find all lunchtime assignments where this teacher is assigned
-  const lunchTimeAssignments = await studentLunchTimeRepository.find({
-    where: {
-      schoolYear,
-      lunchtimeTeacher: { id: lunchtimeTeacherId },
-      dayOfWeek,
-    },
-    relations: {
-      student: true,
-    },
-  });
+    if (!school) {
+      res.status(400).json({ error: "No school found" });
+      return;
+    }
 
-  return lunchTimeAssignments.map((assignment) => assignment.student);
-};
+    const html = await getDailyCafeteriaReport(school, date);
+    await generateAndSendPDF(html, res);
+  } catch (error: unknown) {
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error occurred";
+    res.status(500).json({
+      error: "Failed to generate PDF",
+      details: errorMessage,
+    });
+  }
+});
+
 
 const getGradeLevelStudents = async (
   schoolYear: SchoolYearEntity,
@@ -528,122 +472,6 @@ const getStudentsBeingServed = (
   return uniqueStudents;
 };
 
-const getTeacherLunchTimes = async (
-  schoolYear: SchoolYearEntity,
-  date: string
-): Promise<TeacherLunchTimeEntity[]> => {
-  const dayOfWeek = DateTimeUtils.toDate(date).getDay();
-  const teacherLunchTimeRepository = AppDataSource.getRepository(TeacherLunchTimeEntity);
-  return await teacherLunchTimeRepository.find({
-    where: {
-      schoolYear: { id: schoolYear.id },
-      dayOfWeek: dayOfWeek,
-    },
-    relations: {
-      teacher: true,
-    },
-  });
-};
-
-const getGradeLevelLunchTimes = async (
-  schoolYear: SchoolYearEntity,
-  date: string
-): Promise<GradeLunchTimeEntity[]> => {
-  const dayOfWeek = DateTimeUtils.toDate(date).getDay();
-  const gradeLunchTimeRepository = AppDataSource.getRepository(GradeLunchTimeEntity);
-  
-  return await gradeLunchTimeRepository.find({
-    where: {
-      schoolYear: { id: schoolYear.id },
-      dayOfWeek: dayOfWeek,
-    },
-    relations: {
-      schoolYear: true,
-    },
-  });
-};
-
-const buildClassroomReportData = (
-  mealsBeingServed: MealEntity[],
-  classroomMap: Map<number, StudentEntity[]>,
-  classroomTeachers: UserEntity[],
-  date: string,
-  teacherLunchTimes: TeacherLunchTimeEntity[]
-): ReportData[] => {
-  const dayOfWeek = DateTimeUtils.toDate(date).getDay();
-  const reportDataArray: ReportData[] = [];
-
-  for (const [teacherId, students] of classroomMap) {
-    // Find the teacher
-    const teacher = classroomTeachers.find(t => t.id === teacherId);
-    if (!teacher) continue;
-
-    // Get teacher's lunch time for this day
-    const teacherLunchTime = teacherLunchTimes.find(tlt => 
-      tlt.teacher.id === teacherId && tlt.dayOfWeek === dayOfWeek
-    );
-
-    // Get meals for students in this classroom
-    const studentMeals = mealsBeingServed.filter(meal => 
-      meal.student && students.some(student => student.id === meal.student!.id)
-    );
-
-    // Get teacher's meals
-    const teacherMeals = mealsBeingServed.filter(meal => 
-      meal.staffMember?.id === teacherId
-    );
-
-    // Skip if no meals for either students or teacher
-    if (studentMeals.length === 0 && teacherMeals.length === 0) {
-      continue;
-    }
-
-    // Create classroom data
-    const reportData: ReportData = {
-      isClassroom: true,
-      title: teacher.name.length > 0 ? teacher.name : teacher.firstName + " " + teacher.lastName,
-      time: teacherLunchTime?.time
-        ? teacherLunchTime.time.split("|")[0]
-        : "Not assigned",
-      date: date,
-      customers: [],
-    };
-
-    // Add teacher meals first (if any)
-    if (teacherMeals.length > 0) {
-      const teacherMealData = teacherMeals.map((meal) => ({
-        items: meal.items.map((item) => item.name),
-      }));
-
-      reportData.customers.push({
-        name: `${teacher.firstName} ${teacher.lastName}`,
-        meals: teacherMealData,
-      });
-    }
-
-    // Add students and their meals
-    for (const student of students) {
-      const studentMealsForStudent = studentMeals
-        .filter((meal) => meal.student?.id === student.id)
-        .map((meal) => ({
-          items: meal.items.map((item) => item.name),
-        }));
-
-      if (studentMealsForStudent.length > 0) {
-        reportData.customers.push({
-          name: student.firstName + " " + student.lastName,
-          meals: studentMealsForStudent,
-        });
-      }
-    }
-
-    reportData.customers.sort((a, b) => a.name.localeCompare(b.name));
-    reportDataArray.push(reportData);
-  }
-
-  return reportDataArray;
-};
-
 router.get("/classroom/:teacherId/:date", async (req, res) => {
   try {
     const teacherId = parseInt(req.params.teacherId);
@@ -651,11 +479,13 @@ router.get("/classroom/:teacherId/:date", async (req, res) => {
 
     // Validate inputs
     if (isNaN(teacherId)) {
-      res.status(400).json({ error: "Invalid teacher ID" });
+      const html = generateNoMealsPage();
+      await generateAndSendPDF(html, res);
       return;
     }
     if (isNaN(Date.parse(date))) {
-      res.status(400).json({ error: "Invalid date format" });
+      const html = generateNoMealsPage();
+      await generateAndSendPDF(html, res);
       return;
     }
 
@@ -667,52 +497,17 @@ router.get("/classroom/:teacherId/:date", async (req, res) => {
       return;
     }
 
-    // Get meals being served
-    const mealsBeingServed = await getMealsBeingServed(currentSchoolYear, date);
-    
-    // Get teacher data
     const userRepository = AppDataSource.getRepository(UserEntity);
     const teacher = await userRepository.findOne({
       where: { id: teacherId },
     });
     if (!teacher) {
-      res.status(404).json({ error: "Teacher not found" });
-      return;
-    }
-
-    // Get teacher lunch times
-    const teacherLunchTimeRepository = AppDataSource.getRepository(TeacherLunchTimeEntity);
-    const teacherLunchTimes = await teacherLunchTimeRepository.find({
-      where: {
-        schoolYear: { id: currentSchoolYear.id },
-      },
-      relations: {
-        teacher: true,
-      },
-    });
-
-    // Get students for this teacher
-    const dayOfWeek = DateTimeUtils.toDate(date).getDay();
-    const students = await getClassroomStudents(currentSchoolYear, teacherId, dayOfWeek);
-    
-    // Create classroom map
-    const classroomMap = new Map([[teacherId, students]]);
-
-    const reportData = buildClassroomReportData(
-      mealsBeingServed,
-      classroomMap,
-      [teacher],
-      date,
-      teacherLunchTimes
-    );
-
-    if (!reportData || reportData.length === 0) {
       const html = generateNoMealsPage();
       await generateAndSendPDF(html, res);
       return;
     }
 
-    const html = generateMealReports(reportData);
+    const html = await getClassroomReport(currentSchoolYear, teacher, [date]);
     await generateAndSendPDF(html, res);
   } catch (error: unknown) {
     const errorMessage =
@@ -981,39 +776,8 @@ const buildStaffReportData = (
 };
 
 async function generateAndSendPDF(html: string, res: express.Response) {
-  // Launch Playwright browser
-  const browser = await chromium.launch({
-    headless: true,
-  });
-
-  const page = await browser.newPage();
-
-  // Set viewport size
-  await page.setViewportSize({ width: 1200, height: 800 });
-
-  await page.setContent(html, {
-    waitUntil: "networkidle",
-    timeout: 30000,
-  });
-
-  // Wait a bit to ensure everything is rendered
-  await page.waitForTimeout(1000);
-
-  const pdfBuffer = await page.pdf({
-    format: "A4",
-    printBackground: true,
-    margin: {
-      top: "20px",
-      right: "20px",
-      bottom: "20px",
-      left: "20px",
-    },
-    preferCSSPageSize: true,
-  });
-
-  await browser.close();
-
-  // Clear any existing headers
+  const pdfBuffer = await generatePDFBuffer(html);
+ 
   res.removeHeader("Content-Type");
   res.removeHeader("Content-Length");
   res.removeHeader("Content-Disposition");
@@ -1032,6 +796,7 @@ async function generateAndSendPDF(html: string, res: express.Response) {
   res.end();
 }
 
+
 const getDebugSchoolYear = async () => {
   const schoolYearRepository = AppDataSource.getRepository(SchoolYearEntity);
 
@@ -1041,5 +806,56 @@ const getDebugSchoolYear = async () => {
 
   return schoolYear;
 };
+
+// Test endpoint to manually trigger email sending
+router.post("/test-email-reports/:schoolId", async (req, res) => {
+  try {
+    const schoolId = parseInt(req.params.schoolId);
+    const date = req.body.date;
+    
+    try {
+      // Get school configuration
+      const schoolRepository = AppDataSource.getRepository(SchoolEntity);
+      const schoolEntity = await schoolRepository.findOne({ where: { id: schoolId } });
+      
+      await EmailReportService.sendClassroomReports(schoolEntity!, [date]);
+    } catch (error) {
+      console.error("Error in sendReportsForDate:", error);
+    }
+
+    
+    res.json({ 
+      success: true, 
+      message: `Test email reports sent for date: ${date}` 
+    });
+  } catch (error: unknown) {
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error occurred";
+    res.status(500).json({
+      error: "Failed to send test email reports",
+      details: errorMessage,
+    });
+  }
+});
+
+// Test endpoint to manually trigger the check and send process
+router.post("/test-check-and-send/:schoolId", async (req, res) => {
+  try {
+    const schoolId = parseInt(req.params.schoolId);
+    await EmailReportService.checkAndSendReports(schoolId);
+    
+    res.json({ 
+      success: true, 
+      message: "Test check and send process completed" 
+    });
+  } catch (error: unknown) {
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error occurred";
+    res.status(500).json({
+      error: "Failed to run test check and send process",
+      details: errorMessage,
+    });
+  }
+});
 
 export default router;

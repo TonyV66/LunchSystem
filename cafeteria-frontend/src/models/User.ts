@@ -19,6 +19,7 @@ export const NULL_USER: User = {
   phone: '',
   description: '',
   role: Role.PARENT,
+  pending: false,
   notificationReviewDate: new Date('2020-01-01 00:00:00').toJSON(),
   resetPwd: false,
   forgotPwdUri: null,
@@ -36,6 +37,7 @@ export default interface User {
   phone: string;
   description: string;
   role: Role;
+  pending: boolean;
   notificationReviewDate: string;
   resetPwd: boolean;
   forgotPwdUri: string | null;

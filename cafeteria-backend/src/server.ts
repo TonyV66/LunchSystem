@@ -18,6 +18,7 @@ import { authorizeRequest } from "./routers/RouterUtils";
 import SchoolYearRouter from "./routers/SchoolYearRouter";
 import ReportsRouter from "./routers/ReportsRouter";
 import SchoolRegistrationRouter from "./routers/SchoolRegistrationRouter";
+import { EmailSchedulerService } from "./services/EmailSchedulerService";
 
 AppDataSource.initialize()
   .then(async () => {
@@ -56,6 +57,8 @@ AppDataSource.initialize()
     app.use("/api/register", SchoolRegistrationRouter);
     app.use("/reports", ReportsRouter);
 
+    // Start the email scheduler
+    await EmailSchedulerService.startScheduler();
 
     interface Empty {}
 

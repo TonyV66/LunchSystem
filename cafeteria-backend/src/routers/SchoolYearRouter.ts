@@ -424,38 +424,38 @@ SchoolYearRouter.put<{ schoolYearId: string }, SessionInfo | string, {}, {}>(
       }
 
       // Find the previous school year by comparing start dates
-      const previousSchoolYear = await schoolYearRepository.findOne({
-        where: {
-          school: { id: req.user.school.id },
-          startDate: LessThan(schoolYear.startDate)
-        },
-        order: { startDate: 'DESC' }
-      });
+      // const previousSchoolYear = await schoolYearRepository.findOne({
+      //   where: {
+      //     school: { id: req.user.school.id },
+      //     startDate: LessThan(schoolYear.startDate)
+      //   },
+      //   order: { startDate: 'DESC' }
+      // });
 
-      if (previousSchoolYear) {
-        // Get all users who placed orders in the previous school year
-        const orders = await orderRepository.find({
-          where: { schoolYear: { id: previousSchoolYear.id } },
-          relations: { user: true },
-          select: { user: { id: true } }
-        });
+      // if (previousSchoolYear) {
+      //   // Get all users who placed orders in the previous school year
+      //   const orders = await orderRepository.find({
+      //     where: { schoolYear: { id: previousSchoolYear.id } },
+      //     relations: { user: true },
+      //     select: { user: { id: true } }
+      //   });
 
-        // Get unique user IDs from orders
-        const previousYearUserIds = [...new Set(orders.map(order => order.user.id))];
+      //   // Get unique user IDs from orders
+      //   const previousYearUserIds = [...new Set(orders.map(order => order.user.id))];
 
-        // Get full user entities for those who placed orders
-        const previousYearUsers = await userRepository.find({
-          where: { id: In(previousYearUserIds) }
-        });
+      //   // Get full user entities for those who placed orders
+      //   const previousYearUsers = await userRepository.find({
+      //     where: { id: In(previousYearUserIds) }
+      //   });
 
-        // Add previous year's ordering users to the new school year
-        for (const user of previousYearUsers) {
-          await addUserToSchoolYear(user, schoolYear);
-        }
+      //   // Add previous year's ordering users to the new school year
+      //   for (const user of previousYearUsers) {
+      //     await addUserToSchoolYear(user, schoolYear);
+      //   }
 
-        // Clean up unused user accounts from all previous school years
-        await cleanupUnusedUserAccounts(req.user.school.id, schoolYear.startDate);
-      }
+      //   // Clean up unused user accounts from all previous school years
+      //   await cleanupUnusedUserAccounts(req.user.school.id, schoolYear.startDate);
+      // }
     }
 
     // Toggle the current status

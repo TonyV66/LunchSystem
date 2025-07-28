@@ -26,7 +26,10 @@ import Student from "../../models/Student";
 import { StudentLunchTime } from "../../models/StudentLunchTime";
 import SchoolYear from "../../models/SchoolYear";
 import GradeLunchTime from "../../models/GradeLunchTime";
-import { showAdminReport, showClassroomReport } from "../../api/CafeteriaClient";
+import {
+  showAdminReport,
+  showClassroomReport,
+} from "../../api/CafeteriaClient";
 
 const buildStaffReportData = (
   mealsBeingServed: Meal[],
@@ -208,19 +211,14 @@ const buildClassroomReportData = (
 
     // Create classroom data
     const reportData: ReportData = {
-      title: (teacher.name.length > 0 ? teacher.name : teacher.firstName + " " + teacher.lastName),
+      title:
+        teacher.name.length > 0
+          ? teacher.name
+          : teacher.firstName + " " + teacher.lastName,
       time: teacherLunchTime?.times[0] ? teacherLunchTime.times[0] : undefined,
       date: date,
       customers: [],
     };
-
-    // Add teacher meals first (if any)
-    if (teacherMeals.length > 0) {
-      reportData.customers.push({
-        name: `${teacher.firstName} ${teacher.lastName}`,
-        meals: teacherMeals,
-      });
-    }
 
     // Add students and their meals
     for (const student of students) {
@@ -237,6 +235,15 @@ const buildClassroomReportData = (
     }
 
     reportData.customers.sort((a, b) => a.name.localeCompare(b.name));
+
+    // Add teacher meals last (if any)
+    if (teacherMeals.length > 0) {
+      reportData.customers.push({
+        name: teacher.name.length > 0 ? teacher.name : `${teacher.firstName} ${teacher.lastName}`,
+        meals: teacherMeals,
+      });
+    }
+
     reportDataArray.push(reportData);
   }
 

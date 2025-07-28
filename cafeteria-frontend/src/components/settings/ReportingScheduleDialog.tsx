@@ -16,7 +16,7 @@ import {
 import School from "../../models/School";
 import TimeSelector from "../TimeSelector";
 import { AppContext } from "../../AppContextProvider";
-import { updateSchoolOrderTimes } from "../../api/CafeteriaClient";
+import { updateSchoolEmailReports } from "../../api/CafeteriaClient";
 import { RelativeDateTarget } from "../../models/SchoolYear";
 
 interface RelativeDateTime {
@@ -25,7 +25,7 @@ interface RelativeDateTime {
   time: string;
 }
 
-interface OrderingWindowDialogProps {
+interface ReportingScheduleDialogProps {
   open: boolean;
   onClose: () => void;
 }
@@ -36,6 +36,7 @@ const SaleDate: React.FC<{
 }> = ({ time, onTimeChanged }) => {
   const [relativeDateTime, setRelativeDateTime] =
     useState<RelativeDateTime>(time);
+
 
   function handleTargetDateChanged(value: string): void {
     const updatedTime = { ...relativeDateTime, targetDate: parseInt(value) };
@@ -112,53 +113,39 @@ const SaleDate: React.FC<{
   );
 };
 
-const OrderingWindowDialog: React.FC<OrderingWindowDialogProps> = ({
+const ReportingScheduleDialog: React.FC<ReportingScheduleDialogProps> = ({
   open,
   onClose,
 }) => {
   const { school, setSchool } = useContext(AppContext);
-  const [orderStartTime, setOrderStartTime] = useState<RelativeDateTime>({
-    count: school.orderStartPeriodCount,
-    targetDate: school.orderStartRelativeTo as RelativeDateTarget,
-    time: school.orderStartTime,
-  });
-  const [orderEndTime, setOrderEndTime] = useState<RelativeDateTime>({
-    count: school.orderEndPeriodCount,
-    targetDate: school.orderEndRelativeTo as RelativeDateTarget,
-    time: school.orderEndTime,
+  const [emailReportTime, setEmailReportTime] = useState<RelativeDateTime>({
+    count: school.emailReportStartPeriodCount,
+    targetDate: school.emailReportStartRelativeTo as RelativeDateTarget,
+    time: school.emailReportStartTime,
   });
 
   const handleSave = async () => {
     const updatedSchool: School = {
       ...school,
-      orderStartPeriodCount: orderStartTime.count,
-      orderStartRelativeTo: orderStartTime.targetDate,
-      orderStartTime: orderStartTime.time,
-      orderEndPeriodCount: orderEndTime.count,
-      orderEndRelativeTo: orderEndTime.targetDate,
-      orderEndTime: orderEndTime.time,
+      emailReportStartPeriodCount: emailReportTime.count,
+      emailReportStartRelativeTo: emailReportTime.targetDate,
+      emailReportStartTime: emailReportTime.time,
     };
-    await updateSchoolOrderTimes(updatedSchool);
+    await updateSchoolEmailReports(updatedSchool);
     setSchool(updatedSchool);
     onClose();
   };
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
-      <DialogTitle>Edit Ordering Window</DialogTitle>
+      <DialogTitle>Edit Email Report Schedule</DialogTitle>
       <DialogContent>
         <Stack direction="column" gap={2} sx={{ mt: 2 }}>
           <Box>
             <Typography variant="caption" fontWeight="bold">
-              Start Accepting Orders At:
+              Send Email Reports At:
             </Typography>
-            <SaleDate time={orderStartTime} onTimeChanged={setOrderStartTime} />
-          </Box>
-          <Box>
-            <Typography variant="caption" fontWeight="bold">
-              Stop Accepting Orders At:
-            </Typography>
-            <SaleDate time={orderEndTime} onTimeChanged={setOrderEndTime} />
+            <SaleDate time={emailReportTime} onTimeChanged={setEmailReportTime} />
           </Box>
         </Stack>
       </DialogContent>
@@ -172,4 +159,4 @@ const OrderingWindowDialog: React.FC<OrderingWindowDialogProps> = ({
   );
 };
 
-export default OrderingWindowDialog;
+export default ReportingScheduleDialog; 

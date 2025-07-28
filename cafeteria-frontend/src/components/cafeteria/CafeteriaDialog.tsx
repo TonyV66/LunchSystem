@@ -10,9 +10,9 @@ import {
 import { Close, Print } from "@mui/icons-material";
 
 import { TransitionProps } from '@mui/material/transitions';
-import { useReactToPrint } from "react-to-print";
-import AltCafeteriaReport from "./AltCafeteriaReport";
+import CafeteriaReport from "./CafeteriaReport";
 import { DateTimeFormat, DateTimeUtils } from "../../DateTimeUtils";
+import { showDailyCafeteriaReport } from "../../api/CafeteriaClient";
 
 const Transition = React.forwardRef(function Transition(
   props: TransitionProps & {
@@ -30,18 +30,12 @@ interface DialogProps {
 }
 
 const CafeteriaDialog: React.FC<DialogProps> = ({ date, onClose }) => {
-  const reportRef = React.useRef<HTMLDivElement>(null);
-  const handlePrint = useReactToPrint({
-    contentRef: reportRef,
-  });
-
-  function handleClick(
+  function handlePrintClick(
     event: React.MouseEvent<HTMLButtonElement, MouseEvent>
   ): void {
     event.stopPropagation();
-    handlePrint();
+    showDailyCafeteriaReport(date);
   }
-
 
   console.log(date);
   return (
@@ -65,7 +59,7 @@ const CafeteriaDialog: React.FC<DialogProps> = ({ date, onClose }) => {
               Cafeteria Report - {DateTimeUtils.toString(date, DateTimeFormat.SHORT_DAY_OF_WEEK_DESC)}
             </Typography>
             <IconButton
-              onClick={handleClick}
+              onClick={handlePrintClick}
               size="small"
               sx={{color: 'white'}}
             >
@@ -73,7 +67,7 @@ const CafeteriaDialog: React.FC<DialogProps> = ({ date, onClose }) => {
             </IconButton>
           </Toolbar>
         </AppBar>
-        <AltCafeteriaReport date={date} />
+        <CafeteriaReport date={date} />
 
     </Dialog>
   );

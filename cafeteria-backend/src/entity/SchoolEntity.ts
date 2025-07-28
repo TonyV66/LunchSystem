@@ -19,19 +19,25 @@ export default class SchoolEntity {
   @Column()
   orderStartPeriodCount: number;
   @Column()
-  orderStartPeriodType: number;
-  @Column()
   orderStartRelativeTo: number;
   @Column()
   orderStartTime: string;
   @Column()
   orderEndPeriodCount: number;
   @Column()
-  orderEndPeriodType: number;
-  @Column()
   orderEndRelativeTo: number;
   @Column()
   orderEndTime: string;
+  @Column()
+  emailReportStartPeriodCount: number;
+  @Column()
+  emailReportStartPeriodType: number;
+  @Column()
+  emailReportStartRelativeTo: number;
+  @Column()
+  emailReportStartTime: string;
+  @Column({default: "America/New_York"})
+  timezone: string;
   @Column({
     type: "decimal",
     precision: 5,

@@ -19,6 +19,8 @@ import { AppContext } from "../../AppContextProvider";
 import { AxiosError } from "axios";
 import ConfirmDialog from "../ConfirmDialog";
 import { NO_SCHOOL_YEAR } from "../../models/SchoolYear";
+import { REGISTRATION_URL } from "../../MainAppPanel";
+import { useNavigate } from "react-router-dom";
 
 enum ForgottenCredential {
   USERNAME,
@@ -47,6 +49,8 @@ export const CredentialsPanel: React.FC = () => {
   const [forgottenCredential, setForgottenCredential] =
     useState<ForgottenCredential>();
   const [email, setEmail] = useState<string>("");
+
+  const navigate = useNavigate();
 
   const handleForgotCancelled = () => {
     setForgottenCredential(undefined);
@@ -176,6 +180,14 @@ export const CredentialsPanel: React.FC = () => {
           disabled={!userName.length}
           variant="body2"
           onClick={() => setForgottenCredential(ForgottenCredential.PWD)}
+          sx={{
+            opacity: !userName.length ? 0.5 : 1,
+            cursor: !userName.length ? 'not-allowed' : 'pointer',
+            color: !userName.length ? 'text.disabled' : 'primary.main',
+            '&:hover': {
+              textDecoration: !userName.length ? 'none' : 'underline'
+            }
+          }}
         >
           Forgot Password
         </Link>
@@ -186,6 +198,14 @@ export const CredentialsPanel: React.FC = () => {
         >
           Forgot Username
         </Link>
+        <Link
+          component="button"
+          variant="body2"
+          onClick={() => navigate(REGISTRATION_URL)}
+        >
+          Register
+        </Link>
+
       </Box>
       <Button
         variant="contained"
@@ -241,7 +261,7 @@ export const CredentialsPanel: React.FC = () => {
           <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
             <Typography>
               We&apos;ll look up your login information using your email address
-              and send you your username.
+              and email you your username.
             </Typography>
 
             <TextField
