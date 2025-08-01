@@ -753,13 +753,6 @@ UserRouter.post(
         const existingUser = await userRepository.findOne({
           where: { email: email.toLowerCase() },
         });
-        const newUser: DeepPartial<UserEntity> = {
-          id: undefined,
-          userName: randomUUID(),
-          name: "",
-          firstName: "",
-          lastName: "",
-        };
 
         if (existingUser) {
           if (existingUser.school?.id === req.user.school.id) {
@@ -802,16 +795,21 @@ UserRouter.post(
           );
 
           if (!firstRowWithEmail) continue;
-
-          newUser.firstName = firstRowWithEmail.firstName;
-          newUser.lastName = firstRowWithEmail.lastName;
-          newUser.name = firstRowWithEmail.firstName + " " + firstRowWithEmail.lastName;
-          newUser.pending = true;
-          newUser.email = email.toLowerCase();
-          newUser.phone = "";
-          newUser.pwd = "";
-          newUser.description = "";
-          newUser.role = Role.TEACHER;
+          const newUser: DeepPartial<UserEntity> = {
+            id: undefined,
+            userName: randomUUID(),
+            firstName: firstRowWithEmail.firstName,
+            lastName: firstRowWithEmail.lastName,
+            name: firstRowWithEmail.firstName + " " + firstRowWithEmail.lastName,
+            pending: true,
+            email: email.toLowerCase(),
+            phone: "",
+            pwd: "",
+            description: "",
+            role: Role.TEACHER,
+            school: req.user.school,
+          };
+  
 
           const savedUser = await userRepository.save(newUser);
 
