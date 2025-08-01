@@ -1,4 +1,5 @@
 import axios from "axios";
+import SchoolEntity from "../entity/SchoolEntity";
 
 
 interface OutgoingEmail {
@@ -63,17 +64,50 @@ const SEND_EMAIL_HTTP_HEADER = {
   "X-Smtp2go-Api-Key": EMAIL_API_KEY,
 };
 
-export const sendInvitationEmail = async (toEmail: string, invitationId: string, firstName: string, lastName: string, schoolName: string) => {
-  const invitationEmail: InvitationEmail = {
+export const sendInvitationEmail = async (toEmail: string, firstName: string, lastName: string, school: SchoolEntity) => {
+  const invitationEmail: ReportEmail = {
     to: [toEmail],
     sender: SENDER_EMAIL,
-    template_id: INVITATION_TEMPLATE_ID,
-    template_data: {
-      first_name: firstName,
-      last_name: lastName,
-      school_name: schoolName,
-      action_url: LUNCH_SYSTEM_BASE_URL + "/register/" + invitationId,
-    },
+    subject: `Invitation to Join ${school.name} Lunch System`,
+    html_body: `
+      <html>
+        <body>
+          <h2>Welcome to the School Lunch System</h2>
+          <p>Dear ${firstName} ${lastName},</p>
+          <p>You have been invited to create an account on the ${school.name} lunch system.</p>
+          <p>To get started, please follow these steps:</p>
+          <ol>
+            <li>Go to <a href="https://hotlunch.micscougars.com/register">https://hotlunch.micscougars.com/register</a></li>
+            <li>Use the school registration code: <strong>${school.registrationCode}</strong></li>
+            <li>Use the email address: <strong>${toEmail}</strong></li>
+          </ol>
+          <p>Once you complete the registration process, you'll be able to access the lunch system and manage your account.</p>
+          <p>If you have any questions, please contact the school administration.</p>
+          <p>Best regards,<br>${school.name} Administration</p>
+        </body>
+      </html>
+    `,
+    text_body: `
+      Welcome to the School Lunch System
+      
+      Dear ${firstName} ${lastName},
+      
+      You have been invited to create an account on the ${school.name} lunch system.
+      
+      To get started, please follow these steps:
+      
+      1. Go to https://hotlunch.micscougars.com/register
+      2. Use the school registration code: ${school.registrationCode}
+      3. Use the email address: ${toEmail}
+      
+      Once you complete the registration process, you'll be able to access the lunch system and manage your account.
+      
+      If you have any questions, please contact the school administration.
+      
+      Best regards,
+      ${school.name} Administration
+    `,
+    attachments: []
   };
 
   return await axios.post(SEND_EMAIL_API_URL, invitationEmail, {

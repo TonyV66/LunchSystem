@@ -1,5 +1,5 @@
 import React, { useContext, useState } from "react";
-import { Box, Fab, IconButton, Stack, Typography } from "@mui/material";
+import { Box, Fab, IconButton, Stack, Typography, Menu, MenuItem } from "@mui/material";
 import {
   DataGrid,
   GridColDef,
@@ -13,6 +13,7 @@ import { useNavigate } from "react-router-dom";
 import { SCHOOL_YEAR_URL } from "../../MainAppPanel";
 import SchoolYearDialog from "./SchoolYearDialog";
 import UserImportDialog from "../users/UserImportDialog";
+import TeacherImportDialog from "../users/TeacherImportDialog";
 
 interface Row {
   id: number;
@@ -26,18 +27,38 @@ const SchoolYearsPage: React.FC = () => {
   const { schoolYears, currentSchoolYear } = useContext(AppContext);
   const navigate = useNavigate();
   const [showSchoolYearDialog, setShowSchoolYearDialog] = useState(false);
-  const [showImportDialog, setShowImportDialog] = useState(false);
+  const [showUserImportDialog, setShowUserImportDialog] = useState(false);
+  const [showTeacherImportDialog, setShowTeacherImportDialog] = useState(false);
+  const [importMenuAnchor, setImportMenuAnchor] = useState<null | HTMLElement>(null);
 
   const handleCloseDialog = () => {
     setShowSchoolYearDialog(false);
   };
 
-  const handleOpenImportDialog = () => {
-    setShowImportDialog(true);
+  const handleOpenImportMenu = (event: React.MouseEvent<HTMLElement>) => {
+    setImportMenuAnchor(event.currentTarget);
   };
 
-  const handleCloseImportDialog = () => {
-    setShowImportDialog(false);
+  const handleCloseImportMenu = () => {
+    setImportMenuAnchor(null);
+  };
+
+  const handleImportUsers = () => {
+    setShowUserImportDialog(true);
+    handleCloseImportMenu();
+  };
+
+  const handleImportTeachers = () => {
+    setShowTeacherImportDialog(true);
+    handleCloseImportMenu();
+  };
+
+  const handleCloseUserImportDialog = () => {
+    setShowUserImportDialog(false);
+  };
+
+  const handleCloseTeacherImportDialog = () => {
+    setShowTeacherImportDialog(false);
   };
 
   const rows: Row[] = [];
@@ -104,7 +125,7 @@ const SchoolYearsPage: React.FC = () => {
             <IconButton
               color="primary"
               size="small"
-              onClick={handleOpenImportDialog}
+              onClick={handleOpenImportMenu}
             >
               <CloudUpload />
             </IconButton>
@@ -175,9 +196,21 @@ const SchoolYearsPage: React.FC = () => {
 
       {showSchoolYearDialog && <SchoolYearDialog onClose={handleCloseDialog} />}
       <UserImportDialog
-        open={showImportDialog}
-        onClose={handleCloseImportDialog}
+        open={showUserImportDialog}
+        onClose={handleCloseUserImportDialog}
       />
+      <TeacherImportDialog
+        open={showTeacherImportDialog}
+        onClose={handleCloseTeacherImportDialog}
+      />
+      <Menu
+        anchorEl={importMenuAnchor}
+        open={Boolean(importMenuAnchor)}
+        onClose={handleCloseImportMenu}
+      >
+        <MenuItem onClick={handleImportUsers}>Import Parents & Students</MenuItem>
+        <MenuItem onClick={handleImportTeachers}>Import Teachers</MenuItem>
+      </Menu>
     </Stack>
   );
 };

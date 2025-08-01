@@ -15,10 +15,7 @@ import {
 } from "@mui/material";
 import User, { NULL_USER, Role } from "../../models/User";
 import { AppContext } from "../../AppContextProvider";
-import {
-  sendInvitation,
-  updateUser,
-} from "../../api/CafeteriaClient";
+import { sendInvitation, updateUser } from "../../api/CafeteriaClient";
 import { AxiosError } from "axios";
 
 interface DialogProps {
@@ -27,8 +24,13 @@ interface DialogProps {
 }
 
 const EditUserDialog: React.FC<DialogProps> = ({ user, onClose }) => {
-  const { users, setUsers, setSnackbarErrorMsg, setSnackbarMsg, user: loggedInUser } =
-    useContext(AppContext);
+  const {
+    users,
+    setUsers,
+    setSnackbarErrorMsg,
+    setSnackbarMsg,
+    user: loggedInUser,
+  } = useContext(AppContext);
 
   const [role, setRole] = useState(
     user?.role.toString() ?? Role.PARENT.toString()
@@ -36,14 +38,12 @@ const EditUserDialog: React.FC<DialogProps> = ({ user, onClose }) => {
   const [firstName, setFirstName] = useState(user?.firstName ?? "");
   const [lastName, setLastName] = useState(user?.lastName ?? "");
   const [email, setEmail] = useState(user?.email ?? "");
+  const [properName, setProperName] = useState(user?.name ?? "");
 
   const handleRoleChanged = (roleName: string) => {
     setRole(roleName);
   };
-  const isSaveDisabled =
-    !email.length ||
-    !firstName.length ||
-    !lastName.length;
+  const isSaveDisabled = !email.length || !firstName.length || !lastName.length;
 
   const handleSaveUser = async () => {
     if (!user) {
@@ -73,7 +73,7 @@ const EditUserDialog: React.FC<DialogProps> = ({ user, onClose }) => {
     const updatedUser: User = {
       ...(user ?? NULL_USER),
       userName: user.userName,
-      name: "",
+      name: role === Role.TEACHER.toString() ? properName : "",
       firstName,
       lastName,
       pwd: "",
@@ -86,7 +86,7 @@ const EditUserDialog: React.FC<DialogProps> = ({ user, onClose }) => {
       setUsers(
         users.map((user) => (user.id === savedUser.id ? savedUser : user))
       );
-      setSnackbarErrorMsg("User updated");
+      setSnackbarMsg("User updated");
       onClose();
     } catch (error) {
       const axiosError = error as AxiosError;
@@ -99,7 +99,13 @@ const EditUserDialog: React.FC<DialogProps> = ({ user, onClose }) => {
     }
   };
 
-  const roleNames = ["System Admin.", "Teacher", "Parent", "Cafeteria", "Staff"];
+  const roleNames = [
+    "System Admin.",
+    "Teacher",
+    "Parent",
+    "Cafeteria",
+    "Staff",
+  ];
 
   const availRoles: Role[] = [
     Role.PARENT,
@@ -122,7 +128,7 @@ const EditUserDialog: React.FC<DialogProps> = ({ user, onClose }) => {
       aria-labelledby="alert-dialog-title"
       aria-describedby="alert-dialog-description"
     >
-      <DialogTitle>{!user ? "New User" : "Edit User: " + user.userName}</DialogTitle>
+      <DialogTitle>{!user ? "New User" : "Edit User"}</DialogTitle>
       <DialogContent>
         <Box
           sx={{
@@ -182,7 +188,18 @@ const EditUserDialog: React.FC<DialogProps> = ({ user, onClose }) => {
               ))}
             </Select>
           </FormControl>
-
+          {role === Role.TEACHER.toString() && (
+            <TextField
+              fullWidth
+              required={true}
+              label="Reffered To As"
+              variant="standard"
+              value={properName}
+              onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
+                setProperName(event.target.value)
+              }
+            />
+          )}
         </Box>
       </DialogContent>
       <DialogActions>

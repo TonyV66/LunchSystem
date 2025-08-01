@@ -215,7 +215,7 @@ const TeacherLunchTimesTable: React.FC<TeacherLunchTimesTableProps> = ({
                     fontWeight: "bold",
                   }}
                 >
-                  {teacher.name}
+                  {teacher.name || teacher.firstName + " " + teacher.lastName}
                 </TableCell>
                 <TableCell
                   sx={{

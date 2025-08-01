@@ -20,26 +20,41 @@ import TeacherLunchTime from "../models/TeacherLunchTime";
 const API_BASE_URL = "/api";
 export const REPORTS_BASE_URL = "http://localhost:4000/reports";
 
-
 export const showClassroomReport = (date: string, teacherId: number) => {
-  const newWindow = window.open(REPORTS_BASE_URL + "/classroom/" + teacherId + "/" + date, '_blank', 'noopener,noreferrer')
-  if (newWindow) newWindow.opener = null
-}
+  const newWindow = window.open(
+    REPORTS_BASE_URL + "/classroom/" + teacherId + "/" + date,
+    "_blank",
+    "noopener,noreferrer"
+  );
+  if (newWindow) newWindow.opener = null;
+};
 
 export const showGradeReport = (date: string, grade: GradeLevel) => {
-  const newWindow = window.open(REPORTS_BASE_URL + "/grade/" + grade + "/" + date, '_blank', 'noopener,noreferrer')
-  if (newWindow) newWindow.opener = null
-}
+  const newWindow = window.open(
+    REPORTS_BASE_URL + "/grade/" + grade + "/" + date,
+    "_blank",
+    "noopener,noreferrer"
+  );
+  if (newWindow) newWindow.opener = null;
+};
 
 export const showAdminReport = (date: string) => {
-  const newWindow = window.open(REPORTS_BASE_URL + "/cohorts/" + date, '_blank', 'noopener,noreferrer')
-  if (newWindow) newWindow.opener = null
-}
+  const newWindow = window.open(
+    REPORTS_BASE_URL + "/cohorts/" + date,
+    "_blank",
+    "noopener,noreferrer"
+  );
+  if (newWindow) newWindow.opener = null;
+};
 
 export const showDailyCafeteriaReport = (date: string) => {
-  const newWindow = window.open(REPORTS_BASE_URL + "/cafeteria/" + date, '_blank', 'noopener,noreferrer')
-  if (newWindow) newWindow.opener = null
-}
+  const newWindow = window.open(
+    REPORTS_BASE_URL + "/cafeteria/" + date,
+    "_blank",
+    "noopener,noreferrer"
+  );
+  if (newWindow) newWindow.opener = null;
+};
 
 export interface Relations {
   students: Student[];
@@ -66,21 +81,43 @@ export const getInvitation = async (invitationId: string) => {
   return response.data;
 };
 
-export const saveSchoolYearLunchTimes = async (schoolYearId: string, dailyLunchTimes: DailyLunchTimes) => {
-  const response: AxiosResponse<DailyLunchTimes[]> =
-    await http.post(API_BASE_URL + "/schoolyear/" + schoolYearId + "/times", [dailyLunchTimes]);
+export const saveSchoolYearLunchTimes = async (
+  schoolYearId: string,
+  dailyLunchTimes: DailyLunchTimes
+) => {
+  const response: AxiosResponse<DailyLunchTimes[]> = await http.post(
+    API_BASE_URL + "/schoolyear/" + schoolYearId + "/times",
+    [dailyLunchTimes]
+  );
   return response.data;
 };
 
-export const saveGradeLunchTimes = async (schoolYearId: number, grade: GradeLevel, dailyLunchTimes: DailyLunchTimes[]) => {
-  const response: AxiosResponse<GradeLunchTime[]> =
-    await http.post(API_BASE_URL + "/schoolyear/" + schoolYearId + "/grade/" + grade + "/times", dailyLunchTimes);
+export const saveGradeLunchTimes = async (
+  schoolYearId: number,
+  grade: GradeLevel,
+  dailyLunchTimes: DailyLunchTimes[]
+) => {
+  const response: AxiosResponse<GradeLunchTime[]> = await http.post(
+    API_BASE_URL + "/schoolyear/" + schoolYearId + "/grade/" + grade + "/times",
+    dailyLunchTimes
+  );
   return response.data;
 };
 
-export const saveTeacherLunchTimes = async (schoolYearId: string, teacherId: number, teacherLunchTimes: TeacherLunchTime[]) => {
-  const response: AxiosResponse<TeacherLunchTime[]> =
-    await http.post(API_BASE_URL + "/schoolyear/" + schoolYearId + "/teacher/" + teacherId + "/times", teacherLunchTimes);
+export const saveTeacherLunchTimes = async (
+  schoolYearId: string,
+  teacherId: number,
+  teacherLunchTimes: TeacherLunchTime[]
+) => {
+  const response: AxiosResponse<TeacherLunchTime[]> = await http.post(
+    API_BASE_URL +
+      "/schoolyear/" +
+      schoolYearId +
+      "/teacher/" +
+      teacherId +
+      "/times",
+    teacherLunchTimes
+  );
   return response.data;
 };
 
@@ -181,16 +218,13 @@ export const checkout = async (
   return response.data;
 };
 
-export const donate = async (
-  shoppingCart: ShoppingCart,
-) => {
+export const donate = async (shoppingCart: ShoppingCart) => {
   const response: AxiosResponse<Order> = await http.post(
     API_BASE_URL + "/order/donate",
     shoppingCart
   );
   return response.data;
 };
-
 
 export interface StudentWithLunchTimes extends Student {
   lunchTimes?: StudentLunchTime[];
@@ -204,7 +238,11 @@ export const createStudent = async (student: StudentWithLunchTimes) => {
   return response.data;
 };
 
-export const getRelations = async (firstName: string, lastName: string, grade: GradeLevel): Promise<Relations> => {
+export const getRelations = async (
+  firstName: string,
+  lastName: string,
+  grade: GradeLevel
+): Promise<Relations> => {
   const response: AxiosResponse<Relations> = await http.get(
     API_BASE_URL + "/student/relations",
     { params: { firstName, lastName, grade } }
@@ -212,12 +250,8 @@ export const getRelations = async (firstName: string, lastName: string, grade: G
   return response.data;
 };
 
-
 export const testClassroomReports = async (schoolId: number, date: string) => {
-  await http.post(
-    "/reports/test-email-reports/" + schoolId,
-    { date }
-  );
+  await http.post("/reports/test-email-reports/" + schoolId, { date });
   return;
 };
 
@@ -229,7 +263,10 @@ export const updateStudent = async (student: StudentWithLunchTimes) => {
   return response.data;
 };
 
-export const updateStudentLunchTimes = async (studentId: number, lunchTimes: StudentLunchTime[]) => {
+export const updateStudentLunchTimes = async (
+  studentId: number,
+  lunchTimes: StudentLunchTime[]
+) => {
   const response: AxiosResponse<StudentLunchTime[]> = await http.put(
     API_BASE_URL + "/student/" + studentId + "/lunchtimes",
     lunchTimes
@@ -237,8 +274,16 @@ export const updateStudentLunchTimes = async (studentId: number, lunchTimes: Stu
   return response.data;
 };
 
-export const associateStudentWithUser = async (studentId: number, userId: number) => {
-  const response: AxiosResponse<{student: Student, lunchTimes: StudentLunchTime[], parents: User[], orders: Order[]}> = await http.put(
+export const associateStudentWithUser = async (
+  studentId: number,
+  userId: number
+) => {
+  const response: AxiosResponse<{
+    student: Student;
+    lunchTimes: StudentLunchTime[];
+    parents: User[];
+    orders: Order[];
+  }> = await http.put(
     API_BASE_URL + "/student/" + studentId + "/associate/" + userId
   );
   return response.data;
@@ -404,7 +449,10 @@ export const updateSchoolYear = async (schoolYear: SchoolYear) => {
   return response.data;
 };
 
-export const updateGradeLevelConfig = async (schoolYearId: number, gradesAssignedByClass: GradeLevel[]) => {
+export const updateGradeLevelConfig = async (
+  schoolYearId: number,
+  gradesAssignedByClass: GradeLevel[]
+) => {
   const response: AxiosResponse<SchoolYear> = await http.put(
     `${API_BASE_URL}/schoolyear/${schoolYearId.toString()}/gradeconfig`,
     gradesAssignedByClass
@@ -412,7 +460,10 @@ export const updateGradeLevelConfig = async (schoolYearId: number, gradesAssigne
   return response.data;
 };
 
-export const updateSchoolYearTeacherConfig = async (schoolYearId: number, oneTeacherPerStudent: boolean) => {
+export const updateSchoolYearTeacherConfig = async (
+  schoolYearId: number,
+  oneTeacherPerStudent: boolean
+) => {
   const response: AxiosResponse<SchoolYear> = await http.put(
     `${API_BASE_URL}/schoolyear/${schoolYearId.toString()}/teacher-config`,
     { oneTeacherPerStudent }
@@ -428,7 +479,9 @@ export const toggleSchoolYearCurrent = async (schoolYearId: number) => {
   return response.data;
 };
 
-export const getStudentsForUser = async (userId: number): Promise<Student[]> => {
+export const getStudentsForUser = async (
+  userId: number
+): Promise<Student[]> => {
   const response: AxiosResponse<Student[]> = await http.get(
     `${API_BASE_URL}/user/${userId}/students`
   );
@@ -444,14 +497,34 @@ export interface UserImportResult {
 
 export const uploadUserCsv = async (file: File): Promise<UserImportResult> => {
   const formData = new FormData();
-  formData.append('file', file);
-  
+  formData.append("file", file);
+
   const response: AxiosResponse<UserImportResult> = await http.post(
-    `${API_BASE_URL}/user/import-csv`,
+    `${API_BASE_URL}/user/import-students`,
     formData,
     {
       headers: {
-        'Content-Type': 'multipart/form-data',
+        "Content-Type": "multipart/form-data",
+      },
+    }
+  );
+  return response.data;
+};
+
+export interface TeacherImportResult {
+  importedUsersCount: number;
+  skippedUsersCount: number;
+}
+
+export const importTeachers = async (
+  formData: FormData
+): Promise<User[]> => {
+  const response: AxiosResponse<User[]> = await http.post(
+    `${API_BASE_URL}/user/import-teachers`,
+    formData,
+    {
+      headers: {
+        "Content-Type": "multipart/form-data",
       },
     }
   );

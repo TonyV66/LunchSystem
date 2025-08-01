@@ -2,7 +2,7 @@ import express, { Router } from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { AppDataSource } from "../data-source";
-import { DeepPartial } from "typeorm";
+import { DeepPartial, In } from "typeorm";
 import UserEntity from "../entity/UserEntity";
 import User, { Role } from "../models/User";
 import {
@@ -106,10 +106,9 @@ UserRouter.post<Empty, Empty, InvitationRequest, Empty>(
 
     const emailResponse = await sendInvitationEmail(
       req.body.email,
-      invitationId,
       req.body.firstName,
       req.body.lastName,
-      "MICS"
+      req.user.school
     );
     res.send(new User(savedUser));
   }
@@ -140,12 +139,18 @@ UserRouter.post<{}, LoginResponse | string, RegistrationRequest, {}>(
     });
 
     if (!currentSchoolYear) {
-      res.status(401).send("Registration is not available. No current school year found.");
+      res
+        .status(401)
+        .send("Registration is not available. No current school year found.");
       return;
     }
 
     if (DateTimeUtils.toString(new Date()) > currentSchoolYear.endDate) {
-      res.status(401).send("Registration is not available. The current school year has ended.");
+      res
+        .status(401)
+        .send(
+          "Registration is not available. The current school year has ended."
+        );
       return;
     }
 
@@ -173,7 +178,7 @@ UserRouter.post<{}, LoginResponse | string, RegistrationRequest, {}>(
     if (school.openRegistration || user) {
       user = await userRepository.save({
         id: user?.id,
-        name: '',
+        name: "",
         userName: req.body.username.toLowerCase(),
         pwd: hash,
         firstName: req.body.firstName,
@@ -305,6 +310,7 @@ UserRouter.put<Empty, User | string, User, Empty>(
         ...req.body,
         firstName: req.body.firstName,
         lastName: req.body.lastName,
+        name: req.body.name,
         email: req.body.email.toLowerCase(),
         phone: req.body.phone || "",
       };
@@ -400,7 +406,7 @@ const upload = multer({
   },
 });
 
-interface CsvRowData {
+interface StudentsCsvRowData {
   studentId: string;
   lastName: string;
   firstName: string;
@@ -411,6 +417,12 @@ interface CsvRowData {
   contactEmail: string;
 }
 
+interface TeachersCsvRowData {
+  lastName: string;
+  firstName: string;
+  email: string;
+}
+
 interface ImportResult {
   importedUsersCount: number;
   skippedUsersCount: number;
@@ -419,7 +431,7 @@ interface ImportResult {
 }
 
 UserRouter.post(
-  "/import-csv",
+  "/import-students",
   authorizeRequest,
   upload.single("file"),
   async (req, res) => {
@@ -433,7 +445,7 @@ UserRouter.post(
       const studentRepository = AppDataSource.getRepository(StudentEntity);
       const currentSchoolYear = getCurrentSchoolYear(req.user.school);
 
-      const csvData: CsvRowData[] = [];
+      const csvData: StudentsCsvRowData[] = [];
       const buffer = req.file.buffer;
       const stream = Readable.from(buffer);
 
@@ -465,7 +477,7 @@ UserRouter.post(
           .pipe(csv())
           .on("data", (row) => {
             // Map CSV columns to our expected format (case insensitive)
-            const csvRow: CsvRowData = {
+            const csvRow: StudentsCsvRowData = {
               studentId:
                 row["Student_id"] ||
                 row["student_id"] ||
@@ -529,6 +541,27 @@ UserRouter.post(
         });
 
         if (existingUser) {
+          // Check if user is associated with this school
+          if (existingUser.school?.id === req.user.school.id) {
+            // Ensure user is associated with current school year
+            const existingRelationships =
+              await AppDataSource.createQueryBuilder()
+                .relation(SchoolYearEntity, "parents")
+                .of(currentSchoolYear)
+                .loadMany();
+
+            const relationshipExists = existingRelationships.some(
+              (existingUserInYear) => existingUserInYear.id === existingUser.id
+            );
+
+            if (!relationshipExists) {
+              await AppDataSource.createQueryBuilder()
+                .relation(SchoolYearEntity, "parents")
+                .of(currentSchoolYear)
+                .add(existingUser);
+            }
+          }
+
           emailToUserMap.set(email, existingUser);
           skippedUsersCount++;
           continue;
@@ -552,6 +585,7 @@ UserRouter.post(
           name: firstRowWithEmail.contactName,
           firstName: firstName,
           lastName: lastName,
+          pending: true,
           email: email.toLowerCase(),
           phone: firstRowWithEmail.contactPhone || "",
           pwd: "", // Empty password - user will need to set it via invitation
@@ -653,6 +687,150 @@ UserRouter.post(
         importedStudentsCount,
         skippedStudentsCount,
       });
+    } catch (error) {
+      console.error("Error importing CSV:", error);
+      res.status(500).send("Error processing CSV file");
+    }
+  }
+);
+
+UserRouter.post(
+  "/import-teachers",
+  authorizeRequest,
+  upload.single("file"),
+  async (req, res) => {
+    try {
+      if (!req.file) {
+        res.status(400).send("No file uploaded");
+        return;
+      }
+
+      const userRepository = AppDataSource.getRepository(UserEntity);
+      const currentSchoolYear = getCurrentSchoolYear(req.user.school);
+
+      const csvData: TeachersCsvRowData[] = [];
+      const buffer = req.file.buffer;
+      const stream = Readable.from(buffer);
+
+      // Parse CSV data
+      await new Promise<void>((resolve, reject) => {
+        stream
+          .pipe(csv())
+          .on("data", (row) => {
+            // Map CSV columns to our expected format (case insensitive)
+            const csvRow: TeachersCsvRowData = {
+              lastName: row["name.last"] || "",
+              firstName: row["name.first"] || "",
+              email: row["email"] || "",
+            };
+
+            // Only add if we have valid data
+            if (csvRow.lastName && csvRow.firstName && csvRow.email) {
+              csvData.push(csvRow);
+            }
+          })
+          .on("end", () => resolve())
+          .on("error", (error) => reject(error));
+      });
+
+      let importedUsersCount = 0;
+      let skippedUsersCount = 0;
+
+      // Step 1: Create users for each unique contact email
+      const uniqueEmails = [
+        ...new Set(csvData.map((row) => row.email.toLowerCase())),
+      ];
+
+      const importedTeacherIds: number[] = [];
+
+      for (const email of uniqueEmails) {
+        if (!email.length) {
+          skippedUsersCount++;
+          continue;
+        }
+
+        // Check if user already exists by email (case insensitive)
+        const existingUser = await userRepository.findOne({
+          where: { email: email.toLowerCase() },
+        });
+        const newUser: DeepPartial<UserEntity> = {
+          id: undefined,
+          userName: randomUUID(),
+          name: "",
+          firstName: "",
+          lastName: "",
+        };
+
+        if (existingUser) {
+          if (existingUser.school?.id === req.user.school.id) {
+            // Ensure user is associated with current school year
+            const existingRelationships =
+              await AppDataSource.createQueryBuilder()
+                .relation(SchoolYearEntity, "parents")
+                .of(currentSchoolYear)
+                .loadMany();
+
+            const relationshipExists = existingRelationships.some(
+              (existingUserInYear) => existingUserInYear.id === existingUser.id
+            );
+
+            if (!relationshipExists) {
+              await AppDataSource.createQueryBuilder()
+                .relation(SchoolYearEntity, "parents")
+                .of(currentSchoolYear)
+                .add(existingUser);
+            }
+            if (
+              existingUser.role === Role.PARENT ||
+              existingUser.role === Role.STAFF
+            ) {
+              existingUser.role = Role.TEACHER;
+              if (existingUser.name === "" ) {
+                existingUser.name = existingUser.firstName + " " + existingUser.lastName;
+              }
+              await userRepository.save(existingUser);
+            }
+            importedTeacherIds.push(existingUser.id);
+          }
+
+          skippedUsersCount++;
+          continue;
+        } else {
+          // Find the first row with this email to get contact info
+          const firstRowWithEmail = csvData.find(
+            (row) => row.email.toLowerCase() === email
+          );
+
+          if (!firstRowWithEmail) continue;
+
+          newUser.firstName = firstRowWithEmail.firstName;
+          newUser.lastName = firstRowWithEmail.lastName;
+          newUser.name = firstRowWithEmail.firstName + " " + firstRowWithEmail.lastName;
+          newUser.pending = true;
+          newUser.email = email.toLowerCase();
+          newUser.phone = "";
+          newUser.pwd = "";
+          newUser.description = "";
+          newUser.role = Role.TEACHER;
+
+          const savedUser = await userRepository.save(newUser);
+
+          // Add user to current school year
+          await AppDataSource.createQueryBuilder()
+            .relation(SchoolYearEntity, "parents")
+            .of(currentSchoolYear)
+            .add(savedUser);
+
+          importedTeacherIds.push(savedUser.id);
+        }
+        importedUsersCount++;
+      }
+
+      const importedTeachers = importedTeacherIds.length > 0 ? await userRepository.find({
+        where: { id: In(importedTeacherIds) },
+      }) : [];
+
+      res.send(importedTeachers.map((teacher) => new User(teacher)));
     } catch (error) {
       console.error("Error importing CSV:", error);
       res.status(500).send("Error processing CSV file");

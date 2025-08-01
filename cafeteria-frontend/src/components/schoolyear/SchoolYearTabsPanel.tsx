@@ -11,26 +11,10 @@ import SchoolYearTab from "./SchoolYearTab";
 import GradeLevelLunchTimesTable from "./GradeLevelLunchTimesTable";
 import TeacherLunchTimesTable from "./TeacherLunchTimesTable";
 
-interface TabPanelProps {
-  children?: React.ReactNode;
-  index: number;
-  value: number;
-}
-
-function TabPanel(props: TabPanelProps) {
-  const { children, value, index, ...other } = props;
-
-  return (
-    <div
-      role="tabpanel"
-      hidden={value !== index}
-      id={`school-year-tabpanel-${index}`}
-      aria-labelledby={`school-year-tab-${index}`}
-      {...other}
-    >
-      {value === index && <Box sx={{ p: 2 }}>{children}</Box>}
-    </div>
-  );
+enum TABS {
+  GENERAL = 0,
+  GRADE_LEVEL_LUNCHTIMES = 1,
+  TEACHER_LUNCHTIMES = 2,
 }
 
 const SchoolYearTabsPanel: React.FC = () => {
@@ -43,14 +27,14 @@ const SchoolYearTabsPanel: React.FC = () => {
     (year) => year.id === parseInt(yearId ?? "0")
   );
 
-  // Determine selected tab based on URL path
-  const getSelectedTab = () => {
-    if (matchRoutes([{ path: "/year/:yearId/grades" }], location.pathname))
-      return 1;
-    if (matchRoutes([{ path: "/year/:yearId/teachers" }], location.pathname))
-      return 2;
-    return 0; // Default to general tab
-  };
+  const selectedTab = matchRoutes(
+    [{ path: "/year/:yearId/grades" }],
+    location.pathname
+  )
+    ? TABS.GRADE_LEVEL_LUNCHTIMES
+    : matchRoutes([{ path: "/year/:yearId/teachers" }], location.pathname)
+    ? TABS.TEACHER_LUNCHTIMES
+    : TABS.GENERAL;
 
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
     const baseUrl = `/year/${yearId}`;
@@ -90,7 +74,7 @@ const SchoolYearTabsPanel: React.FC = () => {
         justifyContent="space-between"
         alignItems="flex-end"
       >
-        <Tabs value={getSelectedTab()} onChange={handleTabChange}>
+        <Tabs value={selectedTab} onChange={handleTabChange}>
           <Tab label="General" />
           <Tab label="Grade Level Lunchtimes" />
           <Tab label="Teacher Lunchtimes" />
@@ -102,17 +86,30 @@ const SchoolYearTabsPanel: React.FC = () => {
           <Typography variant="body2">{schoolYear.name}</Typography>
         </Stack>
       </Stack>
-      <Paper sx={{ mb: 2, flex: 1, display: "flex", flexDirection: "column" }}>
-        <Box sx={{ borderBottom: 1, borderColor: "divider" }}></Box>
-        <TabPanel value={getSelectedTab()} index={0}>
-          <SchoolYearTab schoolYear={schoolYear} />
-        </TabPanel>
-        <TabPanel value={getSelectedTab()} index={1}>
-          <GradeLevelLunchTimesTable schoolYear={schoolYear} />
-        </TabPanel>
-        <TabPanel value={getSelectedTab()} index={2}>
-          <TeacherLunchTimesTable schoolYear={schoolYear} />
-        </TabPanel>
+      <Paper
+        sx={{
+          mb: 2,
+          flex: 1,
+          display: "flex",
+          flexDirection: "column",
+          overflow: "auto",
+        }}
+      >
+        {selectedTab === TABS.GENERAL && (
+          <Box m={2}>
+            <SchoolYearTab schoolYear={schoolYear} />
+          </Box>
+        )}
+        {selectedTab === TABS.GRADE_LEVEL_LUNCHTIMES && (
+          <Box m={2}>
+            <GradeLevelLunchTimesTable schoolYear={schoolYear} />
+          </Box>
+        )}
+        {selectedTab === TABS.TEACHER_LUNCHTIMES && (
+          <Box m={2}>
+            <TeacherLunchTimesTable schoolYear={schoolYear} />
+          </Box>
+        )}
       </Paper>
     </Stack>
   );
