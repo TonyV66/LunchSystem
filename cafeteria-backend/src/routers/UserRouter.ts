@@ -40,6 +40,7 @@ interface InvitationRequest {
   lastName: string;
   email: string;
   role: number;
+  sendInvitation?: boolean;
 }
 
 interface RegistrationRequest extends Credentials {
@@ -76,7 +77,7 @@ UserRouter.post<Empty, Empty, InvitationRequest, Empty>(
       where: { email: req.body.email.toLowerCase() },
     });
 
-    if (!existingUser) {
+    if (existingUser) {
       res.status(401).send("Email already exists.");
       return;
     }
@@ -104,12 +105,16 @@ UserRouter.post<Empty, Empty, InvitationRequest, Empty>(
       .of(currentSchoolYear)
       .add(savedUser);
 
-    const emailResponse = await sendInvitationEmail(
-      req.body.email,
-      req.body.firstName,
-      req.body.lastName,
-      req.user.school
-    );
+    // Only send invitation email if sendInvitation is true (defaults to true if not specified)
+    if (req.body.sendInvitation !== false) {
+      await sendInvitationEmail(
+        req.body.email,
+        req.body.firstName,
+        req.body.lastName,
+        req.user.school
+      );
+    }
+    
     res.send(new User(savedUser));
   }
 );
@@ -719,8 +724,8 @@ UserRouter.post(
           .on("data", (row) => {
             // Map CSV columns to our expected format (case insensitive)
             const csvRow: TeachersCsvRowData = {
-              lastName: row["name.last"] || "",
-              firstName: row["name.first"] || "",
+              lastName: row["last_name"] || "",
+              firstName: row["first_name"] || "",
               email: row["email"] || "",
             };
 
@@ -752,6 +757,9 @@ UserRouter.post(
         // Check if user already exists by email (case insensitive)
         const existingUser = await userRepository.findOne({
           where: { email: email.toLowerCase() },
+          relations: {
+            school: true,
+          },
         });
 
         if (existingUser) {
@@ -773,13 +781,11 @@ UserRouter.post(
                 .of(currentSchoolYear)
                 .add(existingUser);
             }
-            if (
-              existingUser.role === Role.PARENT ||
-              existingUser.role === Role.STAFF
-            ) {
+            if (existingUser.role === Role.PARENT) {
               existingUser.role = Role.TEACHER;
-              if (existingUser.name === "" ) {
-                existingUser.name = existingUser.firstName + " " + existingUser.lastName;
+              if (existingUser.name === "") {
+                existingUser.name =
+                  existingUser.firstName + " " + existingUser.lastName;
               }
               await userRepository.save(existingUser);
             }
@@ -800,7 +806,8 @@ UserRouter.post(
             userName: randomUUID(),
             firstName: firstRowWithEmail.firstName,
             lastName: firstRowWithEmail.lastName,
-            name: firstRowWithEmail.firstName + " " + firstRowWithEmail.lastName,
+            name:
+              firstRowWithEmail.firstName + " " + firstRowWithEmail.lastName,
             pending: true,
             email: email.toLowerCase(),
             phone: "",
@@ -809,7 +816,6 @@ UserRouter.post(
             role: Role.TEACHER,
             school: req.user.school,
           };
-  
 
           const savedUser = await userRepository.save(newUser);
 
@@ -824,9 +830,12 @@ UserRouter.post(
         importedUsersCount++;
       }
 
-      const importedTeachers = importedTeacherIds.length > 0 ? await userRepository.find({
-        where: { id: In(importedTeacherIds) },
-      }) : [];
+      const importedTeachers =
+        importedTeacherIds.length > 0
+          ? await userRepository.find({
+              where: { id: In(importedTeacherIds) },
+            })
+          : [];
 
       res.send(importedTeachers.map((teacher) => new User(teacher)));
     } catch (error) {

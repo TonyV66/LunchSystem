@@ -63,12 +63,10 @@ const TeacherImportDialog: React.FC<TeacherImportDialogProps> = ({
       
       // Find column indices (case insensitive)
       const lastNameIndex = headers.findIndex(h => 
-        h.toLowerCase() === "name.last" || 
         h.toLowerCase() === "lastname" || 
         h.toLowerCase() === "last_name"
       );
       const firstNameIndex = headers.findIndex(h => 
-        h.toLowerCase() === "name.first" || 
         h.toLowerCase() === "firstname" || 
         h.toLowerCase() === "first_name"
       );
@@ -78,7 +76,7 @@ const TeacherImportDialog: React.FC<TeacherImportDialogProps> = ({
 
       // Validate required columns
       if (lastNameIndex === -1 || firstNameIndex === -1 || emailIndex === -1) {
-        setError("CSV file must contain columns: name.last, name.first, email");
+        setError("CSV file must contain columns: last_name, first_name, email");
         setPreviewData([]);
         return;
       }
@@ -132,11 +130,11 @@ const TeacherImportDialog: React.FC<TeacherImportDialogProps> = ({
 
   return (
     <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth>
-      <DialogTitle>Import Teachers</DialogTitle>
+      <DialogTitle>Import Teacherss</DialogTitle>
       <DialogContent>
         <Box sx={{ mb: 2 }}>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Upload a CSV file with teacher information. The file should contain columns: name.last, name.first, email
+            Upload a CSV file with teacher information. The file should contain columns: last_name, first_name, email
           </Typography>
           
           <input

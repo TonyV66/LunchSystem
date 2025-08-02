@@ -128,15 +128,16 @@ export const acceptInvitation = async (invitationId: string) => {
   return response.data;
 };
 
-export const sendInvitation = async (
+export const createInvitation = async (
   firstName: string,
   lastName: string,
   email: string,
-  role: number
+  role: number,
+  sendInvitation: boolean = true
 ) => {
   const response: AxiosResponse<User> = await http.post(
     API_BASE_URL + "/user/invite",
-    { firstName, lastName, email, role }
+    { firstName, lastName, email, role, sendInvitation }
   );
   return response.data;
 };

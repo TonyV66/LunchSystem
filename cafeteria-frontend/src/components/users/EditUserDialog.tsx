@@ -12,10 +12,12 @@ import {
   Select,
   SelectChangeEvent,
   TextField,
+  FormControlLabel,
+  Checkbox,
 } from "@mui/material";
 import User, { NULL_USER, Role } from "../../models/User";
 import { AppContext } from "../../AppContextProvider";
-import { sendInvitation, updateUser } from "../../api/CafeteriaClient";
+import { createInvitation, updateUser } from "../../api/CafeteriaClient";
 import { AxiosError } from "axios";
 
 interface DialogProps {
@@ -39,6 +41,7 @@ const EditUserDialog: React.FC<DialogProps> = ({ user, onClose }) => {
   const [lastName, setLastName] = useState(user?.lastName ?? "");
   const [email, setEmail] = useState(user?.email ?? "");
   const [properName, setProperName] = useState(user?.name ?? "");
+  const [shouldSendInvitation, setShouldSendInvitation] = useState(!user);
 
   const handleRoleChanged = (roleName: string) => {
     setRole(roleName);
@@ -48,11 +51,12 @@ const EditUserDialog: React.FC<DialogProps> = ({ user, onClose }) => {
   const handleSaveUser = async () => {
     if (!user) {
       try {
-        const invitedUser = await sendInvitation(
+        const invitedUser = await createInvitation(
           firstName,
           lastName,
           email,
-          parseInt(role)
+          parseInt(role),
+          shouldSendInvitation
         );
         setUsers(users.concat(invitedUser));
         setSnackbarMsg("Invitation sent");
@@ -198,6 +202,19 @@ const EditUserDialog: React.FC<DialogProps> = ({ user, onClose }) => {
               onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
                 setProperName(event.target.value)
               }
+            />
+          )}
+          {!user && (
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={shouldSendInvitation}
+                  onChange={(event) => setShouldSendInvitation(event.target.checked)}
+                  name="sendInvitation"
+                  color="primary"
+                />
+              }
+              label="Send invitation email"
             />
           )}
         </Box>
