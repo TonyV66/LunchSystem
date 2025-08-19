@@ -94,7 +94,7 @@ const RegistrationSettingsDialog: React.FC<RegistrationSettingsDialogProps> = ({
               }
               label="Open Registration"
             />
-            <FormHelperText>If not open, user&apos;s email address will be used to verify the user has been invited.</FormHelperText>
+            <FormHelperText>If not open, invitation is required.</FormHelperText>
           </Box>
         </Stack>
       </DialogContent>

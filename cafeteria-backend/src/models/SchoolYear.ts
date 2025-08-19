@@ -23,6 +23,7 @@ export default class SchoolYear {
   studentLunchTimes: StudentLunchTime[];
   gradesAssignedByClass: GradeLevel[];
   oneTeacherPerStudent: boolean;
+  hideSchedule: boolean;
 
   constructor(entity: SchoolYearEntity) {
     this.id = entity.id;
@@ -45,5 +46,6 @@ export default class SchoolYear {
       ? (entity.gradesAssignedByClass.split("|") as GradeLevel[])
       : [];
     this.oneTeacherPerStudent = entity.oneTeacherPerStudent;
+    this.hideSchedule = entity.hideSchedule;
   }
 }

@@ -7,11 +7,6 @@ interface OutgoingEmail {
   sender: string,
 }
 
-interface TemplatedOutgoingEmail<Type> extends OutgoingEmail {
-  template_id: string;
-  template_data: Type;
-}
-
 interface ReportEmail extends OutgoingEmail {
   subject: string;
   html_body: string;
@@ -23,40 +18,11 @@ interface ReportEmail extends OutgoingEmail {
   }>;
 }
 
-interface InvitationData {
-  first_name: string,
-  last_name: string,
-  school_name: string,
-  action_url: string,
-}
-
-interface ForgotPwdData {
-  first_name: string,
-  last_name: string,
-  school_name: string,
-  action_url: string,
-}
-
-interface ForgotUserNameData extends ForgotPwdData {
-  username: string,
-}
-
-
-
-interface InvitationEmail extends TemplatedOutgoingEmail<InvitationData> {}
-interface ForgotUserNameEmail extends TemplatedOutgoingEmail<ForgotUserNameData> {}
-interface ForgotPwdEmail extends TemplatedOutgoingEmail<ForgotPwdData> {}
-
-const INVITATION_TEMPLATE_ID = '3002623';
-const FORGOT_PWD_TEMPLATE_ID = '8735737';
-const FORGOT_USERNAME_TEMPLATE_ID = '9266959';
-
 const SENDER_EMAIL = "micscafeteria@micscougars.com";
 const SEND_EMAIL_API_URL = "https://api.smtp2go.com/v3/email/send";
 const EMAIL_API_KEY = "api-5A2E22DD1EFF426C8F8B59EC1A3DE132";
 
-// const LUNCH_SYSTEM_BASE_URL = "https://hotlunch.micscougars.com";
-const LUNCH_SYSTEM_BASE_URL = "http://localhost:3000";
+const LUNCH_SYSTEM_BASE_URL = "https://hotlunch.micscougars.com";
 
 const SEND_EMAIL_HTTP_HEADER = {
   "Content-Type": "application/json",
@@ -207,10 +173,10 @@ export const sendClassroomReportEmail = async (
   teacherName: string,
   startDate: string,
   endDate: string,
-  pdfBuffer: Buffer
+  classroomReportHtml: string
 ) => {
-  // Convert PDF buffer to base64
-  const pdfBase64 = pdfBuffer.toString('base64');
+  // Convert HTML to base64 for attachment
+  const htmlBase64 = Buffer.from(classroomReportHtml, 'utf8').toString('base64');
   
   // Check if startDate and endDate are the same
   const isSingleDate = startDate === endDate;
@@ -221,31 +187,22 @@ export const sendClassroomReportEmail = async (
     to: [toEmail],
     sender: SENDER_EMAIL,
     subject: `Classroom Lunch Report - ${teacherName} - ${dateDisplay}`,
-    html_body: `
-      <html>
-        <body>
-          <h2>Classroom Lunch Report</h2>
-          <p>Dear ${teacherName},</p>
-          <p>Please find attached the lunch report for your classroom on ${dateDisplay}.</p>
-          <p>Best regards,<br>School Cafeteria System</p>
-        </body>
-      </html>
-    `,
+    html_body: classroomReportHtml,
     text_body: `
       Classroom Lunch Report
       
       Dear ${teacherName},
       
-      Please find attached the lunch report for your classroom on ${dateDisplay}.
+      Please find attached your classroom lunch report for ${dateDisplay}.
       
       Best regards,
       School Cafeteria System
     `,
     attachments: [
       {
-        filename: `classroom-report-${teacherName.replace(/\s+/g, '-')}-${filenameDate}.pdf`,
-        fileblob: pdfBase64,
-        mimetype: "application/pdf"
+        filename: `classroom-report-${teacherName.replace(/\s+/g, '-')}-${filenameDate}.html`,
+        fileblob: htmlBase64,
+        mimetype: "text/html"
       }
     ]
   };

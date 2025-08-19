@@ -122,6 +122,7 @@ SchoolYearRouter.put<{}, SchoolYear | string, SchoolYear, {}>(
       name: req.body.name,
       startDate: startDate,
       endDate: endDate,
+      hideSchedule: req.body.hideSchedule,
     });
 
     const updatedSchoolYear = await schoolYearRepository.findOne({
@@ -461,6 +462,7 @@ SchoolYearRouter.put<{ schoolYearId: string }, SessionInfo | string, {}, {}>(
     // Toggle the current status
     await schoolYearRepository.update(schoolYear.id, {
       isCurrent,
+      hideSchedule: !isCurrent ? true : schoolYear.hideSchedule,
     });
 
     const updatedSessionInfo: SessionInfo = await getStaffSession(req.user);

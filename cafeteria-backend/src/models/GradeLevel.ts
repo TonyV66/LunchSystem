@@ -1,4 +1,7 @@
 export enum GradeLevel {
+    PRE_K2 = "pk2",
+    PRE_K3 = "pk3",
+    PRE_K4 = "pk4",  
     PRE_K = 'pk',
     KINDERGARTEN = 'k',
     FIRST = '1',

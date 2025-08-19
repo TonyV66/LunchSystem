@@ -33,7 +33,7 @@ const ClassroomStudentsPage: React.FC = () => {
           aria-label="secondary tabs example"
         >
           {user.role === Role.ADMIN && <Tab value={USERS_URL} label="Users" />}
-          {user.role !== Role.PARENT && <Tab value={STUDENTS_URL} label="Students" />}
+          {user.role !== Role.PARENT && user.role !== Role.TEACHER && user.role !== Role.STAFF && <Tab value={STUDENTS_URL} label="Students" />}
           {user.role === Role.TEACHER && <Tab value={CLASSROOM_URL} label="Classroom" />}
           <Tab value={FAMILY_URL} label="Family" />
         </Tabs>

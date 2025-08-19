@@ -10,6 +10,28 @@ interface GradesListProps {
   isSingleSelect?: boolean;
 }
 
+const gradeOrder = [
+  GradeLevel.PRE_K2,
+  GradeLevel.PRE_K3,
+  GradeLevel.PRE_K4,
+  GradeLevel.PRE_K,
+  GradeLevel.KINDERGARTEN,
+  GradeLevel.FIRST,
+  GradeLevel.SECOND,
+  GradeLevel.THIRD,
+  GradeLevel.FOURTH,
+  GradeLevel.FIFTH,
+  GradeLevel.SIXTH,
+  GradeLevel.SEVENTH,
+  GradeLevel.EIGHTH,
+  GradeLevel.NINTH,
+  GradeLevel.TENTH,
+  GradeLevel.ELEVENTH,
+  GradeLevel.TWELFTH,
+  GradeLevel.UNKNOWN,
+];
+
+
 const GradesList: React.FC<GradesListProps> = ({
   availGrades,
   selectedGrades,
@@ -58,14 +80,7 @@ const GradesList: React.FC<GradesListProps> = ({
       ) : (
         availGrades
           .sort((a, b) => {
-            // Sort by grade level numerically, with Pre-K and K at the beginning
-            if (a === GradeLevel.PRE_K) return -1;
-            if (b === GradeLevel.PRE_K) return 1;
-            if (a === GradeLevel.KINDERGARTEN) return -1;
-            if (b === GradeLevel.KINDERGARTEN) return 1;
-            if (a === GradeLevel.UNKNOWN) return 1;
-            if (b === GradeLevel.UNKNOWN) return -1;
-            return parseInt(a) - parseInt(b);
+            return gradeOrder.indexOf(a) - gradeOrder.indexOf(b);
           })
           .map((grade) => {
             return (

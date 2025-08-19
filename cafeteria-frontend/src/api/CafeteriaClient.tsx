@@ -18,43 +18,6 @@ import GradeLunchTime from "../models/GradeLunchTime";
 import TeacherLunchTime from "../models/TeacherLunchTime";
 
 const API_BASE_URL = "/api";
-export const REPORTS_BASE_URL = "http://localhost:4000/reports";
-
-export const showClassroomReport = (date: string, teacherId: number) => {
-  const newWindow = window.open(
-    REPORTS_BASE_URL + "/classroom/" + teacherId + "/" + date,
-    "_blank",
-    "noopener,noreferrer"
-  );
-  if (newWindow) newWindow.opener = null;
-};
-
-export const showGradeReport = (date: string, grade: GradeLevel) => {
-  const newWindow = window.open(
-    REPORTS_BASE_URL + "/grade/" + grade + "/" + date,
-    "_blank",
-    "noopener,noreferrer"
-  );
-  if (newWindow) newWindow.opener = null;
-};
-
-export const showAdminReport = (date: string) => {
-  const newWindow = window.open(
-    REPORTS_BASE_URL + "/cohorts/" + date,
-    "_blank",
-    "noopener,noreferrer"
-  );
-  if (newWindow) newWindow.opener = null;
-};
-
-export const showDailyCafeteriaReport = (date: string) => {
-  const newWindow = window.open(
-    REPORTS_BASE_URL + "/cafeteria/" + date,
-    "_blank",
-    "noopener,noreferrer"
-  );
-  if (newWindow) newWindow.opener = null;
-};
 
 export interface Relations {
   students: Student[];

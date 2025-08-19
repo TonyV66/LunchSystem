@@ -1,6 +1,15 @@
 import * as React from "react";
 import Box from "@mui/material/Box";
-import { Divider, Typography, Menu, MenuItem, ListItemIcon, ListItemText } from "@mui/material";
+import {
+  Divider,
+  Typography,
+  Menu,
+  MenuItem,
+  ListItemIcon,
+  ListItemText,
+  Tooltip,
+  ListSubheader,
+} from "@mui/material";
 import { useContext, useEffect, useState } from "react";
 
 import {
@@ -74,7 +83,9 @@ interface LogoutButtonProps {
 
 const LogoutButton: React.FC<LogoutButtonProps> = ({ onLogout }) => {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
-  const [changePasswordDialogOpen, setChangePasswordDialogOpen] = useState(false);
+  const { user } = useContext(AppContext);
+  const [changePasswordDialogOpen, setChangePasswordDialogOpen] =
+    useState(false);
   const open = Boolean(anchorEl);
 
   const handleClick = (event: React.MouseEvent<HTMLElement>) => {
@@ -98,20 +109,23 @@ const LogoutButton: React.FC<LogoutButtonProps> = ({ onLogout }) => {
   return (
     <>
       <Box onClick={handleClick}>
-        <AccountCircle
-          sx={{ cursor: "pointer", p: 1, color: "#ffffff" }}
-          fontSize="large"
-        />
+        <Tooltip title={user.userName}>
+          <AccountCircle
+            sx={{ cursor: "pointer", p: 1, color: "#ffffff" }}
+            fontSize="large"
+          />
+        </Tooltip>
       </Box>
       <Menu
         anchorEl={anchorEl}
         open={open}
         onClose={handleClose}
         anchorOrigin={{
-          vertical: 'top',
-          horizontal: 'right',
+          vertical: "top",
+          horizontal: "right",
         }}
       >
+        <ListSubheader sx={{ lineHeight: 1.5 }}>{user.userName}</ListSubheader>
         <MenuItem onClick={handleChangePassword}>
           <ListItemIcon>
             <Lock fontSize="small" />
@@ -138,21 +152,28 @@ interface SidebarButtonProps {
   isSelected: boolean;
   showWarning?: boolean;
 }
+
+interface UsersButtonProps extends SidebarButtonProps {
+  role: Role;
+}
+
 const OrderedMealsSidebarButton: React.FC<SidebarButtonProps> = ({
   onClick,
   isSelected,
 }) => {
   return (
-    <Fastfood
-      onClick={() => onClick(SidebarSelection.MEALS)}
-      sx={{
-        cursor: !isSelected ? "pointer" : undefined,
-        p: 1,
-        backgroundColor: isSelected ? ALT_COLOR : undefined,
-        color: isSelected ? primaryColor : ALT_COLOR,
-      }}
-      fontSize="large"
-    />
+    <Tooltip title="My Upcoming Meals">
+      <Fastfood
+        onClick={() => onClick(SidebarSelection.MEALS)}
+        sx={{
+          cursor: !isSelected ? "pointer" : undefined,
+          p: 1,
+          backgroundColor: isSelected ? ALT_COLOR : undefined,
+          color: isSelected ? primaryColor : ALT_COLOR,
+        }}
+        fontSize="large"
+      />
+    </Tooltip>
   );
 };
 
@@ -161,16 +182,18 @@ const CalendarButton: React.FC<SidebarButtonProps> = ({
   isSelected,
 }) => {
   return (
-    <CalendarMonth
-      onClick={() => onClick(SidebarSelection.CALENDAR)}
-      sx={{
-        cursor: !isSelected ? "pointer" : undefined,
-        p: 1,
-        backgroundColor: isSelected ? ALT_COLOR : undefined,
-        color: isSelected ? primaryColor : ALT_COLOR,
-      }}
-      fontSize="large"
-    />
+    <Tooltip title="Meal Calendar">
+      <CalendarMonth
+        onClick={() => onClick(SidebarSelection.CALENDAR)}
+        sx={{
+          cursor: !isSelected ? "pointer" : undefined,
+          p: 1,
+          backgroundColor: isSelected ? ALT_COLOR : undefined,
+          color: isSelected ? primaryColor : ALT_COLOR,
+        }}
+        fontSize="large"
+      />
+    </Tooltip>
   );
 };
 
@@ -180,31 +203,43 @@ const NotificationsButton: React.FC<SidebarButtonProps> = ({
   showWarning,
 }) => {
   return (
-    <SpeakerNotes
-      onClick={() => onClick(SidebarSelection.NOTIFICATIONS)}
-      sx={{
-        cursor: !isSelected ? "pointer" : undefined,
-        p: 1,
-        backgroundColor: isSelected ? ALT_COLOR : undefined,
-        color: isSelected ? primaryColor : showWarning ? red[200] : ALT_COLOR,
-      }}
-      fontSize="large"
-    />
+    <Tooltip title="Notifications">
+      <SpeakerNotes
+        onClick={() => onClick(SidebarSelection.NOTIFICATIONS)}
+        sx={{
+          cursor: !isSelected ? "pointer" : undefined,
+          p: 1,
+          backgroundColor: isSelected ? ALT_COLOR : undefined,
+          color: isSelected ? primaryColor : showWarning ? red[200] : ALT_COLOR,
+        }}
+        fontSize="large"
+      />
+    </Tooltip>
   );
 };
 
-const UsersButton: React.FC<SidebarButtonProps> = ({ onClick, isSelected }) => {
+const UsersButton: React.FC<UsersButtonProps> = ({ onClick, isSelected, role }) => {
+  let title = "My Family";
+  if (role === Role.TEACHER) {
+    title = "My Classroom & Family";
+  } else if (role === Role.CAFETERIA) {
+    title = "Students";
+  } else if (role === Role.ADMIN) {
+    title = "Users & Students";
+  }
   return (
-    <People
-      onClick={() => onClick(SidebarSelection.USERS)}
-      sx={{
-        cursor: !isSelected ? "pointer" : undefined,
-        p: 1,
-        backgroundColor: isSelected ? ALT_COLOR : undefined,
-        color: isSelected ? primaryColor : ALT_COLOR,
-      }}
-      fontSize="large"
-    />
+    <Tooltip title={title}>
+      <People
+        onClick={() => onClick(SidebarSelection.USERS)}
+        sx={{
+          cursor: !isSelected ? "pointer" : undefined,
+          p: 1,
+          backgroundColor: isSelected ? ALT_COLOR : undefined,
+          color: isSelected ? primaryColor : ALT_COLOR,
+        }}
+        fontSize="large"
+      />
+    </Tooltip>
   );
 };
 
@@ -213,16 +248,18 @@ const SchoolYearsButton: React.FC<SidebarButtonProps> = ({
   isSelected,
 }) => {
   return (
-    <EventRepeat
-      onClick={() => onClick(SidebarSelection.YEARS)}
-      sx={{
-        cursor: !isSelected ? "pointer" : undefined,
-        p: 1,
-        backgroundColor: isSelected ? ALT_COLOR : undefined,
-        color: isSelected ? primaryColor : ALT_COLOR,
-      }}
-      fontSize="large"
-    />
+    <Tooltip title="School Year Settings">
+      <EventRepeat
+        onClick={() => onClick(SidebarSelection.YEARS)}
+        sx={{
+          cursor: !isSelected ? "pointer" : undefined,
+          p: 1,
+          backgroundColor: isSelected ? ALT_COLOR : undefined,
+          color: isSelected ? primaryColor : ALT_COLOR,
+        }}
+        fontSize="large"
+      />
+    </Tooltip>
   );
 };
 
@@ -231,16 +268,18 @@ const SettingsButton: React.FC<SidebarButtonProps> = ({
   isSelected,
 }) => {
   return (
-    <Settings
-      onClick={() => onClick(SidebarSelection.ACCOUNT)}
-      sx={{
-        cursor: !isSelected ? "pointer" : undefined,
-        p: 1,
-        backgroundColor: isSelected ? ALT_COLOR : undefined,
-        color: isSelected ? primaryColor : ALT_COLOR,
-      }}
-      fontSize="large"
-    />
+    <Tooltip title="School Settings">
+      <Settings
+        onClick={() => onClick(SidebarSelection.ACCOUNT)}
+        sx={{
+          cursor: !isSelected ? "pointer" : undefined,
+          p: 1,
+          backgroundColor: isSelected ? ALT_COLOR : undefined,
+          color: isSelected ? primaryColor : ALT_COLOR,
+        }}
+        fontSize="large"
+      />
+    </Tooltip>
   );
 };
 
@@ -249,16 +288,18 @@ const OrdersButton: React.FC<SidebarButtonProps> = ({
   isSelected,
 }) => {
   return (
-    <ReceiptLong
-      onClick={() => onClick(SidebarSelection.ORDERS)}
-      sx={{
-        cursor: !isSelected ? "pointer" : undefined,
-        p: 1,
-        backgroundColor: isSelected ? ALT_COLOR : undefined,
-        color: isSelected ? primaryColor : ALT_COLOR,
-      }}
-      fontSize="large"
-    />
+    <Tooltip title="Order History">
+      <ReceiptLong
+        onClick={() => onClick(SidebarSelection.ORDERS)}
+        sx={{
+          cursor: !isSelected ? "pointer" : undefined,
+          p: 1,
+          backgroundColor: isSelected ? ALT_COLOR : undefined,
+          color: isSelected ? primaryColor : ALT_COLOR,
+        }}
+        fontSize="large"
+      />
+    </Tooltip>
   );
 };
 
@@ -290,22 +331,24 @@ const ShoppingCartButton: React.FC<SidebarButtonProps> = ({
       >
         {numItemsInCart ? numItemsInCart.toString() : ""}
       </Typography>
-      <ShoppingCart
-        onClick={
-          !numItemsInCart ? undefined : () => onClick(SidebarSelection.CART)
-        }
-        sx={{
-          cursor: numItemsInCart && !isSelected ? "pointer" : undefined,
-          p: 1,
-          backgroundColor: isSelected ? ALT_COLOR : undefined,
-          color: !numItemsInCart
-            ? "lightslategrey"
-            : isSelected
-            ? primaryColor
-            : ALT_COLOR,
-        }}
-        fontSize="large"
-      />
+      <Tooltip title="Shopping Cart">
+        <ShoppingCart
+          onClick={
+            !numItemsInCart ? undefined : () => onClick(SidebarSelection.CART)
+          }
+          sx={{
+            cursor: numItemsInCart && !isSelected ? "pointer" : undefined,
+            p: 1,
+            backgroundColor: isSelected ? ALT_COLOR : undefined,
+            color: !numItemsInCart
+              ? "lightslategrey"
+              : isSelected
+              ? primaryColor
+              : ALT_COLOR,
+          }}
+          fontSize="large"
+        />
+      </Tooltip>
     </Box>
   );
 };
@@ -317,16 +360,18 @@ const getSidebarSelection = (path: string) => {
     return SidebarSelection.MEALS;
   } else if (
     matchRoutes(
-      [{ path: USERS_URL }, { path: STUDENTS_URL }, { path: CLASSROOM_URL }, { path: FAMILY_URL }],
+      [
+        { path: USERS_URL },
+        { path: STUDENTS_URL },
+        { path: CLASSROOM_URL },
+        { path: FAMILY_URL },
+      ],
       path
     )
   ) {
     return SidebarSelection.USERS;
   } else if (
-    matchRoutes(
-      [{ path: YEARS_URL }, { path: YEAR_URL + "/*" }],
-      path
-    )
+    matchRoutes([{ path: YEARS_URL }, { path: YEAR_URL + "/*" }], path)
   ) {
     return SidebarSelection.YEARS;
   } else if (matchRoutes([{ path: CART_URL }], path)) {
@@ -338,8 +383,7 @@ const getSidebarSelection = (path: string) => {
   } else if (matchRoutes([{ path: NOTIFICATIONS_URL }], path)) {
     return SidebarSelection.NOTIFICATIONS;
   }
-
-}
+};
 
 const getDefaultUsersUrl = (user: User) => {
   if (user.role === Role.ADMIN) {
@@ -350,7 +394,7 @@ const getDefaultUsersUrl = (user: User) => {
     return STUDENTS_URL;
   }
   return FAMILY_URL;
-}
+};
 
 const AdminSidebar: React.FC<SidebarProps> = ({ onLogout }) => {
   const { user } = useContext(AppContext);
@@ -365,7 +409,6 @@ const AdminSidebar: React.FC<SidebarProps> = ({ onLogout }) => {
   }, [location]);
 
   const navigate = useNavigate();
-
 
   return (
     <Box
@@ -391,6 +434,7 @@ const AdminSidebar: React.FC<SidebarProps> = ({ onLogout }) => {
         isSelected={selection === SidebarSelection.ORDERS}
       />
       <UsersButton
+        role={Role.ADMIN}
         onClick={() => navigate(getDefaultUsersUrl(user))}
         isSelected={selection === SidebarSelection.USERS}
       />
@@ -495,6 +539,7 @@ const ParentSidebar: React.FC<SidebarProps> = ({ onLogout }) => {
         isSelected={selection === SidebarSelection.ORDERS}
       />
       <UsersButton
+        role={Role.PARENT}
         onClick={() => navigate(getDefaultUsersUrl(user))}
         isSelected={selection === SidebarSelection.USERS}
       />
@@ -567,6 +612,7 @@ const CafeteriaSidebar: React.FC<SidebarProps> = ({ onLogout }) => {
         isSelected={selection === SidebarSelection.CALENDAR}
       />
       <UsersButton
+        role={Role.CAFETERIA}
         onClick={() => navigate(getDefaultUsersUrl(user))}
         isSelected={selection === SidebarSelection.USERS}
       />
@@ -652,6 +698,7 @@ const TeacherSidebar: React.FC<SidebarProps> = ({ onLogout }) => {
         isSelected={selection === SidebarSelection.CALENDAR}
       />
       <UsersButton
+        role={Role.TEACHER}
         onClick={() => navigate(getDefaultUsersUrl(user))}
         isSelected={selection === SidebarSelection.USERS}
       />

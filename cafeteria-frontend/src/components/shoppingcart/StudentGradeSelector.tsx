@@ -50,6 +50,9 @@ const StudentGradeSelector: React.FC<StudentGradeSelectorProps> = ({
         ) : (
           <></>
         )}
+        <MuiMenuItem value={GradeLevel.PRE_K2}>Pre-K2</MuiMenuItem>
+        <MuiMenuItem value={GradeLevel.PRE_K3}>Pre-K3</MuiMenuItem>
+        <MuiMenuItem value={GradeLevel.PRE_K4}>Pre-K4</MuiMenuItem>
         <MuiMenuItem value={GradeLevel.PRE_K}>Pre-K</MuiMenuItem>
         <MuiMenuItem value={GradeLevel.KINDERGARTEN}>Kindergarten</MuiMenuItem>
         <MuiMenuItem value={GradeLevel.FIRST}>1st Grade</MuiMenuItem>

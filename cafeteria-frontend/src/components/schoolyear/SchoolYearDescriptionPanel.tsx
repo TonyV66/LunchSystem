@@ -141,6 +141,10 @@ const SchoolYearDescriptionPanel: React.FC<SchoolYearDescriptionPanelProps> = ({
               </Typography>
             </Stack>
           </Stack>
+          <Stack direction="row" gap={1} alignItems="center">
+            <Typography fontWeight="bold">Hide Meal Schedule:</Typography>
+            <Typography>{schoolYear.hideSchedule ? "Yes" : "No"}</Typography>
+          </Stack>
           <Button
             variant="contained"
             size="small"

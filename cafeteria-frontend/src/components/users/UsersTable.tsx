@@ -8,7 +8,7 @@ import {
   GridRenderCellParams,
   GridValidRowModel,
 } from "@mui/x-data-grid";
-import User, { Role, ROLE_NAMES } from "../../models/User";
+import User, { ROLE_NAMES } from "../../models/User";
 import { AppContext } from "../../AppContextProvider";
 import Student from "../../models/Student";
 
@@ -18,13 +18,9 @@ interface Row {
   name: string;
   email: string;
   students: { name: string; count: number; students: Student[]; onShowAll: () => void };
-  role: Role;
+  role: string;
   onShowMenu: undefined | ((userId: number, menuAnchor: HTMLElement) => void);
 }
-
-const roleCellRenderer = (
-  params: GridRenderCellParams<GridValidRowModel, Role>
-) => ROLE_NAMES[params.row.role];
 
 const actionCellRenderer = (
   params: GridRenderCellParams<
@@ -78,7 +74,7 @@ const columns: GridColDef[] = [
     minWidth: 200,
     renderCell: studentsCellRenderer
   },
-  { field: "role", headerName: "Role", flex: 1, renderCell: roleCellRenderer },
+  { field: "role", headerName: "Role", flex: 1 },
   {
     field: "onShowMenu",
     headerName: "Actions",
@@ -150,7 +146,7 @@ const UsersTable: React.FC<UsersTableProps> = ({ users, onShowMenu }) => {
         students: sortedStudents,
         onShowAll: () => handleShowAllStudents(sortedStudents)
       },
-      role: usr.role,
+      role: ROLE_NAMES[usr.role],
       onShowMenu,
     };
   });

@@ -1,23 +1,13 @@
 import * as React from "react";
-import {
-  Box,
-  Typography,
-  Stack,
-  Accordion,
-  AccordionSummary,
-  AccordionDetails,
-} from "@mui/material";
+import { Box, Typography } from "@mui/material";
 import { AppContext } from "../../AppContextProvider";
 import User, { Role } from "../../models/User";
-import { DateTimeUtils } from "../../DateTimeUtils";
-import { grey } from "@mui/material/colors";
+import { DateTimeFormat, DateTimeUtils } from "../../DateTimeUtils";
 import { PantryItem, DailyMenu } from "../../models/Menu";
 import { Order } from "../../models/Order";
 import Student from "../../models/Student";
 import SchoolYear from "../../models/SchoolYear";
-import MenuItemChip from "../meals/MenuItemChip";
-import HourlyMealReport from "./HourlyMealReport";
-import { ExpandMore } from "@mui/icons-material";
+import PrintableHourlyMealReport from "./PrintableHourlyMealReport";
 import { getMealsAtTime, getMealsWithIrregularTimes } from "../../ReportUtils";
 
 interface TimeRowProps {
@@ -25,14 +15,12 @@ interface TimeRowProps {
   menuItems: PantryItem[];
   teachers: User[];
   date: string;
-  large?: boolean;
 }
 
 interface TotalRowProps {
   menuItems: PantryItem[];
   teachers: User[];
   date: string;
-  large?: boolean;
 }
 
 interface AltCafeteriaReportProps {
@@ -79,6 +67,7 @@ const getMenuItems = (
   return orderedItems;
 };
 
+
 const getOrderedQty = (
   orders: Order[],
   menuItem: PantryItem,
@@ -105,30 +94,11 @@ const getOrderedQty = (
     ).length;
 };
 
-const TableCell: React.FC<React.PropsWithChildren> = ({ children }) => {
-  return (
-    <Box
-      sx={{
-        borderBottomWidth: "1px",
-        borderBottomColor: grey[200],
-        borderBottomStyle: "solid",
-        borderRightWidth: "1px",
-        borderRightColor: grey[200],
-        borderRightStyle: "solid",
-        p: 1,
-      }}
-    >
-      {children}
-    </Box>
-  );
-};
-
 const TimeRow: React.FC<TimeRowProps> = ({
   time,
   menuItems,
   teachers,
   date,
-  large,
 }) => {
   const { currentSchoolYear, orders, students } = React.useContext(AppContext);
 
@@ -146,36 +116,36 @@ const TimeRow: React.FC<TimeRowProps> = ({
   }));
 
   return (
-    <>
-      <TableCell>
-        <Typography variant={large ? "h6" : "body2"}>
+    <tr>
+      <td
+        style={{
+          border: "1px solid #333",
+          padding: "8px",
+          textAlign: "left",
+        }}
+      >
+        <Typography variant="body2">
           {DateTimeUtils.toTwelveHourTime(time)}
         </Typography>
-      </TableCell>
-      <TableCell>
-        <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-          {itemsWithQuantities.map(({ item, quantity }) => (
-            <Box
-              key={`${item.name}-${item.type}`}
-              sx={{
-                m: 0.5,
-                opacity: quantity === 0 ? 0.5 : 1,
-              }}
-            >
-              <MenuItemChip
-                menuItem={item}
-                textVariant={large ? "h6" : "body2"}
-                qty={quantity}
-              />
-            </Box>
-          ))}
-        </Stack>
-      </TableCell>
-    </>
+      </td>
+      <td
+        style={{
+          border: "1px solid #333",
+          padding: "8px",
+          textAlign: "left",
+        }}
+      >
+        <Typography variant="body2">
+          {itemsWithQuantities
+            .map(({ item, quantity }) => item.name + " " + quantity)
+            .join(", ")}
+        </Typography>
+      </td>
+    </tr>
   );
 };
 
-const TotalRow: React.FC<TotalRowProps> = ({ menuItems, date, large }) => {
+const TotalRow: React.FC<TotalRowProps> = ({ menuItems, date }) => {
   const { orders } = React.useContext(AppContext);
 
   const itemsWithQuantities = menuItems.map((item) => ({
@@ -192,30 +162,30 @@ const TotalRow: React.FC<TotalRowProps> = ({ menuItems, date, large }) => {
   }));
 
   return (
-    <>
-      <TableCell>
-        <Typography variant={large ? "h6" : "body2"}>Total</Typography>
-      </TableCell>
-      <TableCell>
-        <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-          {itemsWithQuantities.map(({ item, quantity }) => (
-            <Box
-              key={`${item.name}-${item.type}`}
-              sx={{
-                m: 0.5,
-                opacity: quantity === 0 ? 0.5 : 1,
-              }}
-            >
-              <MenuItemChip
-                menuItem={item}
-                textVariant={large ? "h6" : "body2"}
-                qty={quantity}
-              />
-            </Box>
-          ))}
-        </Stack>
-      </TableCell>
-    </>
+    <tr>
+      <td
+        style={{
+          border: "1px solid #333",
+          padding: "8px",
+          textAlign: "left",
+        }}
+      >
+        <Typography variant="body2">Total</Typography>
+      </td>
+      <td
+        style={{
+          border: "1px solid #333",
+          padding: "8px",
+          textAlign: "left",
+        }}
+      >
+        <Typography variant="body2">
+          {itemsWithQuantities
+            .map(({ item, quantity }) => item.name + " " + quantity)
+            .join(", ")}
+        </Typography>
+      </td>
+    </tr>
   );
 };
 
@@ -223,14 +193,12 @@ interface OtherRowProps {
   menuItems: PantryItem[];
   teachers: User[];
   date: string;
-  large?: boolean;
 }
 
 const OtherRow: React.FC<OtherRowProps> = ({
   menuItems,
   teachers,
   date,
-  large,
 }) => {
   const { students, currentSchoolYear, orders } = React.useContext(AppContext);
 
@@ -252,30 +220,30 @@ const OtherRow: React.FC<OtherRowProps> = ({
   }));
 
   return (
-    <>
-      <TableCell>
-        <Typography variant={large ? "h6" : "body2"}>Other/Unknown Times</Typography>
-      </TableCell>
-      <TableCell>
-        <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-          {itemsWithQuantities.map(({ item, quantity }) => (
-            <Box
-              key={`${item.name}-${item.type}`}
-              sx={{
-                m: 0.5,
-                opacity: quantity === 0 ? 0.5 : 1,
-              }}
-            >
-              <MenuItemChip
-                menuItem={item}
-                textVariant={large ? "h6" : "body2"}
-                qty={quantity}
-              />
-            </Box>
-          ))}
-        </Stack>
-      </TableCell>
-    </>
+      <tr>
+        <td
+          style={{
+            border: "1px solid #333",
+            padding: "8px",
+            textAlign: "left",
+          }}
+        >
+          <Typography variant="body2">Other/Unknown Times</Typography>
+        </td>
+        <td
+          style={{
+            border: "1px solid #333",
+            padding: "8px",
+            textAlign: "left",
+          }}
+        >
+          <Typography variant="body2">
+            {itemsWithQuantities
+              .map(({ item, quantity }) => item.name + " " + quantity)
+              .join(", ")}
+          </Typography>
+        </td>
+      </tr>
   );
 };
 
@@ -284,84 +252,87 @@ interface DailyOrderedItemsAccordionProps {
   menuItems: PantryItem[];
   teachers: User[];
   mealTimes: string[];
-  large?: boolean;
 }
 
-const DailyOrderedItemsAccordion: React.FC<DailyOrderedItemsAccordionProps> = ({
+const DailyItemCountsTable: React.FC<DailyOrderedItemsAccordionProps> = ({
   date,
   menuItems,
   teachers,
   mealTimes,
-  large,
 }) => {
   return (
-    <Accordion elevation={3} defaultExpanded>
-      <AccordionSummary
-        expandIcon={<ExpandMore />}
-        aria-controls="panel1-content"
-      >
-        <Typography variant="h6" fontWeight="bold">
-          Ordered Items
+    <Box sx={{ pageBreakBefore: "always" }}>
+      <Box>
+        <Typography variant="body1" fontWeight="bold">
+          Cafeteria Summary for {" "}
+          {DateTimeUtils.toString(date, DateTimeFormat.SHORT_DAY_OF_WEEK_DESC)}
         </Typography>
-      </AccordionSummary>
-      <AccordionDetails>
-        <Box
-          sx={{
-            borderLeftWidth: "1px",
-            borderLeftColor: grey[200],
-            borderLeftStyle: "solid",
-            borderTopWidth: "1px",
-            borderTopColor: grey[200],
-            borderTopStyle: "solid",
-          }}
-        >
-          <Box
-            sx={{
-              display: "grid",
-              gridTemplateColumns: "auto 1fr",
-            }}
-          >
-            <TableCell>
-              <Typography fontWeight="bold" variant={large ? "h6" : "body1"}>
+      </Box>
+      <table
+        style={{
+          width: "100%",
+          borderCollapse: "collapse",
+          marginTop: "10px",
+          border: "1px solid #000",
+        }}
+      >
+        <thead>
+          <tr>
+            <th
+              style={{
+                border: "1px solid #333",
+                width: "250px",
+                padding: "8px",
+                textAlign: "left",
+              }}
+            >
+              <Typography variant="body2" fontWeight="bold">
                 Time
               </Typography>
-            </TableCell>
-            <TableCell>
-              <Typography fontWeight="bold" variant={large ? "h6" : "body1"}>
-                Items
+            </th>
+            <th
+              style={{
+                border: "1px solid #333",
+                padding: "8px",
+                textAlign: "left",
+              }}
+            >
+              <Typography variant="body2" fontWeight="bold">
+                Meal Items
               </Typography>
-            </TableCell>
-            {mealTimes.map((time) => (
-              <TimeRow
-                large={large}
-                key={time}
-                time={time}
-                menuItems={menuItems}
-                teachers={teachers}
-                date={date}
-              />
-            ))}
-            <OtherRow
-              large={large}
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {mealTimes.map((time) => (
+            <TimeRow
+              key={time}
+              time={time}
               menuItems={menuItems}
               teachers={teachers}
               date={date}
             />
-            <TotalRow
-              large={large}
-              menuItems={menuItems}
-              teachers={teachers}
-              date={date}
-            />
-          </Box>
-        </Box>
-      </AccordionDetails>
-    </Accordion>
+          ))}
+          <OtherRow
+            menuItems={menuItems}
+            teachers={teachers}
+            date={date}
+          />
+          <TotalRow
+            menuItems={menuItems}
+            teachers={teachers}
+            date={date}
+          />
+        </tbody>
+      </table>
+    </Box>
   );
 };
 
-const CafeteriaReport: React.FC<AltCafeteriaReportProps> = ({ date }) => {
-  const { scheduledMenus, users, orders, currentSchoolYear, user } =
+const PrintableCafeteriaReport: React.FC<AltCafeteriaReportProps> = ({
+  date,
+}) => {
+  const { scheduledMenus, users, orders, currentSchoolYear } =
     React.useContext(AppContext);
 
   const dayOfWeek = DateTimeUtils.toDate(date).getDay();
@@ -380,21 +351,24 @@ const CafeteriaReport: React.FC<AltCafeteriaReportProps> = ({ date }) => {
 
   return (
     <Box p={2}>
-      <DailyOrderedItemsAccordion
+      <DailyItemCountsTable
         date={date}
         menuItems={menuItems}
         teachers={teachers}
         mealTimes={mealTimes}
-        large={user.role === Role.CAFETERIA}
       />
 
       {/* Hourly meal reports */}
       {mealTimes.map((time) => (
-        <HourlyMealReport large={user.role === Role.CAFETERIA} key={time} date={date} time={time} />
+        <PrintableHourlyMealReport
+          key={time}
+          date={date}
+          time={time}
+        />
       ))}
-      <HourlyMealReport large={user.role === Role.CAFETERIA} date={date} />
+      <PrintableHourlyMealReport date={date} />
     </Box>
   );
 };
 
-export default CafeteriaReport;
+export default PrintableCafeteriaReport;

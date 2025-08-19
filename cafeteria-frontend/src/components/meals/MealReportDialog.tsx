@@ -26,10 +26,8 @@ import Student from "../../models/Student";
 import { StudentLunchTime } from "../../models/StudentLunchTime";
 import SchoolYear from "../../models/SchoolYear";
 import GradeLunchTime from "../../models/GradeLunchTime";
-import {
-  showAdminReport,
-  showClassroomReport,
-} from "../../api/CafeteriaClient";
+import PrintableMealReport from "./PrintableMealReport";
+import { useReactToPrint } from "react-to-print";
 
 const buildStaffReportData = (
   mealsBeingServed: Meal[],
@@ -547,6 +545,7 @@ const MealReportDialog: React.FC<DialogProps> = ({
     React.useContext(AppContext);
 
   const reportRef = React.useRef<HTMLDivElement>(null);
+  const reactToPrintFn = useReactToPrint({ contentRef: reportRef });
 
   const reportData = teacherId
     ? getTeacherReportData(
@@ -557,17 +556,6 @@ const MealReportDialog: React.FC<DialogProps> = ({
         date
       )
     : getDailyReportData(orders, students, users, currentSchoolYear, date);
-
-  function handleClick(
-    event: React.MouseEvent<HTMLButtonElement, MouseEvent>
-  ): void {
-    event.stopPropagation();
-    if (teacherId) {
-      showClassroomReport(date, teacherId);
-    } else {
-      showAdminReport(date);
-    }
-  }
 
   return (
     <Dialog
@@ -604,7 +592,7 @@ const MealReportDialog: React.FC<DialogProps> = ({
                 )}
           </Typography>
           <IconButton
-            onClick={handleClick}
+            onClick={() => reactToPrintFn()}
             size="small"
             sx={{ color: "white" }}
           >
@@ -612,7 +600,7 @@ const MealReportDialog: React.FC<DialogProps> = ({
           </IconButton>
         </Toolbar>
       </AppBar>
-      <Box ref={reportRef} p={2} overflow="visible">
+      <Box p={2} overflow="visible">
         {teacherId ? (
           <MealReport customers={reportData[0].customers} />
         ) : (
@@ -640,6 +628,15 @@ const MealReportDialog: React.FC<DialogProps> = ({
             })}
           </>
         )}
+      </Box>
+      <Box display="none">
+        <Box ref={reportRef}>
+          {reportData.map((report) => {
+            return (
+              <PrintableMealReport key={report.title} reportData={report} />
+            );
+          })}
+        </Box>
       </Box>
     </Dialog>
   );

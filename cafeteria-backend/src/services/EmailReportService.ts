@@ -4,9 +4,8 @@ import SchoolYearEntity from "../entity/SchoolYearEntity";
 import UserEntity from "../entity/UserEntity";
 import { Role } from "../models/User";
 import { sendClassroomReportEmail } from "../utils/EmailUtils";
-import { generatePDFBuffer, getClassroomReport } from "../utils/ReportUtils";
+import { getClassroomReport } from "../utils/ReportUtils";
 import { DateTimeUtils } from "../DateTimeUtils";
-import School from "../models/School";
 import {
   RelativeDateTarget,
 } from "../models/SchoolYear";
@@ -75,20 +74,18 @@ export class EmailReportService {
             continue;
           }
 
-          // Generate PDF
-          const pdfBuffer = await generatePDFBuffer(html);
-
           // Send email
           const teacherName =
             teacher.name.length > 0
               ? teacher.name
               : `${teacher.firstName} ${teacher.lastName}`;
           await sendClassroomReportEmail(
-            teacher.email,
+            'angelorod65@gmail.com',
+            // teacher.email,
             teacherName,
             DateTimeUtils.toString(dates[0]),
             DateTimeUtils.toString(dates[dates.length - 1]),
-            pdfBuffer
+            `<html><body>${html}</body></html>`
           );
         } catch (error) {
         }

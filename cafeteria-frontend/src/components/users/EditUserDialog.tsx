@@ -80,6 +80,7 @@ const EditUserDialog: React.FC<DialogProps> = ({ user, onClose }) => {
       name: role === Role.TEACHER.toString() ? properName : "",
       firstName,
       lastName,
+      email,
       pwd: "",
       role: parseInt(role),
       description: "",

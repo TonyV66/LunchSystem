@@ -5,6 +5,8 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  FormControlLabel,
+  Checkbox,
 } from "@mui/material";
 import { AppContext } from "../../AppContextProvider";
 import SchoolYear from "../../models/SchoolYear";
@@ -30,6 +32,7 @@ const getDefaultSchoolYear = (): SchoolYear => {
     name: `${startDate.getFullYear()} - ${endDate.getFullYear()}`,
     startDate: DateTimeUtils.toString(startDate),
     endDate: DateTimeUtils.toString(endDate),
+    hideSchedule: true,
     studentLunchTimes: [],
     gradeLunchTimes: [],
     teacherLunchTimes: [],
@@ -101,6 +104,18 @@ const SchoolYearDialog: React.FC<DialogProps> = ({ onClose, schoolYear }) => {
         <BasicSchoolYearPanel
           schoolYear={updatedSchoolYear}
           onSchoolYearChanged={handleSchoolYearChanged}
+        />
+        <FormControlLabel
+          control={
+            <Checkbox
+              checked={updatedSchoolYear.hideSchedule}
+              onChange={(event) =>
+                setUpdatedSchoolYear({ ...updatedSchoolYear, hideSchedule: event.target.checked })
+              }
+              disabled={!updatedSchoolYear.isCurrent}
+            />
+          }
+          label="Hide Meal Schedule"
         />
       </DialogContent>
       <DialogActions>

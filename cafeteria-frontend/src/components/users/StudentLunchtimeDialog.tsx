@@ -17,7 +17,7 @@ import { StudentLunchTime } from "../../models/StudentLunchTime";
 
 interface Props {
   student: Student;
-  onClose: () => void;
+  onClose: (saved: boolean) => void;
 }
 
 const StudentLunchtimeDialog: React.FC<Props> = ({
@@ -53,7 +53,7 @@ const StudentLunchtimeDialog: React.FC<Props> = ({
       }
 
 
-      onClose();
+      onClose(true);
     } catch (error) {
       const axiosError = error as AxiosError;
       setSnackbarErrorMsg(
@@ -65,12 +65,16 @@ const StudentLunchtimeDialog: React.FC<Props> = ({
     }
   };
 
+  const handleLunchtimesChanged = (lunchTimes: StudentLunchTime[]) => {
+    setStudentLunchTimes(lunchTimes);
+  };
+
   return (
     <Dialog
       open={true}
-      onClose={() => onClose()}
+      onClose={() => onClose(false)}
       fullWidth={true}
-      maxWidth="sm"
+      maxWidth="xs"
       aria-labelledby="alert-dialog-title"
       aria-describedby="alert-dialog-description"
     >
@@ -78,14 +82,14 @@ const StudentLunchtimeDialog: React.FC<Props> = ({
       <DialogContent>
         <StudentLunchtimeEditor
           student={student}
-          onLunchtimesChanged={setStudentLunchTimes}
+          onLunchtimesChanged={handleLunchtimesChanged}
         />
       </DialogContent>
       <DialogActions>
-        <Button variant="contained" onClick={() => onClose()}>
+        <Button variant="contained" onClick={() => onClose(false)}>
           Cancel
         </Button>
-        <Button variant="contained" onClick={handleSave}>
+        <Button disabled={!studentLunchTimes.length} variant="contained" onClick={handleSave}>
           Save
         </Button>
       </DialogActions>

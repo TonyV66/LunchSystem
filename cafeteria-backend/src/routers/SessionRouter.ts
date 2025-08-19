@@ -237,6 +237,7 @@ const getParentSession = async (user: UserEntity): Promise<SessionInfo> => {
       studentLunchTimes: [],
       gradesAssignedByClass: "",
       oneTeacherPerStudent: true,
+      hideSchedule: true,
       school: user.school,
       parents: [],
       orders: [],
@@ -268,16 +269,18 @@ const getParentSession = async (user: UserEntity): Promise<SessionInfo> => {
   orders = orders.map((o) => ({
     ...o,
     meals: o.meals.filter((m) =>
-      myChildren.find((s) => s.id === m.student?.id)
+      myChildren.find((s) => s.id === m.student?.id || m.staffMember?.id === user.id)
     ),
   }));
 
   const otherUsers: UserEntity[] = [];
   orders.forEach(
-    (order) =>
-      !otherUsers.find(
-        (u) => order.user && order.user.id !== user.id && u.id === order.user.id
-      ) && otherUsers.push(order.user)
+    (order) => {
+      const orderedBy = order.user;
+      if (orderedBy && orderedBy.id !== user.id && !otherUsers.find(u => u.id === orderedBy.id)) {
+        otherUsers.push(order.user);
+      }
+    }
   );
 
   const dailyMenus = await dailyMenuRepository.find({
@@ -372,6 +375,7 @@ export const getStaffSession = async (
       studentLunchTimes: [],
       gradesAssignedByClass: "",
       oneTeacherPerStudent: true,
+      hideSchedule: true,
       school: user.school,
       parents: [],
       orders: [],

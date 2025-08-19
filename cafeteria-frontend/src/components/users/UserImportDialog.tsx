@@ -86,9 +86,9 @@ const UserImportDialog: React.FC<UserImportDialogProps> = ({
         .filter(colName => columnIndices[colName as keyof typeof columnIndices] === -1)
         .map(colName => {
           switch(colName) {
-            case "studentId": return "Student_id";
-            case "contactName": return "Contact_name";
-            case "contactEmail": return "Contact_email";
+            case "studentId": return "student_id";
+            case "contactName": return "contact_name";
+            case "contactEmail": return "contact_email";
             default: return colName;
           }
         });
@@ -195,12 +195,12 @@ const UserImportDialog: React.FC<UserImportDialogProps> = ({
               Upload a CSV file with the following required columns:
             </Typography>
             <Typography variant="body2" component="ul" sx={{ mt: 1, mb: 0 }}>
-              <li>Student_id</li>
-              <li>Contact_name (full name of the parent/contact)</li>
-              <li>Contact_email</li>
-              <li>Contact_phone (optional)</li>
-              <li>First_name (for student)</li>
-              <li>Last_name (for student)</li>
+              <li>student_id</li>
+              <li>contact_name (full name of the parent/contact)</li>
+              <li>contact_email</li>
+              <li>contact_phone (optional)</li>
+              <li>first_name (for student)</li>
+              <li>last_name (for student)</li>
               <li>dob (for student)</li>
               <li>grade (for student)</li>
             </Typography>

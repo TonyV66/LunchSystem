@@ -125,7 +125,7 @@ OrderRouter.post<Empty, Order | string, CheckoutRequest, Empty>(
       return {
         ...diner,
         date: dailyMenu.date,
-        time: "",
+        time: shoppingCartItem.time ?? "",
         items: buildMealItems(shoppingCartItem, dailyMenu).map((item) => ({
           ...item,
           id: undefined,

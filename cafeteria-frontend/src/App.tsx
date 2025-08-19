@@ -27,6 +27,7 @@ import UserImportTest from "./components/users/UserImportTest";
 import FamilyPage from "./components/users/FamilyPage";
 import ClassroomStudentsPage from "./components/users/ClassroomStudentsPage";
 import SchoolSettingsPage from "./components/settings/SchoolSettingsPage";
+import { Stack, Typography } from "@mui/material";
 
 const App: React.FC = () => {
   const { user } = useContext(AppContext);
@@ -46,6 +47,34 @@ const App: React.FC = () => {
   return (
     <BrowserRouter>
       <Routes>
+        <Route
+          path="/noregister"
+          element={
+            user.id ? (
+              <Navigate to={"/"} replace />
+            ) : (
+              <Stack
+                sx={{
+                  height: "100vh",
+                  justifyContent: "center",
+                  alignItems: "center",
+                }}
+              >
+                <img
+                  src="/logo.jpg"
+                  style={{ display: "block", width: "300px", height: "auto" }}
+                  alt="logo"
+                />
+                <Typography variant="h4">
+                  Not Yet Open For Lunch System Registration
+                </Typography>
+                <Typography variant="h6">
+                  You will receive an email when registration is open.
+                </Typography>
+              </Stack>
+            )
+          }
+        />
         <Route
           path="/register"
           element={

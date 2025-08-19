@@ -18,16 +18,16 @@ import { PantryItem } from "../models/Menu";
 
 const router = express.Router();
 
-interface MealData {
+export interface MealData {
   items: string[];
 }
 
-interface CustomerData {
+export interface CustomerData {
   name: string;
   meals: MealData[];
 }
 
-interface ReportData {
+export interface ReportData {
   isClassroom: boolean;
   title: string;
   time: string;
@@ -639,7 +639,7 @@ const getClassroomReportData = async (
 export const getClassroomReport = async (
   schoolYear: SchoolYearEntity,
   teacher: UserEntity,
-  dates: string[]
+  dates: string[],
 ): Promise<string> => {
   let reportData: ReportData[] = [];
   for (const date of dates) {

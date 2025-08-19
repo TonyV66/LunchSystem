@@ -816,9 +816,29 @@ const MealPlan: React.FC<MealPlanProps> = ({ menuOrDate, clipboardMenu }) => {
   const [menu, setMenu] = useState(
     typeof menuOrDate === "string" ? undefined : (menuOrDate as DailyMenu)
   );
+  const [date, setDate] = useState(
+    typeof menuOrDate === "string" ? menuOrDate as string : (menuOrDate as DailyMenu).date
+  );
+
+  useEffect(() => {
+    if (typeof menuOrDate === "string") {
+      setMenu(undefined);
+      setDate(menuOrDate);
+    } else {
+      setMenu(menuOrDate);
+      setDate(menuOrDate.date);
+    }
+  }, [menuOrDate]);
+
 
   const today = DateTimeUtils.toString(new Date());
-  const date = menu?.date ?? (menuOrDate as string);
+
+  if (typeof date !== "string") {
+    const testDate = date as Date;
+    if (!testDate.getFullYear) {
+      console.log("date is not a date", date);
+    }
+  }
 
   const backgroundImage = "/m.png";
   const handleMenuChanged = (menu?: DailyMenu) => {
@@ -861,6 +881,7 @@ const MealPlan: React.FC<MealPlanProps> = ({ menuOrDate, clipboardMenu }) => {
       );
       break;
   }
+
 
   return (
     <Paper
@@ -1007,6 +1028,7 @@ const WeeklyMealPlan: React.FC<WeeklyMealPlanProps> = ({
 
   today.setHours(0, 0, 0, 0);
   const { scheduledMenus } = useContext(AppContext);
+  const { currentSchoolYear, user } = useContext(AppContext);
   const [thisWeeksMenus, setThisWeeksMenus] = useState<
     (DailyMenu | undefined)[]
   >([]);
@@ -1030,7 +1052,7 @@ const WeeklyMealPlan: React.FC<WeeklyMealPlanProps> = ({
         );
       }
     }
-    setThisWeeksMenus(menusForWeek);
+    setThisWeeksMenus(!currentSchoolYear.hideSchedule || user.role !== Role.PARENT ? menusForWeek : []);
   }, [scheduledMenus, date]);
 
   return (

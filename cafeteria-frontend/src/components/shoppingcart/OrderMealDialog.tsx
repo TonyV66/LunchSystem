@@ -23,13 +23,13 @@ import SchoolYear from "../../models/SchoolYear";
 import FamilyMemberSelector from "./FamilyMemberSelector";
 import MealDesigner from "./MealDesigner";
 import StudentAutoCompleteSelector from "../users/StudentAutoCompleteSelector";
-import StudentLunchtimeDialog from "../users/StudentLunchtimeDialog";
 import {
   associateStudentWithUser,
   createStudent,
 } from "../../api/CafeteriaClient";
 import { StudentLunchTime } from "../../models/StudentLunchTime";
-import StudentLunchtimeEditor from "../users/StudentLunchtimeEditor";
+import StudentLunchtimeDialog from "../users/StudentLunchtimeDialog";
+import StaffLunchtimeDialog from "../users/StaffLunchtimeDialog";
 
 type TypeOfOrder = "meal" | "drink";
 
@@ -72,10 +72,10 @@ const OrderMealDialog: React.FC<DialogProps> = ({
   const [isAddToCartEnabled, setIsAddToCartEnabled] = useState(false);
   const [confirmDialogMsg, setConfirmDialogMsg] = useState<string>();
   const [showNewStudentDialog, setShowNewStudentDialog] = useState(false);
-  const [showLunchtimeDialog, setShowLunchtimeDialog] = useState(false);
-  const [studentBeingCreated, setStudentBeingCreated] = useState<Student | null>(null);
-  const [studentGradeLevelForCreation, setStudentGradeLevelForCreation] = useState<GradeLevel>(GradeLevel.UNKNOWN);
-  const [studentLunchTimesForCreation, setStudentLunchTimesForCreation] = useState<StudentLunchTime[]>([]);
+  const [showStudentLunchTimeDialog, setShowStudentLunchTimeDialog] = useState(false);
+  const [showStaffLunchtimeDialog, setShowStaffLunchtimeDialog] = useState(false);
+  const [staffLunchtime, setStaffLunchtime] = useState<string>();
+
   const [familyOrder, setFamilyOrder] = useState(user.role !== Role.ADMIN);
   const [selectedNonFamilyStudent, setSelectedNonFamilyStudent] =
     useState<Student | null>(null);
@@ -95,8 +95,18 @@ const OrderMealDialog: React.FC<DialogProps> = ({
     if (personId === -2) {
       setShowNewStudentDialog(true);
       return;
-    }
+    } 
     setSelectedPersonId(personId);
+    if (personId == MY_ID) {
+      if (user.role !== Role.TEACHER || !currentSchoolYear.teacherLunchTimes.find(lt => lt.teacherId === user.id && lt.dayOfWeek === dayOfWeek)) {
+        setShowStaffLunchtimeDialog(true);
+      }
+    } else {
+      const studentLunchTimes = currentSchoolYear.studentLunchTimes.filter(slt => slt.studentId === personId);
+      if (studentLunchTimes.length === 0) {
+        setShowStudentLunchTimeDialog(true);
+      }
+    }
   };
 
   const handleNonFamilyStudentSelected = (student: Student | null) => {
@@ -154,7 +164,7 @@ const OrderMealDialog: React.FC<DialogProps> = ({
         : false;
       if (hasMealInCart) {
         setConfirmDialogMsg(
-          "A meal and/or drink is already in your cart for " +
+          "A meal / drink is already in your cart for " +
             (selectedStudent
               ? selectedStudent.firstName + " " + selectedStudent.lastName
               : "you") +
@@ -163,12 +173,12 @@ const OrderMealDialog: React.FC<DialogProps> = ({
               menu.date,
               DateTimeFormat.SHORT_DAY_OF_WEEK_DESC
             ) +
-            ". Press OK to add another item to the cart."
+            ". Press OK to add another meal / drink to the cart."
         );
         return;
       } else if (isMealOrdered) {
         setConfirmDialogMsg(
-          "A meal and/or drink has already been ordered for " +
+          "A meal / drink has already been ordered for " +
             (selectedStudent
               ? selectedStudent.firstName + " " + selectedStudent.lastName
               : "you") +
@@ -177,7 +187,7 @@ const OrderMealDialog: React.FC<DialogProps> = ({
               menu.date,
               DateTimeFormat.SHORT_DAY_OF_WEEK_DESC
             ) +
-            ". Press OK to add another item to the cart."
+            ". Press OK to add another meal / drink to the cart."
         );
         return;
       }
@@ -187,6 +197,7 @@ const OrderMealDialog: React.FC<DialogProps> = ({
 
     const newCartItem: ShoppingCartItem = {
       studentId: selectedStudent?.id,
+      time: staffLunchtime,
       dailyMenuId: menu.id,
       isDrinkOnly: typeOfOrder === "drink",
       selectedMenuItemIds: [],
@@ -255,12 +266,15 @@ const OrderMealDialog: React.FC<DialogProps> = ({
     setSelectedDrink(menuItems.length ? menuItems[0] : undefined);
   };
 
-  const handleCreateStudentWithTeacherAssignments = async () => {
-    if (!studentBeingCreated) return;
+  const handleCreateStudent = async (
+    student: Student,
+    studentLunchTimes: StudentLunchTime[]
+  ) => {
+    setShowNewStudentDialog(false);
 
-    const newStudent = await createStudent({ 
-      ...studentBeingCreated, 
-      lunchTimes: studentLunchTimesForCreation 
+    const newStudent = await createStudent({
+      ...student,
+      lunchTimes: studentLunchTimes,
     });
 
     setStudents(students.concat(newStudent));
@@ -268,10 +282,9 @@ const OrderMealDialog: React.FC<DialogProps> = ({
       const updatedSchoolYear = {
         ...schoolYears.find((sy) => sy.id === currentSchoolYear.id)!,
       };
-      updatedSchoolYear.studentLunchTimes = currentSchoolYear.studentLunchTimes
-        .filter((lt) => lt.studentId !== newStudent.id)
-        .concat(
-          studentLunchTimesForCreation.map((lt) => ({
+      updatedSchoolYear.studentLunchTimes =
+        currentSchoolYear.studentLunchTimes.concat(
+          studentLunchTimes!.map((lt) => ({
             ...lt,
             studentId: newStudent.id,
           }))
@@ -285,51 +298,6 @@ const OrderMealDialog: React.FC<DialogProps> = ({
       );
     }
     setSelectedPersonId(newStudent.id);
-    setStudentBeingCreated(null);
-    setStudentGradeLevelForCreation(GradeLevel.UNKNOWN);
-    setStudentLunchTimesForCreation([]);
-    setShowLunchtimeDialog(false);
-  };
-
-  const handleCreateStudent = async (
-    student: Student,
-    studentLunchTimes: StudentLunchTime[],
-  ) => {
-
-    setShowNewStudentDialog(false);
-
-    if (!currentSchoolYear.gradesAssignedByClass.includes(studentLunchTimes[0].grade) || currentSchoolYear.oneTeacherPerStudent) {
-      const newStudent = await createStudent({ ...student, lunchTimes:studentLunchTimes });
-
-      setStudents(students.concat(newStudent));
-      if (currentSchoolYear.id) {
-        const updatedSchoolYear = {
-          ...schoolYears.find((sy) => sy.id === currentSchoolYear.id)!,
-        };
-        updatedSchoolYear.studentLunchTimes = currentSchoolYear.studentLunchTimes
-          .concat(
-            studentLunchTimes!.map((lt) => ({
-              ...lt,
-              studentId: newStudent.id,
-            }))
-          );
-  
-        setCurrentSchoolYear(updatedSchoolYear);
-        setSchoolYears(
-          schoolYears.map((sy) =>
-            sy.id !== updatedSchoolYear.id ? sy : updatedSchoolYear
-          )
-        );
-      }  
-      setSelectedPersonId(newStudent.id);
-
-    } else {
-      // Show StudentLunchtimeDialog to get proper teacher assignments
-      setStudentGradeLevelForCreation(studentLunchTimes[0].grade);
-      setStudentBeingCreated(student);
-      setShowLunchtimeDialog(true);
-    }
-
   };
 
   const updateStudentLunchTimes = (
@@ -356,20 +324,43 @@ const OrderMealDialog: React.FC<DialogProps> = ({
     );
   };
 
+  const handleStudentLunchTimeDialogClosed = (saved: boolean) => {
+    setShowStudentLunchTimeDialog(false);
+    if (!saved) {
+      setSelectedPersonId(0);
+    }
+  };
+
+  const handleStaffLunchtimeDialogClosed = (selectedTime?: string) => {
+    setShowStaffLunchtimeDialog(false);
+    setStaffLunchtime(selectedTime);
+    if (!selectedTime) {
+      setSelectedPersonId(0);
+    }
+  };
+
   const handleAddStudent = async (student: Student) => {
     setShowNewStudentDialog(false);
 
     const existingStudent = students.find((s) => s.id === student.id);
 
     if (!existingStudent) {
-      const { student: updatedStudent, lunchTimes, parents, orders: ordersForStudent } = await associateStudentWithUser(
-        student.id,
-        user.id
-      );
+      const {
+        student: updatedStudent,
+        lunchTimes,
+        parents,
+        orders: ordersForStudent,
+      } = await associateStudentWithUser(student.id, user.id);
 
       setStudents(students.concat(updatedStudent));
-      setUsers(users.concat(parents.filter((p) => !users.some(u => u.id === p.id))));
-      setOrders(orders.filter((o) => !ordersForStudent.some((os) => os.id === o.id)).concat(ordersForStudent));
+      setUsers(
+        users.concat(parents.filter((p) => !users.some((u) => u.id === p.id)))
+      );
+      setOrders(
+        orders
+          .filter((o) => !ordersForStudent.some((os) => os.id === o.id))
+          .concat(ordersForStudent)
+      );
 
       if (currentSchoolYear.id) {
         updateStudentLunchTimes(updatedStudent, lunchTimes);
@@ -402,9 +393,9 @@ const OrderMealDialog: React.FC<DialogProps> = ({
     );
 
     if (siblings.length === 1) {
-      setSelectedPersonId(siblings[0].id);
-    } else if (siblings.length === 0 && user.role !== Role.PARENT) {
-      setSelectedPersonId(MY_ID);
+      if (currentSchoolYear.studentLunchTimes.find(slt => slt.studentId === siblings[0].id && slt.dayOfWeek === dayOfWeek)) {
+        setSelectedPersonId(siblings[0].id);
+      }
     }
 
     if (entrees.length === 1) {
@@ -616,54 +607,23 @@ const OrderMealDialog: React.FC<DialogProps> = ({
       ) : (
         <></>
       )}
-      {showLunchtimeDialog ? (
-        <StudentLunchtimeDialog
-          student={students.find((s) => s.id === selectedPersonId)!}
-          onClose={() => setShowLunchtimeDialog(false)}
+      {showStaffLunchtimeDialog ? (
+        <StaffLunchtimeDialog
+          dayOfWeek={dayOfWeek}
+          onClose={handleStaffLunchtimeDialogClosed}
         />
       ) : (
         <></>
       )}
-      {studentBeingCreated ? (
-        <Dialog
-          open={true}
-          onClose={() => {
-            setStudentBeingCreated(null);
-            setShowLunchtimeDialog(false);
-          }}
-          fullWidth={true}
-          maxWidth="sm"
-        >
-          <DialogTitle>
-            Assign Teachers for {studentBeingCreated.firstName} {studentBeingCreated.lastName}
-          </DialogTitle>
-          <DialogContent>
-            <StudentLunchtimeEditor
-              gradeLevel={studentGradeLevelForCreation}
-              onLunchtimesChanged={setStudentLunchTimesForCreation}
-            />
-          </DialogContent>
-          <DialogActions>
-            <Button 
-              variant="contained" 
-              onClick={handleCreateStudentWithTeacherAssignments}
-            >
-              Save
-            </Button>
-            <Button 
-              variant="contained" 
-              onClick={() => {
-                setStudentBeingCreated(null);
-                setShowLunchtimeDialog(false);
-              }}
-            >
-              Cancel
-            </Button>
-          </DialogActions>
-        </Dialog>
+      {showStudentLunchTimeDialog ? (
+        <StudentLunchtimeDialog
+          student={students.find((s) => s.id === selectedPersonId)!}
+          onClose={handleStudentLunchTimeDialogClosed}
+        />
       ) : (
         <></>
       )}
+
     </Dialog>
   );
 };

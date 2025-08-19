@@ -31,7 +31,7 @@ const FamilyPage: React.FC = () => {
         height: "100%",
       }}
     >
-      {user.role !== Role.PARENT ? (
+      {user.role !== Role.PARENT && user.role !== Role.STAFF ? (
         <Stack direction="row" justifyContent="space-between">
           <Tabs
             value={FAMILY_URL}
@@ -41,7 +41,9 @@ const FamilyPage: React.FC = () => {
             {user.role === Role.ADMIN && (
               <Tab value={USERS_URL} label="Users" />
             )}
-            <Tab value={STUDENTS_URL} label="Students" />
+            {user.role === Role.TEACHER && (
+              <Tab value={STUDENTS_URL} label="Students" />
+            )}
             {user.role === Role.TEACHER && (
               <Tab value={CLASSROOM_URL} label="Classroom" />
             )}
@@ -61,7 +63,9 @@ const FamilyPage: React.FC = () => {
             </Stack>
           )}
         </Stack>
-      ) : <Box mt={2}></Box>}
+      ) : (
+        <Box mt={2}></Box>
+      )}
 
       <StudentsTable user={user} family={true} />
     </Stack>

@@ -109,6 +109,7 @@ const AppContextProvider: React.FC<React.PropsWithChildren> = (props) => {
     startDate: "",
     endDate: "",
     isCurrent: false,
+    hideSchedule: true,
     lunchTimes: [],
     teacherLunchTimes: [],
     gradeLunchTimes: [],
@@ -309,7 +310,7 @@ const AppContextProvider: React.FC<React.PropsWithChildren> = (props) => {
         <Snackbar
           anchorOrigin={{ vertical: "top", horizontal: "center" }}
           open={snackbarMsg || snackbarErrorMsg ? true : false}
-          autoHideDuration={snackbarErrorMsg ? 3000 : 2000}
+          autoHideDuration={snackbarErrorMsg ? 5000 : 2000}
           onClose={handleCloseSnackbar}
         >
           <Alert

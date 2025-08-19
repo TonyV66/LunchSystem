@@ -234,6 +234,11 @@ const NewFamilyMemberDialog: React.FC<DialogProps> = ({
     !selectedGrade ||
     (isTeacherSelectionRequired && !selectedTeacher);
 
+  const handleGradeSelected = (grade: GradeLevel) => {
+    setSelectedGrade(grade);
+    setSelectedTeacher(undefined);
+  };
+
   return (
     <>
       <Dialog
@@ -267,7 +272,7 @@ const NewFamilyMemberDialog: React.FC<DialogProps> = ({
               }
             />
 
-            <StudentGradeSelector onGradeSelected={setSelectedGrade} />
+            <StudentGradeSelector onGradeSelected={handleGradeSelected} />
             {currentSchoolYear.oneTeacherPerStudent &&
               currentSchoolYear.gradesAssignedByClass.includes(
                 selectedGrade!

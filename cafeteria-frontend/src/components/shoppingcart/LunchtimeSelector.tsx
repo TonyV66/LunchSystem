@@ -30,6 +30,7 @@ const LunchtimeSelector: React.FC<LunchtimeSelectorProps> = ({
         id="lunchtime"
         value={selectedTime}
         label="Lunchtime"
+        variant="standard"
         onChange={(e) => onTimeSelected(e.target.value)}
       >
         {!selectedTime ? (
