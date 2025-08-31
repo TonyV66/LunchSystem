@@ -32,11 +32,13 @@ import {
   SpeakerNotes,
   Lock,
   AccountCircle,
+  Print,
 } from "@mui/icons-material";
 import User, { NULL_USER, Role } from "./models/User";
 import { grey, red } from "@mui/material/colors";
 import { DateTimeUtils } from "./DateTimeUtils";
 import ChangePasswordDialog from "./components/settings/ChangePasswordDialog";
+import PrintReportDialog from "./components/printing/PrintReportDialog";
 
 const ALT_COLOR = "#ffffff";
 
@@ -69,6 +71,7 @@ export enum SidebarSelection {
   LOGOUT = "Logout",
   NOTIFICATIONS = "Notifications",
   YEARS = "Years",
+  PRINT = "Print",
 }
 
 const primaryColor = "primary.dark";
@@ -149,13 +152,31 @@ const LogoutButton: React.FC<LogoutButtonProps> = ({ onLogout }) => {
 
 interface SidebarButtonProps {
   onClick: (selection: SidebarSelection) => void;
-  isSelected: boolean;
+  isSelected?: boolean;
   showWarning?: boolean;
 }
 
 interface UsersButtonProps extends SidebarButtonProps {
   role: Role;
 }
+
+const PrintMealReportsButton: React.FC<SidebarButtonProps> = ({
+  onClick,
+}) => {
+  return (
+    <Tooltip title="Print Meal Reports">
+      <Print
+        onClick={() => onClick(SidebarSelection.PRINT)}
+        sx={{
+          cursor: "pointer",
+          p: 1,
+          color: ALT_COLOR,
+        }}
+        fontSize="large"
+      />
+    </Tooltip>
+  );
+};
 
 const OrderedMealsSidebarButton: React.FC<SidebarButtonProps> = ({
   onClick,
@@ -399,6 +420,7 @@ const getDefaultUsersUrl = (user: User) => {
 const AdminSidebar: React.FC<SidebarProps> = ({ onLogout }) => {
   const { user } = useContext(AppContext);
   const [selection, setSelection] = useState<SidebarSelection>();
+  const [printDialogOpen, setPrintDialogOpen] = useState(false);
   const location = useLocation();
 
   useEffect(() => {
@@ -410,58 +432,74 @@ const AdminSidebar: React.FC<SidebarProps> = ({ onLogout }) => {
 
   const navigate = useNavigate();
 
+  const handlePrintClick = () => {
+    setPrintDialogOpen(true);
+  };
+
+  const handlePrintDialogClose = () => {
+    setPrintDialogOpen(false);
+  };
+
   return (
-    <Box
-      className="sidebar"
-      sx={{
-        display: "flex",
-        flexDirection: "column",
-        gap: 1,
-        pt: 1,
-        pb: 1,
-        backgroundColor: primaryColor,
-        borderStyle: "solid",
-        borderRightWidth: 1,
-        borderColor: primaryColor,
-      }}
-    >
-      <CalendarButton
-        onClick={() => navigate(CALENDAR_URL)}
-        isSelected={selection === SidebarSelection.CALENDAR}
+    <>
+      <Box
+        className="sidebar"
+        sx={{
+          display: "flex",
+          flexDirection: "column",
+          gap: 1,
+          pt: 1,
+          pb: 1,
+          backgroundColor: primaryColor,
+          borderStyle: "solid",
+          borderRightWidth: 1,
+          borderColor: primaryColor,
+        }}
+      >
+        <CalendarButton
+          onClick={() => navigate(CALENDAR_URL)}
+          isSelected={selection === SidebarSelection.CALENDAR}
+        />
+        <OrdersButton
+          onClick={() => navigate(ORDERS_URL)}
+          isSelected={selection === SidebarSelection.ORDERS}
+        />
+        <PrintMealReportsButton onClick={handlePrintClick} />
+        <UsersButton
+          role={Role.ADMIN}
+          onClick={() => navigate(getDefaultUsersUrl(user))}
+          isSelected={selection === SidebarSelection.USERS}
+        />
+        <NotificationsButton
+          onClick={() => navigate(NOTIFICATIONS_URL)}
+          isSelected={selection === SidebarSelection.NOTIFICATIONS}
+        />
+        <SchoolYearsButton
+          onClick={() => navigate(SCHOOL_YEARS_URL)}
+          isSelected={selection === SidebarSelection.YEARS}
+        />
+        <SettingsButton
+          onClick={() => navigate(ACCOUNT_URL)}
+          isSelected={selection === SidebarSelection.ACCOUNT}
+        />
+        <Divider sx={{ borderColor: "white", width: "100%" }} />
+        <OrderedMealsSidebarButton
+          onClick={() => navigate(MEALS_URL)}
+          isSelected={selection === SidebarSelection.MEALS}
+        />
+        <ShoppingCartButton
+          onClick={() => navigate(CART_URL)}
+          isSelected={selection === SidebarSelection.CART}
+        />
+        <Divider sx={{ borderColor: "white", width: "100%" }} />
+        <LogoutButton onLogout={onLogout} />
+      </Box>
+      
+      <PrintReportDialog
+        open={printDialogOpen}
+        onClose={handlePrintDialogClose}
       />
-      <OrdersButton
-        onClick={() => navigate(ORDERS_URL)}
-        isSelected={selection === SidebarSelection.ORDERS}
-      />
-      <UsersButton
-        role={Role.ADMIN}
-        onClick={() => navigate(getDefaultUsersUrl(user))}
-        isSelected={selection === SidebarSelection.USERS}
-      />
-      <NotificationsButton
-        onClick={() => navigate(NOTIFICATIONS_URL)}
-        isSelected={selection === SidebarSelection.NOTIFICATIONS}
-      />
-      <SchoolYearsButton
-        onClick={() => navigate(SCHOOL_YEARS_URL)}
-        isSelected={selection === SidebarSelection.YEARS}
-      />
-      <SettingsButton
-        onClick={() => navigate(ACCOUNT_URL)}
-        isSelected={selection === SidebarSelection.ACCOUNT}
-      />
-      <Divider sx={{ borderColor: "white", width: "100%" }} />
-      <OrderedMealsSidebarButton
-        onClick={() => navigate(MEALS_URL)}
-        isSelected={selection === SidebarSelection.MEALS}
-      />
-      <ShoppingCartButton
-        onClick={() => navigate(CART_URL)}
-        isSelected={selection === SidebarSelection.CART}
-      />
-      <Divider sx={{ borderColor: "white", width: "100%" }} />
-      <LogoutButton onLogout={onLogout} />
-    </Box>
+    </>
   );
 };
 

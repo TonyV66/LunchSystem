@@ -7,7 +7,6 @@ import TeacherSelector from "../shoppingcart/TeacherSelector";
 import Student from "../../models/Student";
 import { AppContext } from "../../AppContextProvider";
 import { StudentLunchTime } from "../../models/StudentLunchTime";
-import User from "../../models/User";
 
 interface Props {
   student?: Student;
@@ -27,15 +26,6 @@ const StudentLunchtimeEditor: React.FC<Props> = ({
       : GradeLevel.UNKNOWN
   );
 
-  const [selectedTeacher, setSelectedTeacher] = useState<User | undefined>(
-    users.find((user) =>
-      user.id === currentSchoolYear.id
-        ? currentSchoolYear.studentLunchTimes.find(
-            (slt) => slt.studentId === student?.id
-          )?.teacherId ?? 0
-        : 0
-    )
-  );
 
   const isGradeByClassroom = (grade: GradeLevel): boolean => {
     return currentSchoolYear?.gradesAssignedByClass.includes(grade) ?? false;
@@ -43,7 +33,6 @@ const StudentLunchtimeEditor: React.FC<Props> = ({
 
   const handleTeacherChanged = (teacherId: number) => {
     const teacher = users.find((user) => user.id === teacherId)!;
-    setSelectedTeacher(teacher);
     const studentLunchTimes: StudentLunchTime[] = [];
     if (selectedGrade !== GradeLevel.UNKNOWN && teacher) {
       studentLunchTimes.push({
@@ -82,7 +71,6 @@ const StudentLunchtimeEditor: React.FC<Props> = ({
 
   const handleGradeSelected = (grade: GradeLevel) => {
     setSelectedGrade(grade);
-    setSelectedTeacher(undefined);
     const studentLunchTimes: StudentLunchTime[] = [];
     if (!isGradeByClassroom(grade)) {
       studentLunchTimes.push({

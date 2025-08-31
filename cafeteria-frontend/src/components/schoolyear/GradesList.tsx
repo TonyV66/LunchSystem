@@ -14,7 +14,6 @@ const gradeOrder = [
   GradeLevel.PRE_K2,
   GradeLevel.PRE_K3,
   GradeLevel.PRE_K4,
-  GradeLevel.PRE_K,
   GradeLevel.KINDERGARTEN,
   GradeLevel.FIRST,
   GradeLevel.SECOND,

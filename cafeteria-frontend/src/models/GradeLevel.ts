@@ -2,7 +2,6 @@ export enum GradeLevel {
   PRE_K2 = "pk2",
   PRE_K3 = "pk3",
   PRE_K4 = "pk4",
-  PRE_K = "pk",
   KINDERGARTEN = "k",
   FIRST = "1",
   SECOND = "2",
@@ -27,8 +26,6 @@ export const getGradeName = (grade: GradeLevel): string => {
       return "Pre-K3";
     case GradeLevel.PRE_K4:
       return "Pre-K4";
-    case GradeLevel.PRE_K:
-      return "Pre-K";
     case GradeLevel.KINDERGARTEN:
       return "Kind.";
     case GradeLevel.FIRST:

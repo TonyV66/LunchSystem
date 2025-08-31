@@ -38,7 +38,6 @@ const gradeOrder = [
   GradeLevel.PRE_K2,
   GradeLevel.PRE_K3,
   GradeLevel.PRE_K4,
-  GradeLevel.PRE_K,
   GradeLevel.KINDERGARTEN,
   GradeLevel.FIRST,
   GradeLevel.SECOND,
@@ -55,7 +54,7 @@ const gradeOrder = [
   GradeLevel.UNKNOWN,
 ];
 
-const ClassRoomMealReport: React.FC<{
+const PrintableClassroomMealReport: React.FC<{
   classroom: Classroom;
   date: string;
 }> = ({ classroom, date }) => {
@@ -86,13 +85,13 @@ const ClassRoomMealReport: React.FC<{
       {classroom.students.map((student) => (
         <StudentMealReport key={student.id} student={student} date={date} />
       ))}
-      <StaffMealReport staffMember={classroom.teacher} date={date} />
+      <PrintableStaffMealReport staffMember={classroom.teacher} date={date} />
       {/* Student rows */}
     </>
   );
 };
 
-const GradeLevelMealReport: React.FC<{
+const PrintableGradeLevelMealReport: React.FC<{
   gradeLevelStudents: GradeLevelStudents;
   date: string;
 }> = ({ gradeLevelStudents, date }) => {
@@ -122,7 +121,7 @@ const GradeLevelMealReport: React.FC<{
   );
 };
 
-const PrintableHourlyMealReport: React.FC<{
+const PrintableLunchPeriodReport: React.FC<{
   date: string;
   time?: string;
 }> = ({ date, time }) => {
@@ -176,6 +175,10 @@ const PrintableHourlyMealReport: React.FC<{
         currentSchoolYear,
         date
       );
+
+  if (meals.length === 0 && !time) {
+    return <></>;
+  }
 
   // Use Sets to store unique staff and students
   const staffSet = new Set<User>();
@@ -309,71 +312,77 @@ const PrintableHourlyMealReport: React.FC<{
           @ {summaryText}
         </Typography>
       </Box>
-      <table
-        style={{
-          width: "100%",
-          borderCollapse: "separate",
-          borderSpacing: "0",
-          marginTop: "10px",
-          border: "1px solid #000",
-        }}
-      >
-        <tbody>
-          {classrooms
-            .filter(
-              (classroom) =>
-                classroom.students.length > 0 ||
-                meals.some(
-                  (meal) => meal.staffMemberId === classroom.teacher.id
-                )
-            )
-            .map((classroom) => (
-              <ClassRoomMealReport
-                key={classroom.teacher.id}
-                classroom={classroom}
+      {!meals.length ? (
+        <Typography variant="body1" >
+          No Meals Ordered
+        </Typography>
+      ) : (
+        <table
+          style={{
+            width: "100%",
+            borderCollapse: "separate",
+            borderSpacing: "0",
+            marginTop: "10px",
+            border: "1px solid #000",
+          }}
+        >
+          <tbody>
+            {classrooms
+              .filter(
+                (classroom) =>
+                  classroom.students.length > 0 ||
+                  meals.some(
+                    (meal) => meal.staffMemberId === classroom.teacher.id
+                  )
+              )
+              .map((classroom) => (
+                <PrintableClassroomMealReport
+                  key={classroom.teacher.id}
+                  classroom={classroom}
+                  date={date}
+                />
+              ))}
+            {/* Grade level groups for students without assigned teachers */}
+            {gradeLevelStudents
+              .filter((gradeGroup) => gradeGroup.students.length > 0)
+              .map((gradeGroup) => (
+                <PrintableGradeLevelMealReport
+                  key={`grade-${gradeGroup.gradeLevel}`}
+                  gradeLevelStudents={gradeGroup}
+                  date={date}
+                />
+              ))}
+            {sortedStaff.length > 0 && (
+              <tr>
+                <td
+                  colSpan={2}
+                  style={{
+                    borderTop: "1px solid #333",
+                    padding: "8px",
+                    textAlign: "left",
+                  }}
+                >
+                  <Typography variant="body2" fontWeight="bold">
+                    Staff
+                  </Typography>
+                </td>
+              </tr>
+            )}
+            {sortedStaff.map((staffMember) => (
+              <PrintableStaffMealReport
+                key={staffMember.id}
+                staffMember={staffMember}
                 date={date}
               />
             ))}
-          {/* Grade level groups for students without assigned teachers */}
-          {gradeLevelStudents
-            .filter((gradeGroup) => gradeGroup.students.length > 0)
-            .map((gradeGroup) => (
-              <GradeLevelMealReport
-                key={`grade-${gradeGroup.gradeLevel}`}
-                gradeLevelStudents={gradeGroup}
-                date={date}
-              />
-            ))}
-          {sortedStaff.length > 0 && (
-            <tr>
-              <td
-                colSpan={2}
-                style={{
-                  borderTop: "1px solid #333",
-                  padding: "8px",
-                  textAlign: "left",
-                }}
-              >
-                <Typography variant="body2" fontWeight="bold">
-                  Staff
-                </Typography>
-              </td>
-            </tr>
-          )}
-          {sortedStaff.map((staffMember) => (
-            <StaffMealReport
-              key={staffMember.id}
-              staffMember={staffMember}
-              date={date}
-            />
-          ))}
-        </tbody>
-      </table>
+          </tbody>
+        </table>
+      )}
     </Box>
   );
 };
 
-const MealReport: React.FC<MealReportProps> = ({ meals, title }) => {
+const PrintableMealReport: React.FC<MealReportProps> = ({ meals, title }) => {
   return (
     <>
       {meals.map((meal, mealIndex) => (
@@ -419,7 +428,7 @@ const MealReport: React.FC<MealReportProps> = ({ meals, title }) => {
   );
 };
 
-const StaffMealReport: React.FC<StaffMealReportProps> = ({
+const PrintableStaffMealReport: React.FC<StaffMealReportProps> = ({
   staffMember,
   date,
 }) => {
@@ -436,7 +445,7 @@ const StaffMealReport: React.FC<StaffMealReportProps> = ({
     staffMember.firstName && staffMember.lastName
       ? staffMember.firstName + " " + staffMember.lastName
       : staffMember.userName;
-  return <MealReport meals={meals} title={title} />;
+  return <PrintableMealReport meals={meals} title={title} />;
 };
 
 const StudentMealReport: React.FC<StudentMealReportProps> = ({
@@ -453,11 +462,11 @@ const StudentMealReport: React.FC<StudentMealReportProps> = ({
   }
 
   return (
-    <MealReport
+    <PrintableMealReport
       meals={meals}
       title={student.firstName + " " + student.lastName}
     />
   );
 };
 
-export default PrintableHourlyMealReport;
+export default PrintableLunchPeriodReport;

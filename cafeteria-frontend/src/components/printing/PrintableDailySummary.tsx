@@ -3,11 +3,10 @@ import { Box, Typography } from "@mui/material";
 import { AppContext } from "../../AppContextProvider";
 import User, { Role } from "../../models/User";
 import { DateTimeFormat, DateTimeUtils } from "../../DateTimeUtils";
-import { PantryItem, DailyMenu } from "../../models/Menu";
+import { DailyMenu, PantryItem } from "../../models/Menu";
 import { Order } from "../../models/Order";
 import Student from "../../models/Student";
 import SchoolYear from "../../models/SchoolYear";
-import PrintableHourlyMealReport from "./PrintableHourlyMealReport";
 import { getMealsAtTime, getMealsWithIrregularTimes } from "../../ReportUtils";
 
 interface TimeRowProps {
@@ -19,11 +18,16 @@ interface TimeRowProps {
 
 interface TotalRowProps {
   menuItems: PantryItem[];
+  date: string;
+}
+
+interface OtherRowProps {
+  menuItems: PantryItem[];
   teachers: User[];
   date: string;
 }
 
-interface AltCafeteriaReportProps {
+interface DailyOrderedItemsAccordionProps {
   date: string;
 }
 
@@ -66,7 +70,6 @@ const getMenuItems = (
 
   return orderedItems;
 };
-
 
 const getOrderedQty = (
   orders: Order[],
@@ -189,12 +192,6 @@ const TotalRow: React.FC<TotalRowProps> = ({ menuItems, date }) => {
   );
 };
 
-interface OtherRowProps {
-  menuItems: PantryItem[];
-  teachers: User[];
-  date: string;
-}
-
 const OtherRow: React.FC<OtherRowProps> = ({
   menuItems,
   teachers,
@@ -247,19 +244,25 @@ const OtherRow: React.FC<OtherRowProps> = ({
   );
 };
 
-interface DailyOrderedItemsAccordionProps {
-  date: string;
-  menuItems: PantryItem[];
-  teachers: User[];
-  mealTimes: string[];
-}
-
-const DailyItemCountsTable: React.FC<DailyOrderedItemsAccordionProps> = ({
+const PrintableDailySummary: React.FC<DailyOrderedItemsAccordionProps> = ({
   date,
-  menuItems,
-  teachers,
-  mealTimes,
 }) => {
+  const {currentSchoolYear, orders, scheduledMenus, users} = React.useContext(AppContext);
+
+  const dayOfWeek = DateTimeUtils.toDate(date).getDay();
+  const dailyTimes = currentSchoolYear.lunchTimes.find(
+    (lt) => lt.dayOfWeek === dayOfWeek
+  );
+  const mealTimes = dailyTimes?.times.sort() ?? [];
+
+  const menuItems = getMenuItems(orders, scheduledMenus, date).sort(
+    (item1, item2) =>
+      item1.type - item2.type ||
+      item1.name.toLowerCase().localeCompare(item2.name.toLowerCase())
+  );
+
+  const teachers = users.filter((user) => user.role === Role.TEACHER);
+
   return (
     <Box sx={{ pageBreakBefore: "always" }}>
       <Box>
@@ -320,7 +323,6 @@ const DailyItemCountsTable: React.FC<DailyOrderedItemsAccordionProps> = ({
           />
           <TotalRow
             menuItems={menuItems}
-            teachers={teachers}
             date={date}
           />
         </tbody>
@@ -329,46 +331,4 @@ const DailyItemCountsTable: React.FC<DailyOrderedItemsAccordionProps> = ({
   );
 };
 
-const PrintableCafeteriaReport: React.FC<AltCafeteriaReportProps> = ({
-  date,
-}) => {
-  const { scheduledMenus, users, orders, currentSchoolYear } =
-    React.useContext(AppContext);
-
-  const dayOfWeek = DateTimeUtils.toDate(date).getDay();
-  const dailyTimes = currentSchoolYear.lunchTimes.find(
-    (lt) => lt.dayOfWeek === dayOfWeek
-  );
-  const mealTimes = dailyTimes?.times.sort() ?? [];
-
-  const menuItems = getMenuItems(orders, scheduledMenus, date).sort(
-    (item1, item2) =>
-      item1.type - item2.type ||
-      item1.name.toLowerCase().localeCompare(item2.name.toLowerCase())
-  );
-
-  const teachers = users.filter((user) => user.role === Role.TEACHER);
-
-  return (
-    <Box p={2}>
-      <DailyItemCountsTable
-        date={date}
-        menuItems={menuItems}
-        teachers={teachers}
-        mealTimes={mealTimes}
-      />
-
-      {/* Hourly meal reports */}
-      {mealTimes.map((time) => (
-        <PrintableHourlyMealReport
-          key={time}
-          date={date}
-          time={time}
-        />
-      ))}
-      <PrintableHourlyMealReport date={date} />
-    </Box>
-  );
-};
-
-export default PrintableCafeteriaReport;
+export default PrintableDailySummary;

@@ -126,7 +126,7 @@ const EditStudentDialog: React.FC<DialogProps> = ({ onClose, student }) => {
   };
 
   const isSaveDisabled =
-    !studentFirstName.length || !studentLastName.length || !studentBirthDate;
+    !studentFirstName.length || !studentLastName.length;
 
   return (
     <Dialog
@@ -167,7 +167,6 @@ const EditStudentDialog: React.FC<DialogProps> = ({ onClose, student }) => {
                 textField: {
                   variant: "standard",
                   fullWidth: true,
-                  required: true,
                 },
               }}
             />

@@ -12,7 +12,7 @@ import { Close, Print } from "@mui/icons-material";
 
 import { TransitionProps } from "@mui/material/transitions";
 import { DateTimeFormat, DateTimeUtils } from "../../DateTimeUtils";
-import PrintableCafeteriaReport from "./PrintableCafeteriaReport";
+import PrintableCafeteriaReport from "../printing/PrintableCafeteriaReport";
 import CafeteriaReport from "./CafeteriaReport";
 import { useReactToPrint } from "react-to-print";
 

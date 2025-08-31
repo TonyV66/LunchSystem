@@ -1,31 +1,17 @@
 import React from "react";
-import {
-  Accordion,
-  AccordionDetails,
-  AccordionSummary,
-  AppBar,
-  Box,
-  Dialog,
-  IconButton,
-  Slide,
-  Toolbar,
-  Typography,
-} from "@mui/material";
-import { Close, ExpandMore, Print } from "@mui/icons-material";
+import { Box } from "@mui/material";
 
-import { TransitionProps } from "@mui/material/transitions";
 import { AppContext } from "../../AppContextProvider";
-import { DateTimeUtils, DateTimeFormat } from "../../DateTimeUtils";
+import { DateTimeUtils } from "../../DateTimeUtils";
 import User, { Role } from "../../models/User";
-import MealReport, { ReportData } from "./MealReport";
 import { getGradeName, GradeLevel } from "../../models/GradeLevel";
 import { Order } from "../../models/Order";
 import Meal from "../../models/Meal";
 import Student from "../../models/Student";
 import { StudentLunchTime } from "../../models/StudentLunchTime";
 import SchoolYear from "../../models/SchoolYear";
-import { useReactToPrint } from "react-to-print";
-import PrintableCohortsReport from "../printing/PrintableCohortsReport";
+import { ReportData } from "../meals/MealReport";
+import PrintableMealReport from "../meals/PrintableMealReport";
 
 const gradeOrder = [
   GradeLevel.PRE_K2,
@@ -196,10 +182,10 @@ const buildClassroomReportData = (
   date: string,
   currentSchoolYear: SchoolYear
 ): ReportData[] => {
-  const teacherLunchTimes = getTeacherLunchTimes(currentSchoolYear, date);
-
   const dayOfWeek = DateTimeUtils.toDate(date).getDay();
   const reportDataArray: ReportData[] = [];
+
+  const teacherLunchTimes = getTeacherLunchTimes(currentSchoolYear, date);
 
   const sortedTeachers = classroomTeachers.sort((a, b) => {
     // Get the grade level for each teacher from teacherLunchTimes
@@ -234,9 +220,7 @@ const buildClassroomReportData = (
     return aName.toLowerCase().localeCompare(bName.toLowerCase());
   });
 
-
   for (const teacher of sortedTeachers) {
-
     if (!classroomMap.has(teacher.id)) {
       continue;
     }
@@ -275,6 +259,7 @@ const buildClassroomReportData = (
     if (teachersGradeLevel) {
       title += " - " + getGradeName(teachersGradeLevel.grades[0]);
     }
+
     // Create classroom data
     const reportData: ReportData = {
       title: title,
@@ -302,7 +287,10 @@ const buildClassroomReportData = (
     // Add teacher meals last (if any)
     if (teacherMeals.length > 0) {
       reportData.customers.push({
-        name: teacher.name.length > 0 ? teacher.name : `${teacher.firstName} ${teacher.lastName}`,
+        name:
+          teacher.name.length > 0
+            ? teacher.name
+            : `${teacher.firstName} ${teacher.lastName}`,
         meals: teacherMeals,
       });
     }
@@ -313,19 +301,9 @@ const buildClassroomReportData = (
   return reportDataArray;
 };
 
-const Transition = React.forwardRef(function Transition(
-  props: TransitionProps & {
-    children: React.ReactElement<unknown>;
-  },
-  ref: React.Ref<unknown>
-) {
-  return <Slide direction="up" ref={ref} {...props} />;
-});
-
-interface DialogProps {
+interface ReportProps {
   date: string;
   teacherId?: number;
-  onClose: () => void;
 }
 
 const getMealsBeingServed = (orders: Order[], date: string) => {
@@ -475,7 +453,6 @@ const getTeacherReportData = (
     currentSchoolYear.studentLunchTimes
   );
 
-
   const classroomReportData = buildClassroomReportData(
     mealsBeingServed,
     classroomMap,
@@ -535,7 +512,6 @@ const getDailyReportData = (
     studentsBeingServed,
     currentSchoolYear.studentLunchTimes
   );
-
 
   const classroomReportData = buildClassroomReportData(
     mealsBeingServed,
@@ -598,16 +574,9 @@ const getDailyReportData = (
     .concat(staffReportData);
 };
 
-const MealReportDialog: React.FC<DialogProps> = ({
-  teacherId,
-  date,
-  onClose,
-}) => {
+const PrintableCohortsReport: React.FC<ReportProps> = ({ teacherId, date }) => {
   const { students, orders, users, currentSchoolYear } =
     React.useContext(AppContext);
-
-  const reportRef = React.useRef<HTMLDivElement>(null);
-  const reactToPrintFn = useReactToPrint({ contentRef: reportRef });
 
   const reportData = teacherId
     ? getTeacherReportData(
@@ -620,84 +589,12 @@ const MealReportDialog: React.FC<DialogProps> = ({
     : getDailyReportData(orders, students, users, currentSchoolYear, date);
 
   return (
-    <Dialog
-      open={true}
-      fullScreen
-      onClose={onClose}
-      TransitionComponent={Transition}
-    >
-      <AppBar sx={{ position: "relative" }}>
-        <Toolbar>
-          <IconButton
-            edge="start"
-            color="inherit"
-            onClick={onClose}
-            aria-label="close"
-          >
-            <Close />
-          </IconButton>
-          <Typography sx={{ ml: 2, flex: 1 }} variant="h6" component="div">
-            {teacherId
-              ? reportData[0].title +
-                " - " +
-                DateTimeUtils.toString(
-                  date,
-                  DateTimeFormat.SHORT_DAY_OF_WEEK_DESC
-                ) +
-                (reportData[0].time
-                  ? " @ " + DateTimeUtils.toTwelveHourTime(reportData[0].time)
-                  : "")
-              : "Daily Report - " +
-                DateTimeUtils.toString(
-                  date,
-                  DateTimeFormat.SHORT_DAY_OF_WEEK_DESC
-                )}
-          </Typography>
-          <IconButton
-            onClick={() => reactToPrintFn()}
-            size="small"
-            sx={{ color: "white" }}
-          >
-            <Print />
-          </IconButton>
-        </Toolbar>
-      </AppBar>
-      <Box p={2} overflow="visible">
-        {teacherId ? (
-          <MealReport customers={reportData[0].customers} />
-        ) : (
-          <>
-            {reportData.map((report) => {
-              return (
-                <Accordion elevation={3} key={report.title}>
-                  <AccordionSummary
-                    expandIcon={<ExpandMore />}
-                    aria-controls="panel1-content"
-                    id="panel1-header"
-                  >
-                    <Typography fontWeight="bold">
-                      {report.title}
-                      {report.time
-                        ? " @ " + DateTimeUtils.toTwelveHourTime(report.time)
-                        : ""}
-                    </Typography>
-                  </AccordionSummary>
-                  <AccordionDetails>
-                    <MealReport customers={report.customers} />
-                  </AccordionDetails>
-                </Accordion>
-              );
-            })}
-          </>
-        )}
-      </Box>
-      <Box display="none">
-        <Box ref={reportRef}>
-          <PrintableCohortsReport date={date} teacherId={teacherId} />
-        </Box>
-      </Box>
-    </Dialog>
+    <Box>
+      {reportData.map((report) => {
+        return <PrintableMealReport key={report.title} reportData={report} />;
+      })}
+    </Box>
   );
 };
 
-export default MealReportDialog;
+export default PrintableCohortsReport;
