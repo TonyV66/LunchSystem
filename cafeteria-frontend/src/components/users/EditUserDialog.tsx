@@ -110,6 +110,7 @@ const EditUserDialog: React.FC<DialogProps> = ({ user, onClose }) => {
     "Parent",
     "Cafeteria",
     "Staff",
+    "Principal",
   ];
 
   const availRoles: Role[] = [
@@ -117,6 +118,7 @@ const EditUserDialog: React.FC<DialogProps> = ({ user, onClose }) => {
     Role.STAFF,
     Role.TEACHER,
     Role.CAFETERIA,
+    Role.PRINCIPAL,
     Role.ADMIN,
   ];
   let okButtonLabel = "Save";
