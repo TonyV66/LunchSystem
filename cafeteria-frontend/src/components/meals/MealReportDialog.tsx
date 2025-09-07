@@ -3,17 +3,16 @@ import {
   Accordion,
   AccordionDetails,
   AccordionSummary,
-  AppBar,
   Box,
+  Button,
   Dialog,
-  IconButton,
-  Slide,
-  Toolbar,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   Typography,
 } from "@mui/material";
-import { Close, ExpandMore, Print } from "@mui/icons-material";
+import { ExpandMore } from "@mui/icons-material";
 
-import { TransitionProps } from "@mui/material/transitions";
 import { AppContext } from "../../AppContextProvider";
 import { DateTimeUtils, DateTimeFormat } from "../../DateTimeUtils";
 import User, { Role } from "../../models/User";
@@ -234,9 +233,7 @@ const buildClassroomReportData = (
     return aName.toLowerCase().localeCompare(bName.toLowerCase());
   });
 
-
   for (const teacher of sortedTeachers) {
-
     if (!classroomMap.has(teacher.id)) {
       continue;
     }
@@ -268,9 +265,10 @@ const buildClassroomReportData = (
       (tlt) => tlt.teacherId === teacher.id && tlt.dayOfWeek === dayOfWeek
     );
 
-    let title = teacher.name.length > 0
-      ? teacher.name
-      : teacher.firstName + " " + teacher.lastName;
+    let title =
+      teacher.name.length > 0
+        ? teacher.name
+        : teacher.firstName + " " + teacher.lastName;
 
     if (teachersGradeLevel) {
       title += " - " + getGradeName(teachersGradeLevel.grades[0]);
@@ -302,7 +300,10 @@ const buildClassroomReportData = (
     // Add teacher meals last (if any)
     if (teacherMeals.length > 0) {
       reportData.customers.push({
-        name: teacher.name.length > 0 ? teacher.name : `${teacher.firstName} ${teacher.lastName}`,
+        name:
+          teacher.name.length > 0
+            ? teacher.name
+            : `${teacher.firstName} ${teacher.lastName}`,
         meals: teacherMeals,
       });
     }
@@ -312,15 +313,6 @@ const buildClassroomReportData = (
 
   return reportDataArray;
 };
-
-const Transition = React.forwardRef(function Transition(
-  props: TransitionProps & {
-    children: React.ReactElement<unknown>;
-  },
-  ref: React.Ref<unknown>
-) {
-  return <Slide direction="up" ref={ref} {...props} />;
-});
 
 interface DialogProps {
   date: string;
@@ -475,7 +467,6 @@ const getTeacherReportData = (
     currentSchoolYear.studentLunchTimes
   );
 
-
   const classroomReportData = buildClassroomReportData(
     mealsBeingServed,
     classroomMap,
@@ -535,7 +526,6 @@ const getDailyReportData = (
     studentsBeingServed,
     currentSchoolYear.studentLunchTimes
   );
-
 
   const classroomReportData = buildClassroomReportData(
     mealsBeingServed,
@@ -620,77 +610,61 @@ const MealReportDialog: React.FC<DialogProps> = ({
     : getDailyReportData(orders, students, users, currentSchoolYear, date);
 
   return (
-    <Dialog
-      open={true}
-      fullScreen
-      onClose={onClose}
-      TransitionComponent={Transition}
-    >
-      <AppBar sx={{ position: "relative" }}>
-        <Toolbar>
-          <IconButton
-            edge="start"
-            color="inherit"
-            onClick={onClose}
-            aria-label="close"
-          >
-            <Close />
-          </IconButton>
-          <Typography sx={{ ml: 2, flex: 1 }} variant="h6" component="div">
-            {teacherId
-              ? reportData[0].title +
-                " - " +
-                DateTimeUtils.toString(
-                  date,
-                  DateTimeFormat.SHORT_DAY_OF_WEEK_DESC
-                ) +
-                (reportData[0].time
-                  ? " @ " + DateTimeUtils.toTwelveHourTime(reportData[0].time)
-                  : "")
-              : "Daily Report - " +
-                DateTimeUtils.toString(
-                  date,
-                  DateTimeFormat.SHORT_DAY_OF_WEEK_DESC
-                )}
-          </Typography>
-          <IconButton
-            onClick={() => reactToPrintFn()}
-            size="small"
-            sx={{ color: "white" }}
-          >
-            <Print />
-          </IconButton>
-        </Toolbar>
-      </AppBar>
-      <Box p={2} overflow="visible">
-        {teacherId ? (
-          <MealReport customers={reportData[0].customers} />
-        ) : (
-          <>
-            {reportData.map((report) => {
-              return (
-                <Accordion elevation={3} key={report.title}>
-                  <AccordionSummary
-                    expandIcon={<ExpandMore />}
-                    aria-controls="panel1-content"
-                    id="panel1-header"
-                  >
-                    <Typography fontWeight="bold">
-                      {report.title}
-                      {report.time
-                        ? " @ " + DateTimeUtils.toTwelveHourTime(report.time)
-                        : ""}
-                    </Typography>
-                  </AccordionSummary>
-                  <AccordionDetails>
-                    <MealReport customers={report.customers} />
-                  </AccordionDetails>
-                </Accordion>
-              );
-            })}
-          </>
-        )}
-      </Box>
+    <Dialog open={true} maxWidth="lg" onClose={() => {}}>
+      <DialogTitle>
+        {teacherId
+          ? reportData[0].title +
+            " - " +
+            DateTimeUtils.toString(
+              date,
+              DateTimeFormat.SHORT_DAY_OF_WEEK_DESC
+            ) +
+            (reportData[0].time
+              ? " @ " + DateTimeUtils.toTwelveHourTime(reportData[0].time)
+              : "")
+          : "Daily Report - " +
+            DateTimeUtils.toString(date, DateTimeFormat.SHORT_DAY_OF_WEEK_DESC)}
+      </DialogTitle>
+      <DialogContent>
+        <Box p={2} overflow="visible">
+          {teacherId ? (
+            <MealReport customers={reportData[0].customers} />
+          ) : (
+            <>
+              {reportData.map((report) => {
+                return (
+                  <Accordion elevation={3} key={report.title}>
+                    <AccordionSummary
+                      expandIcon={<ExpandMore />}
+                      aria-controls="panel1-content"
+                      id="panel1-header"
+                    >
+                      <Typography fontWeight="bold">
+                        {report.title}
+                        {report.time
+                          ? " @ " + DateTimeUtils.toTwelveHourTime(report.time)
+                          : ""}
+                      </Typography>
+                    </AccordionSummary>
+                    <AccordionDetails>
+                      <MealReport customers={report.customers} />
+                    </AccordionDetails>
+                  </Accordion>
+                );
+              })}
+            </>
+          )}
+        </Box>
+      </DialogContent>
+      <DialogActions>
+        <Button variant="contained" onClick={() => reactToPrintFn()}>
+          Print
+        </Button>
+        <Button variant="contained" onClick={onClose}>
+          Close
+        </Button>
+      </DialogActions>
+
       <Box display="none">
         <Box ref={reportRef}>
           <PrintableCohortsReport date={date} teacherId={teacherId} />

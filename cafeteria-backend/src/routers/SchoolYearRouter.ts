@@ -13,7 +13,7 @@ import { GradeLevel } from "../models/GradeLevel";
 import TeacherLunchTimeEntity from "../entity/TeacherLunchTimeEntity";
 import UserEntity from "../entity/UserEntity";
 import { OrderEntity } from "../entity/OrderEntity";
-import { getStaffSession, SessionInfo } from "./SessionRouter";
+import { getAdminSession, SessionInfo } from "./SessionRouter";
 import { Not, LessThan, In, IsNull } from "typeorm";
 import StudentEntity from "../entity/StudentEntity";
 
@@ -465,7 +465,7 @@ SchoolYearRouter.put<{ schoolYearId: string }, SessionInfo | string, {}, {}>(
       hideSchedule: !isCurrent ? true : schoolYear.hideSchedule,
     });
 
-    const updatedSessionInfo: SessionInfo = await getStaffSession(req.user);
+    const updatedSessionInfo: SessionInfo = await getAdminSession(req.user);
 
     res.send(updatedSessionInfo);
   }

@@ -14,7 +14,7 @@ import {
   Chip,
   MenuItem,
 } from "@mui/material";
-import { MoreVert } from "@mui/icons-material";
+import { Fastfood, MoreVert } from "@mui/icons-material";
 import { grey, orange } from "@mui/material/colors";
 import {
   DataGrid,
@@ -159,53 +159,21 @@ const teacherCellRenderer = (
   );
 };
 
-const columns: GridColDef[] = [
-  { field: "name", headerName: "Student Name", flex: 1 },
-  { field: "grade", headerName: "Grade", width: 100 },
-  {
-    field: "teacher",
-    headerName: "Teacher(s)",
-    flex: 1,
-    renderCell: teacherCellRenderer,
-  },
-  {
-    field: "parents",
-    headerName: "Parents & Guardians",
-    flex: 1,
-    renderCell: parentsCellRenderer,
-  },
-  { field: "birthDate", headerName: "Birth Date", width: 120 },
-  {
-    field: "onShowMenu",
-    headerName: "Actions",
-    width: 80,
-    renderCell: (
-      params: GridRenderCellParams<
-        GridValidRowModel,
-        (studentId: number, menuAnchor: null | HTMLElement) => void
-      >
-    ) => (
-      <IconButton
-        color="primary"
-        onClick={(event) =>
-          params.value!(params.id as number, event.currentTarget)
-        }
-        size="small"
-      >
-        <MoreVert />
-      </IconButton>
-    ),
-  },
-];
-
 interface StudentsTableProps {
   user?: User;
   family?: boolean;
+  includeRegisteredStudents?: boolean;
+  includePendingStudents?: boolean;
 }
 
 type MenuAction = "edit" | "meals";
 
-const StudentsTable: React.FC<StudentsTableProps> = ({ user, family }) => {
+const StudentsTable: React.FC<StudentsTableProps> = ({
+  user,
+  family,
+  includeRegisteredStudents = true,
+  includePendingStudents = true,
+}) => {
   const {
     currentSchoolYear,
     users,
@@ -224,6 +192,45 @@ const StudentsTable: React.FC<StudentsTableProps> = ({ user, family }) => {
 
   const canEdit =
     loggedInUser.role === Role.ADMIN || loggedInUser.id === user?.id;
+
+  const columnDefinitions: GridColDef[] = [
+    { field: "name", headerName: "Student Name", flex: 1 },
+    { field: "grade", headerName: "Grade", width: 100 },
+    {
+      field: "teacher",
+      headerName: "Teacher(s)",
+      flex: 1,
+      renderCell: teacherCellRenderer,
+    },
+    {
+      field: "parents",
+      headerName: "Parents & Guardians",
+      flex: 1,
+      renderCell: parentsCellRenderer,
+    },
+    { field: "birthDate", headerName: "Birth Date", width: 120 },
+    {
+      field: "onShowMenu",
+      headerName: "Actions",
+      width: 80,
+      renderCell: (
+        params: GridRenderCellParams<
+          GridValidRowModel,
+          (studentId: number, menuAnchor: null | HTMLElement) => void
+        >
+      ) => (
+        <IconButton
+          color="primary"
+          onClick={(event) =>
+            params.value!(params.id as number, event.currentTarget)
+          }
+          size="small"
+        >
+          {canEdit ? <MoreVert /> : <Fastfood />}
+        </IconButton>
+      ),
+    },
+  ];
 
   const handleShowPopupMenu = (
     studentId: number,
@@ -267,7 +274,10 @@ const StudentsTable: React.FC<StudentsTableProps> = ({ user, family }) => {
     setPulldownMenuAnchor(null);
   };
 
-  const handleShowMeals = () => {
+  const handleShowMeals = (studentId?: number) => {
+    if (studentId) {
+      setTargetStudent(students.find((student) => student.id === studentId)!);
+    }
     setAction("meals");
     setPulldownMenuAnchor(null);
   };
@@ -327,78 +337,49 @@ const StudentsTable: React.FC<StudentsTableProps> = ({ user, family }) => {
       } else {
         return true;
       }
-    } else if (loggedInUser.role === Role.CAFETERIA) {
+    } else if (
+      loggedInUser.role === Role.CAFETERIA ||
+      loggedInUser.role === Role.PRINCIPAL
+    ) {
       if (family) {
         return student.parents.includes(loggedInUser.id);
       } else {
         return true;
       }
-    } else if (loggedInUser.role === Role.PARENT || loggedInUser.role === Role.STAFF) {
+    } else if (
+      loggedInUser.role === Role.PARENT ||
+      loggedInUser.role === Role.STAFF
+    ) {
       return student.parents.includes(loggedInUser.id);
     }
 
     return false;
   });
 
-  // Build array of student IDs with undetermined lunch times
-  const studentsWithUndeterminedLunchTimes = filteredStudents
-    .filter((student) => {
-      // Check if student has lunch time entries for all weekdays (Monday = 1 through Friday = 5)
-      const hasAllWeekdayEntries = [1, 2, 3, 4, 5].every((dayOfWeek) => {
-        return currentSchoolYear.studentLunchTimes.some(
-          (lt) => lt.studentId === student.id && lt.dayOfWeek === dayOfWeek
-        );
-      });
+  // Filter students based on registration status
+  const studentsWithRegistrationFilter = filteredStudents.filter((student) => {
+    if (!includeRegisteredStudents && !includePendingStudents) {
+      return false; // Show no students if both are unchecked
+    }
 
-      if (!hasAllWeekdayEntries) {
-        return true; // Student missing lunch time entries for some weekdays
-      }
+    // Check if student has at least one non-pending parent
+    const hasNonPendingParent = student.parents.some((parentId) => {
+      const parent = users.find((u) => u.id === parentId);
+      return parent && !parent.pending;
+    });
 
-      // Check if any assigned teacher has undetermined lunch time
-      const teacherTimes = currentSchoolYear.studentLunchTimes
-      .filter(
-        (lt) =>
-          lt.studentId === student.id &&
-          currentSchoolYear.gradesAssignedByClass.includes(lt.grade)
-      );
-      const hasUndeterminedTeacherTime = teacherTimes
-        .some(
-          (lt) =>
-            !lt.teacherId ||
-            !currentSchoolYear.teacherLunchTimes.find(
-              (tlt) =>
-                tlt.teacherId === lt.teacherId &&
-                tlt.dayOfWeek === lt.dayOfWeek &&
-                tlt.times?.length
-            )
-        );
+    // A registered student has at least one non-pending parent
+    // A pending student has all parents pending
+    const isRegistered = hasNonPendingParent;
+    const isPending = !hasNonPendingParent;
 
-      if (hasUndeterminedTeacherTime) {
-        return true; // Student has teacher with undetermined lunch time
-      }
+    return (
+      (includeRegisteredStudents && isRegistered) ||
+      (includePendingStudents && isPending)
+    );
+  });
 
-      // Check if any grade lunch time is undetermined
-      const gradeTimes = currentSchoolYear.studentLunchTimes
-      .filter(
-        (lt) =>
-          lt.studentId === student.id &&
-          !currentSchoolYear.gradesAssignedByClass.includes(lt.grade)
-      );
-      const hasUndeterminedGradeTime = gradeTimes
-        .some((lt) =>
-          !currentSchoolYear.gradeLunchTimes.find(
-            (glt) =>
-              glt.grade === lt.grade &&
-              glt.dayOfWeek === lt.dayOfWeek &&
-              glt.times?.length
-          )
-        );
-
-      return hasUndeterminedGradeTime;
-    })
-    .map((student) => student.id);
-
-  const rows: Row[] = filteredStudents.map((student) => {
+  const rows: Row[] = studentsWithRegistrationFilter.map((student) => {
     // Find the student's Monday lunch time assignment to get their grade level
     const mondayLunchTime = currentSchoolYear.studentLunchTimes.find(
       (lt) => lt.studentId === student.id && lt.dayOfWeek === 1 // Monday = 1
@@ -533,7 +514,9 @@ const StudentsTable: React.FC<StudentsTableProps> = ({ user, family }) => {
         hasIncompleteAssignment: hasIncompleteAssignment,
         onShowAll: () => handleShowAllTeachers(teacherAssignments),
       },
-      onShowMenu: handleShowPopupMenu,
+      onShowMenu: canEdit
+        ? handleShowPopupMenu
+        : (studentId) => handleShowMeals(studentId),
     };
   });
 
@@ -544,19 +527,11 @@ const StudentsTable: React.FC<StudentsTableProps> = ({ user, family }) => {
           mb: 2,
           borderColor: grey[400],
           backgroundColor: "white",
-          [`.warning-row`]: {
-            backgroundColor: orange[50],
-          },
         }}
         density="compact"
         rows={rows}
         disableRowSelectionOnClick
-        columns={columns}
-        getRowClassName={(params) =>
-          studentsWithUndeterminedLunchTimes.includes(params.id as number)
-            ? "warning-row"
-            : ""
-        }
+        columns={columnDefinitions}
       />
 
       <Dialog

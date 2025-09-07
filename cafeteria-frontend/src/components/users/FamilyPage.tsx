@@ -1,25 +1,16 @@
 import React from "react";
-import { Tab, Tabs, Stack, Typography, Box } from "@mui/material";
+import { Stack, Typography, Box } from "@mui/material";
 import { AppContext } from "../../AppContextProvider";
 import { useContext } from "react";
-import { useNavigate } from "react-router-dom";
 import {
-  CLASSROOM_URL,
   FAMILY_URL,
-  STUDENTS_URL,
-  USERS_URL,
 } from "../../MainAppPanel";
 import StudentsTable from "./StudentsTable";
 import { Role } from "../../models/User";
+import PeopleTabs from "./PeopleTabs";
 
 const FamilyPage: React.FC = () => {
   const { currentSchoolYear, user } = useContext(AppContext);
-
-  const navigate = useNavigate();
-
-  const handleTabSelected = (event: React.SyntheticEvent, newValue: string) => {
-    navigate(newValue);
-  };
 
   return (
     <Stack
@@ -33,22 +24,7 @@ const FamilyPage: React.FC = () => {
     >
       {user.role !== Role.PARENT && user.role !== Role.STAFF ? (
         <Stack direction="row" justifyContent="space-between">
-          <Tabs
-            value={FAMILY_URL}
-            onChange={handleTabSelected}
-            aria-label="secondary tabs example"
-          >
-            {user.role === Role.ADMIN && (
-              <Tab value={USERS_URL} label="Users" />
-            )}
-            {user.role === Role.TEACHER && (
-              <Tab value={STUDENTS_URL} label="Students" />
-            )}
-            {user.role === Role.TEACHER && (
-              <Tab value={CLASSROOM_URL} label="Classroom" />
-            )}
-            <Tab value={FAMILY_URL} label="Family" />
-          </Tabs>
+          <PeopleTabs value={FAMILY_URL} />
           {user.role === Role.ADMIN && (
             <Stack direction="column">
               <Typography variant="body2" fontWeight="bold">

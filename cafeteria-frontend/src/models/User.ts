@@ -4,6 +4,7 @@ export enum Role {
   PARENT,
   CAFETERIA,
   STAFF,
+  PRINCIPAL,
 }
 
 export const ROLE_NAMES: string[] = ["System Admin.", "Teacher", "Parent", "Cafeteria", "Staff"];

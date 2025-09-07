@@ -91,7 +91,7 @@ const HourlyMealReport: React.FC<{
 
   const summaryText = time
     ? DateTimeUtils.toTwelveHourTime(time)
-    : `Other/Unknown Times`;
+    : `Other Times`;
 
   return (
     <Accordion elevation={3}>
@@ -99,7 +99,7 @@ const HourlyMealReport: React.FC<{
         expandIcon={<ExpandMore />}
         aria-controls="panel1-content"
       >
-        <Typography variant="h6" fontWeight="bold">
+        <Typography variant={large ? "h4" : "h6"} fontWeight="bold">
           {summaryText}
         </Typography>
       </AccordionSummary>
@@ -158,7 +158,7 @@ const MealReport: React.FC<MealReportProps> = ({ meals, title, large }) => {
           justifyContent: "center",
         }}
       >
-        <Typography variant={large ? "h6" : "body2"}>{title}</Typography>
+        <Typography variant={large ? "h4" : "body2"}>{title}</Typography>
       </Box>
       {meals.map((meal) => (
         <Box
@@ -171,7 +171,8 @@ const MealReport: React.FC<MealReportProps> = ({ meals, title, large }) => {
             display: "flex",
             flexWrap: "wrap",
             flexDirection: "row",
-            gap: 1,
+            rowGap: 1,
+            columnGap: large ? 2 : 1,
           }}
         >
           {[...meal.items]
@@ -183,7 +184,7 @@ const MealReport: React.FC<MealReportProps> = ({ meals, title, large }) => {
             })
             .map((item) => (
               <MenuItemChip
-                textVariant={large ? "h6" : undefined}
+                textVariant={large ? "h4" : undefined}
                 key={item.id}
                 menuItem={item}
               />

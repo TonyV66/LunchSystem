@@ -47,6 +47,12 @@ import MealReportDialog from "../meals/MealReportDialog";
 import { AxiosError } from "axios";
 import OrderDatesDialog from "./OrderDatesDialog";
 import { RelativeDateTarget } from "../../models/SchoolYear";
+import { CAFETERIA_URL } from "../../MainAppPanel";
+import { useNavigate } from "react-router-dom";
+
+interface PrincipalMealButtonProps {
+  menuOrDate: DailyMenu | string;
+}
 
 interface MealPlanProps {
   menuOrDate: DailyMenu | string;
@@ -106,6 +112,177 @@ const DAILY_BACKGROUND_IMAGES = [
   "/f.png",
   "/s.png",
 ];
+
+const PrincipalMealButtons: React.FC<PrincipalMealButtonProps> = ({
+  menuOrDate,
+}) => {
+  const { user, orders, shoppingCart } = useContext(AppContext);
+  const menu =
+    typeof menuOrDate === "string" ? undefined : (menuOrDate as DailyMenu);
+  const [showCafeteriaReport, setShowCafeteriaReport] = useState(false);
+  const [showClassroomReport, setShowClassroomReport] = useState(false);
+  const [addToCart, setAddToCart] = useState(false);
+  const [showOrderedMeals, setShowOrderedMeals] = useState(false);
+  const [hasMealsInCart, setHasMealsInCart] = useState(
+    shoppingCart.items.find((item) => item.dailyMenuId === menu?.id)
+      ? true
+      : false
+  );
+
+  const dateStr = menu?.date ?? (menuOrDate as string);
+  const today = DateTimeUtils.toString(new Date());
+  const date = DateTimeUtils.toDate(dateStr);
+
+  const hasOrderedMeals = orders
+    .flatMap((order) => order.meals)
+    .find((meal) => meal.date === dateStr)
+    ? true
+    : false;
+
+  const [pulldownMenuAnchor, setPulldownMenuAnchor] =
+    useState<null | HTMLElement>(null);
+
+  const handleCloseMenu = () => {
+    setPulldownMenuAnchor(null);
+  };
+
+  const handleAddToCart = () => {
+    setPulldownMenuAnchor(null);
+    setAddToCart(true);
+  };
+
+  const handleShowOrderedMeals = () => {
+    setPulldownMenuAnchor(null);
+    setShowOrderedMeals(true);
+  };
+
+  const handleShowCafeteriaReport = () => {
+    setPulldownMenuAnchor(null);
+    setShowCafeteriaReport(true);
+  };
+
+  const handleShowClassroomReport = () => {
+    setPulldownMenuAnchor(null);
+    setShowClassroomReport(true);
+  };
+
+  const handleShowMenu = (event: React.MouseEvent<HTMLButtonElement>) => {
+    setPulldownMenuAnchor(event.currentTarget);
+  };
+
+  const handleMealAddedToCart = () => {
+    setAddToCart(false);
+    setHasMealsInCart(true);
+  };
+
+  return (
+    <Box
+      sx={{
+        display: "flex",
+        flexDirection: "row",
+        alignItems: "center",
+      }}
+    >
+      <Typography sx={{ flexGrow: 1 }} fontWeight="bold" variant="caption">
+        {SHORT_MONTH_NAMES[DateTimeUtils.toDate(date).getMonth()] +
+          " " +
+          DateTimeUtils.toDate(date).getDate()}
+      </Typography>
+
+      {(!menu || today > dateStr) && (
+        <IconButton color="primary" disabled={true} size="small">
+          <AccessTime />
+        </IconButton>
+      )}
+      <IconButton
+        color="primary"
+        disabled={!menu}
+        onClick={handleShowMenu}
+        size="small"
+      >
+        <MoreVert />
+      </IconButton>
+      {!pulldownMenuAnchor ? (
+        <></>
+      ) : (
+        <PulldownMenu
+          id="demo-positioned-menu"
+          aria-labelledby="demo-positioned-button"
+          anchorEl={pulldownMenuAnchor}
+          open={true}
+          onClose={handleCloseMenu}
+          anchorOrigin={{
+            vertical: "top",
+            horizontal: "left",
+          }}
+          transformOrigin={{
+            vertical: "top",
+            horizontal: "left",
+          }}
+        >
+          <MenuItem
+            disabled={!hasOrderedMeals}
+            onClick={handleShowClassroomReport}
+          >
+            Teachers / Grades Report
+          </MenuItem>
+          <MenuItem
+            disabled={!hasOrderedMeals}
+            onClick={handleShowCafeteriaReport}
+          >
+            Cafeteria Report
+          </MenuItem>
+          <Divider />
+          <ListSubheader>For My Family</ListSubheader>
+          <MenuItem disabled={today > dateStr} onClick={handleAddToCart}>
+            Order A Meal
+          </MenuItem>
+          <MenuItem
+            disabled={!hasOrderedMeals && !hasMealsInCart}
+            onClick={handleShowOrderedMeals}
+          >
+            Show Ordered Meals
+          </MenuItem>
+        </PulldownMenu>
+      )}
+      {showCafeteriaReport ? (
+        <CafeteriaDialog
+          date={menu!.date}
+          onClose={() => setShowCafeteriaReport(false)}
+        />
+      ) : (
+        <></>
+      )}
+      {showClassroomReport ? (
+        <MealReportDialog
+          date={menu!.date}
+          onClose={() => setShowClassroomReport(false)}
+        />
+      ) : (
+        <></>
+      )}
+      {addToCart ? (
+        <OrderMealDialog
+          onClose={() => setAddToCart(false)}
+          onAddedToCart={handleMealAddedToCart}
+          date={menu!.date}
+        />
+      ) : (
+        <></>
+      )}
+      {showOrderedMeals ? (
+        <DailyMealsDialog
+          user={user}
+          onClose={() => setShowOrderedMeals(false)}
+          date={menu!.date}
+        />
+      ) : (
+        <></>
+      )}
+    </Box>
+  );
+};
+
 const AdminMealButtons: React.FC<AdminMealButtonProps> = ({
   menuOrDate,
   clipboardMenu,
@@ -658,7 +835,7 @@ const CafeteriaMealButtons: React.FC<CafeteriaMealButtonProps> = ({
   menuOrDate,
 }) => {
   const { orders } = useContext(AppContext);
-  const [showReport, setShowReport] = useState(false);
+  const navigate = useNavigate();
 
   const menu =
     typeof menuOrDate === "string" ? undefined : (menuOrDate as DailyMenu);
@@ -691,16 +868,11 @@ const CafeteriaMealButtons: React.FC<CafeteriaMealButtonProps> = ({
       <IconButton
         color="primary"
         disabled={!menu || !hasOrderedMeals}
-        onClick={() => setShowReport(true)}
+        onClick={() => navigate(`${CAFETERIA_URL}/${date}`)}
         size="small"
       >
         <ManageSearch />
       </IconButton>
-      {showReport ? (
-        <CafeteriaDialog date={date} onClose={() => setShowReport(false)} />
-      ) : (
-        <></>
-      )}
     </Box>
   );
 };
@@ -817,7 +989,9 @@ const MealPlan: React.FC<MealPlanProps> = ({ menuOrDate, clipboardMenu }) => {
     typeof menuOrDate === "string" ? undefined : (menuOrDate as DailyMenu)
   );
   const [date, setDate] = useState(
-    typeof menuOrDate === "string" ? menuOrDate as string : (menuOrDate as DailyMenu).date
+    typeof menuOrDate === "string"
+      ? (menuOrDate as string)
+      : (menuOrDate as DailyMenu).date
   );
 
   useEffect(() => {
@@ -829,7 +1003,6 @@ const MealPlan: React.FC<MealPlanProps> = ({ menuOrDate, clipboardMenu }) => {
       setDate(menuOrDate.date);
     }
   }, [menuOrDate]);
-
 
   const today = DateTimeUtils.toString(new Date());
 
@@ -880,8 +1053,14 @@ const MealPlan: React.FC<MealPlanProps> = ({ menuOrDate, clipboardMenu }) => {
         ></AdminMealButtons>
       );
       break;
+    case Role.PRINCIPAL:
+      buttonBar = (
+        <PrincipalMealButtons
+          menuOrDate={menu && isDateInCurrentSchoolYear ? menu : date}
+        ></PrincipalMealButtons>
+      );
+      break;
   }
-
 
   return (
     <Paper
@@ -1052,7 +1231,11 @@ const WeeklyMealPlan: React.FC<WeeklyMealPlanProps> = ({
         );
       }
     }
-    setThisWeeksMenus(!currentSchoolYear.hideSchedule || user.role !== Role.PARENT ? menusForWeek : []);
+    setThisWeeksMenus(
+      !currentSchoolYear.hideSchedule || user.role !== Role.PARENT
+        ? menusForWeek
+        : []
+    );
   }, [scheduledMenus, date]);
 
   return (
@@ -1099,7 +1282,9 @@ interface MealCalendarProps {
 const MealCalendar: React.FC<MealCalendarProps> = ({ clipboardMenu }) => {
   const { currentSchoolYear } = useContext(AppContext);
 
-  const firstDayOfSchoolYear = new Date(currentSchoolYear.startDate + "T23:59:59");
+  const firstDayOfSchoolYear = new Date(
+    currentSchoolYear.startDate + "T23:59:59"
+  );
   while (
     firstDayOfSchoolYear.getDay() === 0 ||
     firstDayOfSchoolYear.getDay() === 6

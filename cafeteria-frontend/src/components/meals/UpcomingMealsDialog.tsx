@@ -7,14 +7,11 @@ import {
   Toolbar,
   Typography,
 } from "@mui/material";
-import { useContext } from "react";
-import { AppContext } from "../../AppContextProvider";
 import { DateTimeUtils } from "../../DateTimeUtils";
 import { Close } from "@mui/icons-material";
-import { Order } from "../../models/Order";
 import OrderedMealsTable from "./OrderedMealsTable";
 import { TransitionProps } from "@mui/material/transitions";
-import Student from "../../models/Student";
+import User from "../../models/User";
 
 
 const Transition = React.forwardRef(function Transition(
@@ -26,21 +23,11 @@ const Transition = React.forwardRef(function Transition(
   return <Slide direction="up" ref={ref} {...props} />;
 });
 
-export const StudentMealsDialog: React.FC<{
-  student: Student;
+export const UpcomingMealsDialog: React.FC<{
+  user: User;
   onClose: () => void;
-}> = ({ student, onClose }) => {
-  const {orders} = useContext(AppContext);
+}> = ({ user, onClose }) => {
   const today = DateTimeUtils.toString(new Date());
-  const order: Order = {
-    id: 0,
-    userId: 0,
-    date: today,
-    meals: orders.flatMap(order => order.meals).filter(meal => meal.date >= today && meal.studentId === student.id),
-    taxes: 0,
-    processingFee: 0,
-    otherFees: 0
-  }
   return (
     <Dialog
       open={true}
@@ -59,13 +46,13 @@ export const StudentMealsDialog: React.FC<{
             <Close />
           </IconButton>
           <Typography sx={{ ml: 2, flex: 1 }} variant="h6" component="div">
-            Upcoming Meals - {student.firstName + " " + student.lastName}
+            Upcoming Meals For Family Of - {user.firstName + " " + user.lastName}
           </Typography>
         </Toolbar>
       </AppBar>
-      {<OrderedMealsTable student={student} order={order} hidePrice={true}/>}
+      {<OrderedMealsTable user={user} startDate={today}/>}
     </Dialog>
   );
 };
 
-export default StudentMealsDialog;
+export default UpcomingMealsDialog;

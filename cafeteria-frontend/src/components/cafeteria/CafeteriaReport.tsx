@@ -37,6 +37,7 @@ interface TotalRowProps {
 
 interface AltCafeteriaReportProps {
   date: string;
+  large?: boolean;
 }
 
 // Reuse these utility functions from CafeteriaReport
@@ -148,7 +149,7 @@ const TimeRow: React.FC<TimeRowProps> = ({
   return (
     <>
       <TableCell>
-        <Typography variant={large ? "h6" : "body2"}>
+        <Typography variant={large ? "h4" : "body2"}>
           {DateTimeUtils.toTwelveHourTime(time)}
         </Typography>
       </TableCell>
@@ -158,13 +159,12 @@ const TimeRow: React.FC<TimeRowProps> = ({
             <Box
               key={`${item.name}-${item.type}`}
               sx={{
-                m: 0.5,
                 opacity: quantity === 0 ? 0.5 : 1,
               }}
             >
               <MenuItemChip
                 menuItem={item}
-                textVariant={large ? "h6" : "body2"}
+                textVariant={large ? "h4" : "body2"}
                 qty={quantity}
               />
             </Box>
@@ -194,7 +194,7 @@ const TotalRow: React.FC<TotalRowProps> = ({ menuItems, date, large }) => {
   return (
     <>
       <TableCell>
-        <Typography variant={large ? "h6" : "body2"}>Total</Typography>
+        <Typography variant={large ? "h4" : "body2"}>Total</Typography>
       </TableCell>
       <TableCell>
         <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
@@ -202,13 +202,12 @@ const TotalRow: React.FC<TotalRowProps> = ({ menuItems, date, large }) => {
             <Box
               key={`${item.name}-${item.type}`}
               sx={{
-                m: 0.5,
                 opacity: quantity === 0 ? 0.5 : 1,
               }}
             >
               <MenuItemChip
                 menuItem={item}
-                textVariant={large ? "h6" : "body2"}
+                textVariant={large ? "h4" : "body2"}
                 qty={quantity}
               />
             </Box>
@@ -254,7 +253,7 @@ const OtherRow: React.FC<OtherRowProps> = ({
   return (
     <>
       <TableCell>
-        <Typography variant={large ? "h6" : "body2"}>Other/Unknown Times</Typography>
+        <Typography variant={large ? "h4" : "body2"}>Other Times</Typography>
       </TableCell>
       <TableCell>
         <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
@@ -262,13 +261,12 @@ const OtherRow: React.FC<OtherRowProps> = ({
             <Box
               key={`${item.name}-${item.type}`}
               sx={{
-                m: 0.5,
                 opacity: quantity === 0 ? 0.5 : 1,
               }}
             >
               <MenuItemChip
                 menuItem={item}
-                textVariant={large ? "h6" : "body2"}
+                textVariant={large ? "h4" : "body2"}
                 qty={quantity}
               />
             </Box>
@@ -300,7 +298,7 @@ const DailyOrderedItemsAccordion: React.FC<DailyOrderedItemsAccordionProps> = ({
         expandIcon={<ExpandMore />}
         aria-controls="panel1-content"
       >
-        <Typography variant="h6" fontWeight="bold">
+        <Typography variant={large ? "h4" : "h6"} fontWeight="bold">
           Ordered Items
         </Typography>
       </AccordionSummary>
@@ -322,12 +320,12 @@ const DailyOrderedItemsAccordion: React.FC<DailyOrderedItemsAccordionProps> = ({
             }}
           >
             <TableCell>
-              <Typography fontWeight="bold" variant={large ? "h6" : "body1"}>
+              <Typography fontWeight="bold" variant={large ? "h4" : "body1"}>
                 Time
               </Typography>
             </TableCell>
             <TableCell>
-              <Typography fontWeight="bold" variant={large ? "h6" : "body1"}>
+              <Typography fontWeight="bold" variant={large ? "h4" : "body1"}>
                 Items
               </Typography>
             </TableCell>
@@ -360,8 +358,8 @@ const DailyOrderedItemsAccordion: React.FC<DailyOrderedItemsAccordionProps> = ({
   );
 };
 
-const CafeteriaReport: React.FC<AltCafeteriaReportProps> = ({ date }) => {
-  const { scheduledMenus, users, orders, currentSchoolYear, user } =
+const CafeteriaReport: React.FC<AltCafeteriaReportProps> = ({ date, large }) => {
+  const { scheduledMenus, users, orders, currentSchoolYear } =
     React.useContext(AppContext);
 
   const dayOfWeek = DateTimeUtils.toDate(date).getDay();
@@ -385,14 +383,14 @@ const CafeteriaReport: React.FC<AltCafeteriaReportProps> = ({ date }) => {
         menuItems={menuItems}
         teachers={teachers}
         mealTimes={mealTimes}
-        large={user.role === Role.CAFETERIA}
+        large={large}
       />
 
       {/* Hourly meal reports */}
       {mealTimes.map((time) => (
-        <HourlyMealReport large={user.role === Role.CAFETERIA} key={time} date={date} time={time} />
+        <HourlyMealReport large={large} key={time} date={date} time={time} />
       ))}
-      <HourlyMealReport large={user.role === Role.CAFETERIA} date={date} />
+      <HourlyMealReport large={large} date={date} />
     </Box>
   );
 };

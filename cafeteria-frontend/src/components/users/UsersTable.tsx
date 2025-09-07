@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { IconButton, Link, Dialog, DialogTitle, DialogContent, List, ListItem, DialogActions, Button, Typography } from "@mui/material";
 import { MoreVert } from "@mui/icons-material";
 import { grey } from "@mui/material/colors";
@@ -28,7 +28,6 @@ const actionCellRenderer = (
     (userId: number, menuAnchor: null | HTMLElement) => void
   >
 ) => {
-  console.log(params);
   return (
     <IconButton
       color="primary"
@@ -84,15 +83,16 @@ const columns: GridColDef[] = [
 ];
 
 interface UsersTableProps {
-  users: User[];
-  currentUser: User;
+  includeRegisteredUsers: boolean;
+  includePendingUsers: boolean;
   onShowMenu: (userId: number, menuAnchor: null | HTMLElement) => void;
 }
 
-const UsersTable: React.FC<UsersTableProps> = ({ users, onShowMenu }) => {
-  const { students, orders } = React.useContext(AppContext);
+const UsersTable: React.FC<UsersTableProps> = ({ includeRegisteredUsers, includePendingUsers, onShowMenu }) => {
+  const { students, orders, users } = React.useContext(AppContext);
   const [selectedStudents, setSelectedStudents] = React.useState<Student[]>([]);
   const [showStudentsDialog, setShowStudentsDialog] = React.useState(false);
+  const [filteredUsers, setFilteredUsers] = React.useState<User[]>([]);
   
   const handleShowAllStudents = (students: Student[]) => {
     setSelectedStudents(students);
@@ -103,8 +103,14 @@ const UsersTable: React.FC<UsersTableProps> = ({ users, onShowMenu }) => {
     setShowStudentsDialog(false);
     setSelectedStudents([]);
   };
+
+  useEffect(() => {
+    setFilteredUsers(users.filter(user => {
+      return includeRegisteredUsers && !user.pending || includePendingUsers && user.pending;
+    }));
+  }, [includeRegisteredUsers, includePendingUsers, users]);
   
-  const rows: Row[] = users.map((usr) => {
+  const rows: Row[] = filteredUsers.map((usr) => {
     // Find students that belong to this user
     const userStudents = students.filter(student => 
       student.parents && student.parents.includes(usr.id)

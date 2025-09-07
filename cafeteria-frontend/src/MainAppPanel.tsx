@@ -58,6 +58,7 @@ export const CLASSROOM_URL = "/classroom";
 export const FAMILY_URL = "/family";
 export const SCHOOL_YEARS_URL = "/years";
 export const SCHOOL_YEAR_URL = "/year";
+export const CAFETERIA_URL = "/cafeteria";
 
 export const NOTIFICATIONS_URL = "/notifications";
 
@@ -160,9 +161,7 @@ interface UsersButtonProps extends SidebarButtonProps {
   role: Role;
 }
 
-const PrintMealReportsButton: React.FC<SidebarButtonProps> = ({
-  onClick,
-}) => {
+const PrintMealReportsButton: React.FC<SidebarButtonProps> = ({ onClick }) => {
   return (
     <Tooltip title="Print Meal Reports">
       <Print
@@ -239,13 +238,17 @@ const NotificationsButton: React.FC<SidebarButtonProps> = ({
   );
 };
 
-const UsersButton: React.FC<UsersButtonProps> = ({ onClick, isSelected, role }) => {
+const UsersButton: React.FC<UsersButtonProps> = ({
+  onClick,
+  isSelected,
+  role,
+}) => {
   let title = "My Family";
   if (role === Role.TEACHER) {
     title = "My Classroom & Family";
   } else if (role === Role.CAFETERIA) {
     title = "Students";
-  } else if (role === Role.ADMIN) {
+  } else if (role === Role.ADMIN || role === Role.PRINCIPAL) {
     title = "Users & Students";
   }
   return (
@@ -407,7 +410,7 @@ const getSidebarSelection = (path: string) => {
 };
 
 const getDefaultUsersUrl = (user: User) => {
-  if (user.role === Role.ADMIN) {
+  if (user.role === Role.ADMIN || user.role === Role.PRINCIPAL) {
     return USERS_URL;
   } else if (user.role === Role.TEACHER) {
     return CLASSROOM_URL;
@@ -494,7 +497,85 @@ const AdminSidebar: React.FC<SidebarProps> = ({ onLogout }) => {
         <Divider sx={{ borderColor: "white", width: "100%" }} />
         <LogoutButton onLogout={onLogout} />
       </Box>
-      
+
+      <PrintReportDialog
+        open={printDialogOpen}
+        onClose={handlePrintDialogClose}
+      />
+    </>
+  );
+};
+
+const PrincipalSidebar: React.FC<SidebarProps> = ({ onLogout }) => {
+  const { user } = useContext(AppContext);
+  const [selection, setSelection] = useState<SidebarSelection>();
+  const [printDialogOpen, setPrintDialogOpen] = useState(false);
+  const location = useLocation();
+
+  useEffect(() => {
+    const selection = getSidebarSelection(location.pathname);
+    if (selection) {
+      setSelection(selection);
+    }
+  }, [location]);
+
+  const navigate = useNavigate();
+
+  const handlePrintClick = () => {
+    setPrintDialogOpen(true);
+  };
+
+  const handlePrintDialogClose = () => {
+    setPrintDialogOpen(false);
+  };
+
+  return (
+    <>
+      <Box
+        className="sidebar"
+        sx={{
+          display: "flex",
+          flexDirection: "column",
+          gap: 1,
+          pt: 1,
+          pb: 1,
+          backgroundColor: primaryColor,
+          borderStyle: "solid",
+          borderRightWidth: 1,
+          borderColor: primaryColor,
+        }}
+      >
+        <CalendarButton
+          onClick={() => navigate(CALENDAR_URL)}
+          isSelected={selection === SidebarSelection.CALENDAR}
+        />
+        <OrdersButton
+          onClick={() => navigate(ORDERS_URL)}
+          isSelected={selection === SidebarSelection.ORDERS}
+        />
+        <PrintMealReportsButton onClick={handlePrintClick} />
+        <UsersButton
+          role={Role.PRINCIPAL}
+          onClick={() => navigate(getDefaultUsersUrl(user))}
+          isSelected={selection === SidebarSelection.USERS}
+        />
+        <NotificationsButton
+          onClick={() => navigate(NOTIFICATIONS_URL)}
+          isSelected={selection === SidebarSelection.NOTIFICATIONS}
+        />
+        <Divider sx={{ borderColor: "white", width: "100%" }} />
+        <OrderedMealsSidebarButton
+          onClick={() => navigate(MEALS_URL)}
+          isSelected={selection === SidebarSelection.MEALS}
+        />
+        <ShoppingCartButton
+          onClick={() => navigate(CART_URL)}
+          isSelected={selection === SidebarSelection.CART}
+        />
+        <Divider sx={{ borderColor: "white", width: "100%" }} />
+        <LogoutButton onLogout={onLogout} />
+      </Box>
+
       <PrintReportDialog
         open={printDialogOpen}
         onClose={handlePrintDialogClose}
@@ -793,6 +874,9 @@ const Sidebar: React.FC = () => {
   switch (user.role) {
     case Role.ADMIN:
       sidebar = <AdminSidebar onLogout={handleLogout} />;
+      break;
+    case Role.PRINCIPAL:
+      sidebar = <PrincipalSidebar onLogout={handleLogout} />;
       break;
     case Role.TEACHER:
       sidebar = <TeacherSidebar onLogout={handleLogout} />;

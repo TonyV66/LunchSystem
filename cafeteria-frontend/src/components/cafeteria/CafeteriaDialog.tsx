@@ -1,29 +1,18 @@
 import React from "react";
 import {
-  AppBar,
   Box,
+  Button,
   Dialog,
-  IconButton,
-  Slide,
-  Toolbar,
-  Typography,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
 } from "@mui/material";
-import { Close, Print } from "@mui/icons-material";
-
-import { TransitionProps } from "@mui/material/transitions";
 import { DateTimeFormat, DateTimeUtils } from "../../DateTimeUtils";
 import PrintableCafeteriaReport from "../printing/PrintableCafeteriaReport";
 import CafeteriaReport from "./CafeteriaReport";
 import { useReactToPrint } from "react-to-print";
-
-const Transition = React.forwardRef(function Transition(
-  props: TransitionProps & {
-    children: React.ReactElement<unknown>;
-  },
-  ref: React.Ref<unknown>
-) {
-  return <Slide direction="up" ref={ref} {...props} />;
-});
+import { CAFETERIA_URL } from "../../MainAppPanel";
+import { useNavigate } from "react-router-dom";
 
 interface DialogProps {
   date: string;
@@ -31,44 +20,34 @@ interface DialogProps {
 }
 
 const CafeteriaDialog: React.FC<DialogProps> = ({ date, onClose }) => {
-
   const reportRef = React.useRef<HTMLDivElement>(null);
   const reactToPrintFn = useReactToPrint({ contentRef: reportRef });
+  const navigate = useNavigate();
 
   return (
-    <Dialog
-      open={true}
-      fullScreen
-      onClose={onClose}
-      TransitionComponent={Transition}
-    >
-      <AppBar sx={{ position: "relative" }}>
-        <Toolbar>
-          <IconButton
-            edge="start"
-            color="inherit"
-            onClick={onClose}
-            aria-label="close"
-          >
-            <Close />
-          </IconButton>
-          <Typography sx={{ ml: 2, flex: 1 }} variant="h6" component="div">
-            Cafeteria Report -{" "}
-            {DateTimeUtils.toString(
-              date,
-              DateTimeFormat.SHORT_DAY_OF_WEEK_DESC
-            )}
-          </Typography>
-          <IconButton
-            onClick={() => reactToPrintFn()}
-            size="small"
-            sx={{ color: "white" }}
-          >
-            <Print />
-          </IconButton>
-        </Toolbar>
-      </AppBar>
-      <CafeteriaReport date={date} />
+    <Dialog open={true} maxWidth="lg" onClose={() => {}}>
+      <DialogTitle>
+        Cafeteria Report -{" "}
+        {DateTimeUtils.toString(date, DateTimeFormat.SHORT_DAY_OF_WEEK_DESC)}
+      </DialogTitle>
+
+      <DialogContent>
+        <CafeteriaReport date={date} />
+      </DialogContent>
+      <DialogActions>
+        <Button
+          variant="contained"
+          onClick={() => navigate(`${CAFETERIA_URL}/${date}`)}
+        >
+          Full Screen
+        </Button>
+        <Button variant="contained" onClick={() => reactToPrintFn()}>
+          Print
+        </Button>
+        <Button variant="contained" onClick={onClose}>
+          Close
+        </Button>
+      </DialogActions>
       <Box display="none">
         <Box ref={reportRef}>
           <PrintableCafeteriaReport date={date} />

@@ -225,7 +225,7 @@ const OtherRow: React.FC<OtherRowProps> = ({
             textAlign: "left",
           }}
         >
-          <Typography variant="body2">Other/Unknown Times</Typography>
+          <Typography variant="body2">Other Times</Typography>
         </td>
         <td
           style={{

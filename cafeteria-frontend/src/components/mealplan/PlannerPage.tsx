@@ -2,8 +2,6 @@ import React from "react";
 import {
   Box,
   IconButton,
-  Menu as PulldownMenu,
-  MenuItem,
   Paper,
   Typography,
   FormControl,
@@ -13,148 +11,19 @@ import {
 } from "@mui/material";
 import { AppContext } from "../../AppContextProvider";
 import { useContext, useEffect, useState } from "react";
-import MenuPanel from "../menus/MenuPanel";
 import {
   Add,
   Close,
-  CopyAll,
-  Delete,
-  Edit,
-  MoreVert,
   Search,
 } from "@mui/icons-material";
 import Menu from "../../models/Menu";
 import EditMenuDialog from "../menus/EditMenuDialog";
 import { deleteMenu } from "../../api/CafeteriaClient";
 import MealCalendar from "./MealCalendar";
+import AvailableMenusPanel from "./AvailableMenusPanel";
 import { AxiosError } from "axios";
 
-interface TemplateMenuProps {
-  menu: Menu;
-  isCopySelected?: boolean;
-  onCopy: (menu: Menu) => void;
-  onEdit: (menu: Menu) => void;
-  onDelete: (menu: Menu) => void;
-}
 
-const TemplateMenu: React.FC<TemplateMenuProps> = ({
-  menu,
-  onCopy,
-  isCopySelected,
-  onEdit,
-  onDelete,
-}) => {
-  const [selected, setSelected] = useState(false);
-  const [pulldownMenuAnchor, setPulldownMenuAnchor] =
-    useState<null | HTMLElement>(null);
-
-  useEffect(() => {
-    setSelected(isCopySelected ?? false);
-  }, [isCopySelected]);
-
-  const handleCopyClicked = () => {
-    if (!selected) {
-      setSelected(true);
-      onCopy!(menu);
-    }
-  };
-
-  const handleShowMenu = (event: React.MouseEvent<HTMLButtonElement>) => {
-    setPulldownMenuAnchor(event.currentTarget);
-  };
-
-  const handleCloseMenu = () => {
-    setPulldownMenuAnchor(null);
-  };
-
-  const handleDeleteClicked = () => {
-    setPulldownMenuAnchor(null);
-    onDelete(menu);
-  };
-
-  const handleEditClicked = () => {
-    setPulldownMenuAnchor(null);
-    onEdit(menu);
-  };
-
-  return (
-    <>
-      <Paper
-        className="dummyclassname"
-        sx={{ width: "184px", pl: 1, pr: 1, pb: 1 }}
-        elevation={3}
-      >
-        <Box
-          sx={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "flex-end",
-          }}
-        >
-          <Box
-            sx={{
-              flexGrow: 1,
-              display: "flex",
-              flexDirection: "row",
-              gap: 1,
-            }}
-          >
-            <Typography variant="caption" fontWeight="bold">
-              Cost:
-            </Typography>
-            <Typography variant="caption">${menu.price.toFixed(2)}</Typography>
-          </Box>
-          <CopyAll
-            onClick={handleCopyClicked}
-            sx={{
-              color: selected ? "white" : "primary.dark",
-              backgroundColor: selected ? "primary.dark" : undefined,
-              borderRadius: 1,
-              padding: "1px",
-              cursor: !selected ? "pointer" : undefined,
-            }}
-          />
-          <IconButton
-            color="primary"
-            disabled={!menu}
-            onClick={handleShowMenu}
-            size="small"
-          >
-            <MoreVert />
-          </IconButton>
-        </Box>
-
-        <MenuPanel menu={menu} />
-      </Paper>
-      {!pulldownMenuAnchor ? (
-        <></>
-      ) : (
-        <PulldownMenu
-          id="demo-positioned-menu"
-          aria-labelledby="demo-positioned-button"
-          anchorEl={pulldownMenuAnchor}
-          open={true}
-          onClose={handleCloseMenu}
-          anchorOrigin={{
-            vertical: "top",
-            horizontal: "left",
-          }}
-          transformOrigin={{
-            vertical: "top",
-            horizontal: "left",
-          }}
-        >
-          <MenuItem onClick={handleEditClicked}>
-            <Edit color="primary" />
-          </MenuItem>
-          <MenuItem onClick={handleDeleteClicked}>
-            <Delete color="primary" />
-          </MenuItem>
-        </PulldownMenu>
-      )}
-    </>
-  );
-};
 
 const enum EditType {
   UPDATE_MENU,
@@ -168,9 +37,6 @@ const PlannerPage: React.FC = () => {
   const [typeOfEdit, setTypeOfEdit] = useState<EditType>();
   const [search, setSearch] = useState("");
   const [filteredMenus, setFilteredMenus] = useState<Menu[]>([]);
-
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
 
   const handleCopyMenu = (menu: Menu) => {
     setCopiedMenu(menu);
@@ -323,36 +189,13 @@ const PlannerPage: React.FC = () => {
           <Add />
         </Fab>
       </Box>
-      <Box
-        sx={{
-          overflowY: "auto",
-          backgroundColor: "lightgray",
-          pb: 1,
-          pl: 4,
-          pr: 4,
-        }}
-      >
-        <Box
-          sx={{
-            display: "flex",
-            gap: 1,
-            alignItems: "stretch",
-            flexWrap: "wrap",
-            maxHeight: "300px",
-          }}
-        >
-          {filteredMenus.map((menu) => (
-            <TemplateMenu
-              key={menu.id}
-              isCopySelected={copiedMenu === menu}
-              onCopy={handleCopyMenu}
-              onEdit={handleEditMenu}
-              onDelete={handleDeleteMenu}
-              menu={menu}
-            />
-          ))}
-        </Box>
-      </Box>
+      <AvailableMenusPanel
+        filteredMenus={filteredMenus}
+        copiedMenu={copiedMenu}
+        onCopyMenu={handleCopyMenu}
+        onEditMenu={handleEditMenu}
+        onDeleteMenu={handleDeleteMenu}
+      />
       {(typeOfEdit === EditType.CREATE_MENU ||
         typeOfEdit === EditType.UPDATE_MENU) && (
         <EditMenuDialog

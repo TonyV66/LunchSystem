@@ -302,7 +302,7 @@ const PrintableLunchPeriodReport: React.FC<{
 
   const summaryText = time
     ? DateTimeUtils.toTwelveHourTime(time)
-    : `Other/Unknown Times`;
+    : `Other Times`;
 
   return (
     <Box sx={{ pageBreakBefore: "always" }}>

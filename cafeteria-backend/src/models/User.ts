@@ -6,6 +6,7 @@ export enum Role {
   PARENT,
   CAFETERIA,
   STAFF,
+  PRINCIPAL,
 }
 
 export default class User {

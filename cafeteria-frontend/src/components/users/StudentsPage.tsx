@@ -1,20 +1,18 @@
 import React from "react";
-import { Tab, Tabs, Stack, Typography } from "@mui/material";
+import { Stack, Typography, FormControlLabel, Checkbox } from "@mui/material";
 import { AppContext } from "../../AppContextProvider";
-import { useContext } from "react";
-import { useNavigate } from "react-router-dom";
-import { CLASSROOM_URL, FAMILY_URL, STUDENTS_URL, USERS_URL } from "../../MainAppPanel";
+import { useContext, useState } from "react";
+
 import StudentsTable from "./StudentsTable";
+import PeopleTabs from "./PeopleTabs";
 import { Role } from "../../models/User";
+import { STUDENTS_URL } from "../../MainAppPanel";
 
 const StudentsPage: React.FC = () => {
   const { currentSchoolYear, user } = useContext(AppContext);
-
-  const navigate = useNavigate();
-
-  const handleTabSelected = (event: React.SyntheticEvent, newValue: string) => {
-    navigate(newValue);
-  };
+  const [includeRegisteredStudents, setIncludeRegisteredStudents] =
+    useState(true);
+  const [includePendingStudents, setIncludePendingStudents] = useState(false);
 
   return (
     <Stack
@@ -27,17 +25,30 @@ const StudentsPage: React.FC = () => {
       }}
     >
       <Stack direction="row" justifyContent="space-between">
-        <Tabs
-          value={STUDENTS_URL}
-          onChange={handleTabSelected}
-          aria-label="secondary tabs example"
-        >
-          {user.role === Role.ADMIN && <Tab value={USERS_URL} label="Users" />}
-          {user.role !== Role.PARENT && user.role !== Role.TEACHER && user.role !== Role.STAFF && <Tab value={STUDENTS_URL} label="Students" />}
-          {user.role === Role.TEACHER && <Tab value={CLASSROOM_URL} label="Classroom" />}
-          <Tab value={FAMILY_URL} label="Family" />
-        </Tabs>
-        {user.role === Role.ADMIN && (
+        <PeopleTabs value={STUDENTS_URL} />
+        <Stack direction="row" alignItems="center" gap={1}>
+          <FormControlLabel
+            control={
+              <Checkbox
+                size="small"
+                checked={includeRegisteredStudents}
+                onChange={(e) => setIncludeRegisteredStudents(e.target.checked)}
+              />
+            }
+            label={<Typography variant="body2">Registered Students</Typography>}
+          />
+          <FormControlLabel
+            control={
+              <Checkbox
+                size="small"
+                checked={includePendingStudents}
+                onChange={(e) => setIncludePendingStudents(e.target.checked)}
+              />
+            }
+            label={<Typography variant="body2">Pending Students</Typography>}
+          />
+        </Stack>
+        {(user.role === Role.ADMIN || user.role === Role.PRINCIPAL) && (
           <Stack direction="column">
             <Typography variant="body2" fontWeight="bold">
               School Year:
@@ -52,7 +63,10 @@ const StudentsPage: React.FC = () => {
         )}
       </Stack>
 
-      <StudentsTable />
+      <StudentsTable
+        includeRegisteredStudents={includeRegisteredStudents}
+        includePendingStudents={includePendingStudents}
+      />
     </Stack>
   );
 };

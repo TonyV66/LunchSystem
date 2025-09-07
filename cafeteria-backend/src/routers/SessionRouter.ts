@@ -322,14 +322,10 @@ const getParentSession = async (user: UserEntity): Promise<SessionInfo> => {
   return sessionInfo;
 };
 
-export const getStaffSession = async (
+export const getAdminSession = async (
   user: UserEntity
 ): Promise<SessionInfo> => {
   
-  if (user.role === Role.STAFF) {
-    return await getParentSession(user);
-  }
-
   const pantryRepository = AppDataSource.getRepository(PantryItemEntity);
   const menuRepository = AppDataSource.getRepository(MenuEntity);
   const dailyMenuRepository = AppDataSource.getRepository(DailyMenuEntity);
@@ -515,9 +511,9 @@ export const getSessionInfo = async (
     await addUserToSchoolYear(user, currentSchoolYear);
   }
 
-  return user.role === Role.PARENT
+  return (user.role === Role.PARENT || user.role === Role.STAFF)
     ? await getParentSession(user)
-    : await getStaffSession(user);
+    : await getAdminSession(user);
 };
 
 SessionRouter.get<Empty, SessionInfo, Empty, Empty>("/", async (req, res) => {

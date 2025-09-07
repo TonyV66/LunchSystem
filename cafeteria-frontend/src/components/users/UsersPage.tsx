@@ -1,29 +1,30 @@
 import React from "react";
 import {
   Fab,
-  Tab,
-  Tabs,
   Menu as PulldownMenu,
   MenuItem,
   Stack,
   Typography,
+  FormControlLabel,
+  Checkbox,
 } from "@mui/material";
 import { AppContext } from "../../AppContextProvider";
 import { useContext, useState } from "react";
 import { Add } from "@mui/icons-material";
-import User from "../../models/User";
-import { useNavigate } from "react-router-dom";
-import { FAMILY_URL, STUDENTS_URL, USERS_URL } from "../../MainAppPanel";
+import User, { Role } from "../../models/User";
+import { USERS_URL } from "../../MainAppPanel";
 import { UserOrderHistoryDialog } from "../orders/UserOrderHistoryDialog";
 import EditUserDialog from "./EditUserDialog";
 import UsersTable from "./UsersTable";
 import { SiblingsDialog } from "./SiblingsDialog";
 import UserImportDialog from "./UserImportDialog";
+import PeopleTabs from "./PeopleTabs";
+import { UpcomingMealsDialog } from "../meals/UpcomingMealsDialog";
 
 interface UserMenuProps {
   anchor: HTMLElement;
   onOrderHistory: () => void;
-  onChildren: () => void;
+  onShowMeals: () => void;
   onEdit: () => void;
   onClose: () => void;
 }
@@ -32,9 +33,11 @@ const UserMenu: React.FC<UserMenuProps> = ({
   anchor,
   onEdit,
   onOrderHistory,
+  onShowMeals,
   onClose,
-  onChildren,
 }) => {
+  const { user } = useContext(AppContext);
+
   return (
     <PulldownMenu
       id="demo-positioned-menu"
@@ -52,24 +55,26 @@ const UserMenu: React.FC<UserMenuProps> = ({
       }}
     >
       <MenuItem onClick={onOrderHistory}>Order History</MenuItem>
-      <MenuItem onClick={onChildren}>Children</MenuItem>
-      <MenuItem onClick={onEdit}>Edit</MenuItem>
+      <MenuItem onClick={onShowMeals}>
+        Upcoming Meals
+      </MenuItem>
+      {user.role === Role.ADMIN && <MenuItem onClick={onEdit}>Edit</MenuItem>}
     </PulldownMenu>
   );
 };
 
-type MenuAction = "edit" | "delete" | "history" | "children";
+type MenuAction = "edit" | "delete" | "history" | "children" | "meals";
 
 const UsersPage: React.FC = () => {
-  const { users, user, currentSchoolYear } = useContext(AppContext);
+  const { users, currentSchoolYear } = useContext(AppContext);
   const [showNewUserDialog, setShowNewUserDialog] = useState(false);
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [pulldownMenuAnchor, setPulldownMenuAnchor] =
     useState<null | HTMLElement>(null);
   const [targetUser, setTargetUser] = useState<null | User>(null);
   const [action, setAction] = useState<null | MenuAction>(null);
-
-  const navigate = useNavigate();
+  const [includeRegisteredUsers, setIncludeRegisteredUsers] = useState(true);
+  const [includePendingUsers, setIncludePendingUsers] = useState(false);
 
   const handleShowPopupMenu = (
     userId: number,
@@ -84,10 +89,6 @@ const UsersPage: React.FC = () => {
     setAction(null);
   };
 
-  const handleTabSelected = (event: React.SyntheticEvent, newValue: string) => {
-    navigate(newValue);
-  };
-
   const handleEditUser = () => {
     setAction("edit");
     setPulldownMenuAnchor(null);
@@ -98,6 +99,11 @@ const UsersPage: React.FC = () => {
     setPulldownMenuAnchor(null);
   };
 
+  const handleShowMeals = () => {
+    setAction("meals");
+    setPulldownMenuAnchor(null);
+  };
+
   const handleCloseEditUserDialog = () => {
     setAction(null);
     setShowNewUserDialog(false);
@@ -105,11 +111,6 @@ const UsersPage: React.FC = () => {
 
   const handleCloseMenu = () => {
     setTargetUser(null);
-    setPulldownMenuAnchor(null);
-  };
-
-  const handleChildren = () => {
-    setAction("children");
     setPulldownMenuAnchor(null);
   };
 
@@ -127,40 +128,60 @@ const UsersPage: React.FC = () => {
         height: "100%",
       }}
     >
-      <Stack direction="row" alignItems="center" gap={2}>
-        <Tabs
-          sx={{ flexGrow: 1 }}
-          value={USERS_URL}
-          onChange={handleTabSelected}
-          aria-label="secondary tabs example"
-        >
-          <Tab value={USERS_URL} label="Users" />
-          <Tab value={STUDENTS_URL} label="Students" />
-          <Tab value={FAMILY_URL} label="Family" />
-        </Tabs>
-        <Stack direction="column">
-          <Typography variant="body2" fontWeight="bold">
-            School Year:
-          </Typography>
-          <Typography
-            variant="body2"
-            color={!currentSchoolYear.id ? "error" : "text.primary"}
-          >
-            {currentSchoolYear.name || "No School Year Selected"}
-          </Typography>
+      <Stack
+        direction="row"
+        alignItems="center"
+        gap={2}
+        justifyContent="space-between"
+      >
+        <PeopleTabs value={USERS_URL} />
+        <Stack direction="row" alignItems="center" gap={1}>
+          <FormControlLabel
+            control={
+              <Checkbox
+                size="small"
+                checked={includeRegisteredUsers}
+                onChange={(e) => setIncludeRegisteredUsers(e.target.checked)}
+              />
+            }
+            label={<Typography variant="body2">Registered Users</Typography>}
+          />
+          <FormControlLabel
+            control={
+              <Checkbox
+                size="small"
+                checked={includePendingUsers}
+                onChange={(e) => setIncludePendingUsers(e.target.checked)}
+              />
+            }
+            label={<Typography variant="body2">Pending Users</Typography>}
+          />
         </Stack>
-        <Fab
-          size="small"
-          onClick={() => setShowNewUserDialog(true)}
-          color="primary"
-          disabled={!currentSchoolYear.id}
-        >
-          <Add />
-        </Fab>
+        <Stack direction="row" alignItems="center" gap={4}>
+          <Stack direction="column">
+            <Typography variant="body2" fontWeight="bold">
+              School Year:
+            </Typography>
+            <Typography
+              variant="body2"
+              color={!currentSchoolYear.id ? "error" : "text.primary"}
+            >
+              {currentSchoolYear.name || "No School Year Selected"}
+            </Typography>
+          </Stack>
+          <Fab
+            size="small"
+            onClick={() => setShowNewUserDialog(true)}
+            color="primary"
+            disabled={!currentSchoolYear.id}
+          >
+            <Add />
+          </Fab>
+        </Stack>
       </Stack>
       <UsersTable
-        users={users}
-        currentUser={user}
+        includeRegisteredUsers={includeRegisteredUsers}
+        includePendingUsers={includePendingUsers}
         onShowMenu={handleShowPopupMenu}
       />
       {showNewUserDialog || action === "edit" ? (
@@ -175,7 +196,7 @@ const UsersPage: React.FC = () => {
         <UserMenu
           anchor={pulldownMenuAnchor!}
           onOrderHistory={handleOrderHistory}
-          onChildren={handleChildren}
+          onShowMeals={handleShowMeals}
           onEdit={handleEditUser}
           onClose={handleCloseMenu}
         />
@@ -190,6 +211,15 @@ const UsersPage: React.FC = () => {
       ) : (
         <></>
       )}
+      {action === "meals" && targetUser ? (
+        <UpcomingMealsDialog
+          user={targetUser}
+          onClose={handleActionComplete}
+        />
+      ) : (
+        <></>
+      )}
+
       {action === "children" && targetUser ? (
         <SiblingsDialog user={targetUser} onClose={handleActionComplete} />
       ) : (

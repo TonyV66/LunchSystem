@@ -877,7 +877,7 @@ const generateOrderedItemsTable = (
 
   tableRows += `
     <tr>
-      <td style="border: 1px solid #333; padding: 8px; text-align: left;">Other/Unknown Times</td>
+      <td style="border: 1px solid #333; padding: 8px; text-align: left;">Other Times</td>
       <td style="border: 1px solid #333; padding: 8px; text-align: left;">${leftOverItems.join(
         ", "
       )}</td>

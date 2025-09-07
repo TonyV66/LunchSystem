@@ -1,5 +1,5 @@
 import * as React from "react";
-import { createContext, useEffect, useState } from "react";
+import { createContext, useEffect, useState, useRef, useCallback } from "react";
 import SessionInfo from "./models/SessionInfo";
 import User, { NULL_USER } from "./models/User";
 import Menu, { DailyMenu, PantryItem } from "./models/Menu";
@@ -23,6 +23,8 @@ import SchoolYear, { NO_SCHOOL_YEAR } from "./models/SchoolYear";
 export interface AppContextType extends SessionInfo {
   shoppingCart: ShoppingCart;
   currentSchoolYear: SchoolYear;
+  inactivityTimeout: number;
+  setInactivityTimeout: (inactivityTimeout: number) => void;
   setCurrentSchoolYear: (schoolYear: SchoolYear) => void;
   setShoppingCart: (shoppingCart: ShoppingCart) => void;
   setSnackbarMsg: (msg: string | undefined) => void;
@@ -76,6 +78,8 @@ export const INITIAL_APP_CONTEXT: AppContextType = {
   notifications: [],
   school: DEFAULT_SYSTEM_DEFAULTS,
   currentSchoolYear: NO_SCHOOL_YEAR,
+  inactivityTimeout: 30,
+  setInactivityTimeout: () => {},
   setCurrentSchoolYear: () => {},
   setShoppingCart: () => {},
   setStatusMsg: () => {},
@@ -129,6 +133,118 @@ const AppContextProvider: React.FC<React.PropsWithChildren> = (props) => {
   const [showGlassPane, setShowGlassPane] = useState<boolean>(false);
   const [isInitialized, setIsInitialized] = useState<boolean>(false);
   const [school, setSchool] = useState<School>(DEFAULT_SYSTEM_DEFAULTS);
+  const [showLogoutWarning, setShowLogoutWarning] = useState<boolean>(false);
+  const [inactivityTimeout, setInactivityTimeout] = useState<number>(30); // in minutes
+
+
+  // Auto-logout functionality
+  const inactivityTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const warningTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const showLogoutWarningRef = useRef<boolean>(false);
+  const WARNING_DURATION = 60 * 1000; // 1 minute warning duration
+
+  const resetInactivityTimer = useCallback(() => {
+    // Clear existing timers
+    if (inactivityTimerRef.current) {
+      clearTimeout(inactivityTimerRef.current);
+    }
+    if (warningTimerRef.current) {
+      clearTimeout(warningTimerRef.current);
+    }
+    
+    // Hide warning dialog if it's showing
+    setShowLogoutWarning(false);
+    showLogoutWarningRef.current = false;
+    
+    // Only set timer if user is logged in
+    if (user.id !== NULL_USER.id) {
+      // Set warning timer (29 minutes)
+      warningTimerRef.current = setTimeout(() => {
+        setShowLogoutWarning(true);
+        showLogoutWarningRef.current = true;
+        
+        // Set final logout timer (1 minute after warning)
+        inactivityTimerRef.current = setTimeout(() => {
+          handleAutoLogout();
+        }, WARNING_DURATION);
+      }, inactivityTimeout * 60 * 1000);
+    }
+  }, [user.id, inactivityTimeout]);
+
+  const handleAutoLogout = useCallback(() => {
+    // Clear the JWT token
+    localStorage.removeItem("jwtToken");
+    
+    // Reset user state
+    setUser(NULL_USER);
+    setUsers([]);
+    setStudents([]);
+    setOrders([]);
+    setMenus([]);
+    setScheduledMenus([]);
+    setPantryItems([]);
+    setNotifications([]);
+    setSchoolYears([]);
+    setCurrentSchoolYear(NO_SCHOOL_YEAR);
+    setShoppingCart({ items: [] });
+    
+    // Hide warning dialog
+    setShowLogoutWarning(false);
+    showLogoutWarningRef.current = false;
+    
+    // Clear all timers
+    if (inactivityTimerRef.current) {
+      clearTimeout(inactivityTimerRef.current);
+      inactivityTimerRef.current = null;
+    }
+    if (warningTimerRef.current) {
+      clearTimeout(warningTimerRef.current);
+      warningTimerRef.current = null;
+    }
+  }, []);
+
+  const handleStayLoggedIn = useCallback(() => {
+    // Hide warning dialog
+    setShowLogoutWarning(false);
+    showLogoutWarningRef.current = false;
+    
+    // Reset the inactivity timer
+    resetInactivityTimer();
+    
+  }, [resetInactivityTimer]);
+
+  // Set up activity listeners
+  useEffect(() => {
+    const activityEvents = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
+    
+    const handleActivity = () => {
+      // Only reset timer if warning dialog is not showing
+      if (!showLogoutWarningRef.current) {
+        resetInactivityTimer();
+      }
+    };
+
+    // Add event listeners
+    activityEvents.forEach(event => {
+      document.addEventListener(event, handleActivity, true);
+    });
+
+    // Initial timer setup
+    resetInactivityTimer();
+
+    // Cleanup
+    return () => {
+      activityEvents.forEach(event => {
+        document.removeEventListener(event, handleActivity, true);
+      });
+      if (inactivityTimerRef.current) {
+        clearTimeout(inactivityTimerRef.current);
+      }
+      if (warningTimerRef.current) {
+        clearTimeout(warningTimerRef.current);
+      }
+    };
+  }, [resetInactivityTimer]);
 
   const requestOkInterceptor = (
     config:
@@ -213,6 +329,9 @@ const AppContextProvider: React.FC<React.PropsWithChildren> = (props) => {
         setIsInitialized(true);
         setSchoolYears(sessionInfo.schoolYears);
         setCurrentSchoolYear(sessionInfo.schoolYears.find((sy) => sy.isCurrent) ?? NO_SCHOOL_YEAR);
+        
+        // Reset inactivity timer when user logs in
+        resetInactivityTimer();
   
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
       } catch (error) {
@@ -259,6 +378,8 @@ const AppContextProvider: React.FC<React.PropsWithChildren> = (props) => {
         school: school,
         schoolYears,
         currentSchoolYear,
+        inactivityTimeout,
+        setInactivityTimeout,
         setCurrentSchoolYear,
         setShoppingCart,
         setStatusMsg,
@@ -279,16 +400,7 @@ const AppContextProvider: React.FC<React.PropsWithChildren> = (props) => {
     >
       <Box
         sx={{
-          borderStyle: "solid",
-          borderWidth: 1,
-          borderColor: "grey.500",
-          maxWidth: "1200px",
           height: "100vh",
-          marginLeft: "auto",
-          marginRight: "auto",
-          overflow: "hidden",
-          paddingLeft: "0px",
-          paddingRight: "0px",
         }}
       >
         {props.children}
@@ -296,6 +408,12 @@ const AppContextProvider: React.FC<React.PropsWithChildren> = (props) => {
           <></>
         ) : (
           <InfoDialog msg={statusMsg} onOk={() => setStatusMsg(undefined)} />
+        )}
+        {showLogoutWarning && (
+          <InfoDialog 
+            msg="You will be automatically logged out in 1 minute due to inactivity. Click OK to stay logged in." 
+            onOk={handleStayLoggedIn} 
+          />
         )}
         <Backdrop
           sx={{
