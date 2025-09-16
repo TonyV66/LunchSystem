@@ -1,6 +1,24 @@
-import React, { useEffect } from "react";
-import { Box, Button, IconButton, Stack, Typography } from "@mui/material";
-import { Print, ChevronLeft, ChevronRight } from "@mui/icons-material";
+import React, { useEffect, useState } from "react";
+import {
+  Box,
+  Button,
+  IconButton,
+  ListItemIcon,
+  ListItemText,
+  ListSubheader,
+  Menu,
+  MenuItem,
+  Stack,
+  Tooltip,
+  Typography,
+} from "@mui/material";
+import {
+  Print,
+  ChevronLeft,
+  ChevronRight,
+  AccountCircle,
+  Logout,
+} from "@mui/icons-material";
 
 import PrintableCafeteriaReport from "../printing/PrintableCafeteriaReport";
 import CafeteriaReport from "./CafeteriaReport";
@@ -8,14 +26,55 @@ import { useReactToPrint } from "react-to-print";
 import { useParams, useNavigate } from "react-router-dom";
 import { DateTimeFormat, DateTimeUtils } from "../../DateTimeUtils";
 import { AppContext } from "../../AppContextProvider";
-import { KITCHEN_URL } from "../../MainAppPanel";
-
+import { KITCHEN_URL, LOGIN_URL } from "../../MainAppPanel";
+import ChangePasswordDialog from "../settings/ChangePasswordDialog";
+import { Lock } from "@mui/icons-material";
+import { NULL_USER } from "../../models/User";
 const KitchenPage: React.FC = () => {
   const { date } = useParams();
   const reportRef = React.useRef<HTMLDivElement>(null);
   const reactToPrintFn = useReactToPrint({ contentRef: reportRef });
-  const { setInactivityTimeout, scheduledMenus } = React.useContext(AppContext);
+  const {
+    setInactivityTimeout,
+    scheduledMenus,
+    user,
+    setUser,
+    setUsers,
+    setMenus,
+    setPantryItems: setMenuItems,
+    setScheduledMenus,
+    setNotifications,
+  } = React.useContext(AppContext);
   const navigate = useNavigate();
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [changePasswordDialogOpen, setChangePasswordDialogOpen] =
+    useState(false);
+
+  const handleClick = (event: React.MouseEvent<HTMLElement>) => {
+    setAnchorEl(event.currentTarget);
+  };
+
+  const handleClose = () => {
+    setAnchorEl(null);
+  };
+
+  const handleLogout = () => {
+    handleClose();
+    localStorage.removeItem("jwtToken");
+    setUser(NULL_USER);
+    setUsers([]);
+    setMenus([]);
+    setMenuItems([]);
+    setScheduledMenus([]);
+    setMenuItems([]);
+    setNotifications([]);
+    navigate(LOGIN_URL);
+  };
+
+  const handleChangePassword = () => {
+    handleClose();
+    setChangePasswordDialogOpen(true);
+  };
 
   // Get all dates with scheduled menus, sorted
   const scheduledDates = scheduledMenus.map((menu) => menu.date).sort();
@@ -96,13 +155,24 @@ const KitchenPage: React.FC = () => {
               : "No meals being served"}
           </Button>
         </Stack>
-        <IconButton
-          onClick={() => reactToPrintFn()}
-          size="large"
-          color="primary"
-        >
-          <Print />
-        </IconButton>
+        <Stack direction="row">
+          <IconButton
+            onClick={() => reactToPrintFn()}
+            size="large"
+            color="primary"
+          >
+            <Print />
+          </IconButton>
+          <Tooltip title={user.userName}>
+            <IconButton
+              onClick={handleClick}
+              size="large"
+              color="primary"
+            >
+              <AccountCircle />
+            </IconButton>
+          </Tooltip>
+        </Stack>
       </Stack>
 
       <CafeteriaReport
@@ -116,6 +186,33 @@ const KitchenPage: React.FC = () => {
           />
         </Box>
       </Box>
+      <ChangePasswordDialog
+        open={changePasswordDialogOpen}
+        onClose={() => setChangePasswordDialogOpen(false)}
+      />
+      <Menu
+        anchorEl={anchorEl}
+        open={Boolean(anchorEl)}
+        onClose={handleClose}
+        anchorOrigin={{
+          vertical: "bottom",
+          horizontal: "right",
+        }}
+      >
+        <ListSubheader sx={{ lineHeight: 1.5 }}>{user.userName}</ListSubheader>
+        <MenuItem onClick={handleChangePassword}>
+          <ListItemIcon>
+            <Lock fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Change Password</ListItemText>
+        </MenuItem>
+        <MenuItem onClick={handleLogout}>
+          <ListItemIcon>
+            <Logout fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Logout</ListItemText>
+        </MenuItem>
+      </Menu>
     </Box>
   );
 };
