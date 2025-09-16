@@ -5,9 +5,14 @@ export enum Role {
   CAFETERIA,
   STAFF,
   PRINCIPAL,
+  KITCHEN,
 }
 
-export const ROLE_NAMES: string[] = ["System Admin.", "Teacher", "Parent", "Cafeteria", "Staff"];
+const ROLE_NAMES: string[] = ["System Admin.", "Teacher", "Parent", "Cafeteria", "Staff", "Principal", "Kitchen"];
+
+export const getRoleName = (role: Role) => {
+  return ROLE_NAMES[role];
+}
 
 export const NULL_USER: User = {
   id: 0,

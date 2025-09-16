@@ -15,7 +15,7 @@ import {
   FormControlLabel,
   Checkbox,
 } from "@mui/material";
-import User, { NULL_USER, Role } from "../../models/User";
+import User, { getRoleName, NULL_USER, Role } from "../../models/User";
 import { AppContext } from "../../AppContextProvider";
 import { createInvitation, updateUser } from "../../api/CafeteriaClient";
 import { AxiosError } from "axios";
@@ -104,23 +104,6 @@ const EditUserDialog: React.FC<DialogProps> = ({ user, onClose }) => {
     }
   };
 
-  const roleNames = [
-    "System Admin.",
-    "Teacher",
-    "Parent",
-    "Cafeteria",
-    "Staff",
-    "Principal",
-  ];
-
-  const availRoles: Role[] = [
-    Role.PARENT,
-    Role.STAFF,
-    Role.TEACHER,
-    Role.CAFETERIA,
-    Role.PRINCIPAL,
-    Role.ADMIN,
-  ];
   let okButtonLabel = "Save";
   if (!user) {
     okButtonLabel = "Email Invitation";
@@ -188,18 +171,20 @@ const EditUserDialog: React.FC<DialogProps> = ({ user, onClose }) => {
                 handleRoleChanged(event.target.value)
               }
             >
-              {availRoles.map((ar) => (
-                <MuiMenuItem key={ar} value={ar.toString()}>
-                  {roleNames[ar]}
-                </MuiMenuItem>
-              ))}
+              {Object.values(Role)
+                .filter((value) => typeof value === 'number')
+                .map((ar) => (
+                  <MuiMenuItem key={ar} value={ar.toString()}>
+                    {getRoleName(ar as Role)}
+                  </MuiMenuItem>
+                ))}
             </Select>
           </FormControl>
           {role === Role.TEACHER.toString() && (
             <TextField
               fullWidth
               required={true}
-              label="Reffered To As"
+              label="Referred To As"
               variant="standard"
               value={properName}
               onChange={(event: React.ChangeEvent<HTMLInputElement>) =>

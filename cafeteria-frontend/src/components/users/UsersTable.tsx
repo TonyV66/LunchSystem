@@ -6,9 +6,9 @@ import {
   DataGrid,
   GridColDef,
   GridRenderCellParams,
-  GridValidRowModel,
+  GridValidRowModel
 } from "@mui/x-data-grid";
-import User, { ROLE_NAMES } from "../../models/User";
+import User, { getRoleName } from "../../models/User";
 import { AppContext } from "../../AppContextProvider";
 import Student from "../../models/Student";
 
@@ -152,7 +152,7 @@ const UsersTable: React.FC<UsersTableProps> = ({ includeRegisteredUsers, include
         students: sortedStudents,
         onShowAll: () => handleShowAllStudents(sortedStudents)
       },
-      role: ROLE_NAMES[usr.role],
+      role: getRoleName(usr.role),
       onShowMenu,
     };
   });

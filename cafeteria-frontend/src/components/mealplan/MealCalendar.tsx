@@ -47,7 +47,7 @@ import MealReportDialog from "../meals/MealReportDialog";
 import { AxiosError } from "axios";
 import OrderDatesDialog from "./OrderDatesDialog";
 import { RelativeDateTarget } from "../../models/SchoolYear";
-import { CAFETERIA_URL } from "../../MainAppPanel";
+import { KITCHEN_URL } from "../../MainAppPanel";
 import { useNavigate } from "react-router-dom";
 
 interface PrincipalMealButtonProps {
@@ -868,7 +868,7 @@ const CafeteriaMealButtons: React.FC<CafeteriaMealButtonProps> = ({
       <IconButton
         color="primary"
         disabled={!menu || !hasOrderedMeals}
-        onClick={() => navigate(`${CAFETERIA_URL}/${date}`)}
+        onClick={() => navigate(`${KITCHEN_URL}/${date}`)}
         size="small"
       >
         <ManageSearch />

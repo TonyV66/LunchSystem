@@ -13,7 +13,7 @@ import MainAppPanel, {
   LOGIN_URL,
   MEALS_URL,
   CALENDAR_URL,
-  CAFETERIA_URL,
+  KITCHEN_URL,
 } from "./MainAppPanel";
 import ShoppingCartPage from "./components/shoppingcart/ShoppingCartPage";
 import OrderedMealsPage from "./components/meals/OrderedMealsPage";
@@ -37,7 +37,7 @@ import ClassroomStudentsPage from "./components/users/ClassroomStudentsPage";
 import SchoolSettingsPage from "./components/settings/SchoolSettingsPage";
 import { Box, Stack, Typography } from "@mui/material";
 import PrincipalsCalendar from "./components/mealplan/PrincipalsCalendar";
-import CafeteriaPage from "./components/cafeteria/CafeteriaPage";
+import KitchenPage from "./components/cafeteria/KitchenPage";
 
 const AppWrapper: React.FC<React.PropsWithChildren> = ({ children }) => {
   const location = useLocation();
@@ -48,7 +48,7 @@ const AppWrapper: React.FC<React.PropsWithChildren> = ({ children }) => {
         borderWidth: 1,
         borderColor: "grey.500",
         maxWidth: !matchRoutes(
-          [{ path: CAFETERIA_URL + "/:date?" }],
+          [{ path: KITCHEN_URL + "/:date?" }],
           location.pathname
         )
           ? "1200px"
@@ -70,6 +70,9 @@ const App: React.FC = () => {
 
   let defaultUrl = ACCOUNT_URL;
   switch (user.role) {
+    case Role.KITCHEN:
+      defaultUrl = KITCHEN_URL;
+      break;
     case Role.ADMIN:
     case Role.TEACHER:
     case Role.CAFETERIA:
@@ -81,223 +84,131 @@ const App: React.FC = () => {
       break;
   }
 
+  const getCommonRoutes = () => {
+    return (
+      <>
+        <Route path="calendar" element={user.role === Role.ADMIN ? <PlannerPage></PlannerPage> : user.role === Role.PRINCIPAL ? <PrincipalsCalendar></PrincipalsCalendar> : <CalendarPage></CalendarPage>} />
+        <Route
+          path="orders"
+          element={<OrderHistoryPage purchaser={user.role === Role.ADMIN || user.role === Role.PRINCIPAL ? undefined : user}></OrderHistoryPage>}
+        />
+        <Route path="meals" element={<OrderedMealsPage></OrderedMealsPage>} />
+        <Route path="cart" element={<ShoppingCartPage></ShoppingCartPage>} />
+        <Route path="family" element={<FamilyPage></FamilyPage>} />
+        <Route path="notifications" element={<NotificationsPage />} />
+      </>
+    );
+  };
+  const getKitchenRoutes = () => {
+    return (
+      <Route path="kitchen/:date?" element={<KitchenPage></KitchenPage>} />
+    );
+  };
+  const getPrincipalRoutes = () => {
+    return (
+      <>
+        <Route path="users" element={<UsersPage></UsersPage>} />
+        <Route path="students" element={<StudentsPage></StudentsPage>} />
+      </>
+    );
+  };
+  const getCafeteriaRoutes = () => {
+    return (
+      <>
+        <Route path="students" element={<StudentsPage></StudentsPage>} />
+      </>
+    );
+  };
+  const getTeacherRoutes = () => {
+    return (
+      <>
+        <Route path="students" element={<StudentsPage></StudentsPage>} />
+        <Route
+          path="classroom"
+          element={<ClassroomStudentsPage></ClassroomStudentsPage>}
+        />
+      </>
+    );
+  };
+  const getAdminRoutes = () => {
+    return (
+      <>
+        <Route path="users" element={<UsersPage></UsersPage>} />
+        <Route path="students" element={<StudentsPage></StudentsPage>} />
+        <Route path="account" element={<SchoolSettingsPage />} />
+        <Route path="years" element={<SchoolYearsPage />} />
+        <Route path="year/:yearId" element={<SchoolYearTabsPanel />} />
+        <Route path="year/:yearId/teachers" element={<SchoolYearTabsPanel />} />
+        <Route path="year/:yearId/grades" element={<SchoolYearTabsPanel />} />
+        <Route path="import-test" element={<UserImportTest />} />
+      </>
+    );
+  };
+
+  const getPublicRoutes = () => {
+    if (user.id) {
+      return (
+        <>
+          <Route path="/noregister" element={<Navigate to={defaultUrl} replace />} />
+
+          <Route path="/register" element={<Navigate to={defaultUrl} replace />} />
+          <Route path="/login" element={<Navigate to={defaultUrl} replace />} />
+          <Route
+            path="/forgot/:forgottenLoginId"
+            element={<Navigate to={defaultUrl} replace />}
+          />
+          <Route path="/admin" element={<Navigate to={defaultUrl} replace />} />
+        </>
+      );
+    }
+    return (
+      <>
+        <Route
+          path="/noregister"
+          element={
+            <Stack
+              sx={{
+                height: "100vh",
+                justifyContent: "center",
+                alignItems: "center",
+              }}
+            >
+              <img
+                src="/logo.jpg"
+                style={{ display: "block", width: "300px", height: "auto" }}
+                alt="logo"
+              />
+              <Typography variant="h4">
+                Not Yet Open For Lunch System Registration
+              </Typography>
+            </Stack>
+          }
+        />
+        <Route path="/register" element={<RegistrationPanel />} />
+        <Route path="/login" element={<LoginPanel />} />
+        <Route
+          path="/forgot/:forgottenLoginId"
+          element={<ChangeForgottenPwdPanel />}
+        />
+        <Route path="/admin" element={<LoginPanel />} />
+        <Route path="/" element={<Navigate to={LOGIN_URL} replace />} />
+      </>
+    );
+  };
+
   return (
     <BrowserRouter>
       <AppWrapper>
         <Routes>
-          <Route
-            path="/noregister"
-            element={
-              user.id ? (
-                <Navigate to={"/"} replace />
-              ) : (
-                <Stack
-                  sx={{
-                    height: "100vh",
-                    justifyContent: "center",
-                    alignItems: "center",
-                  }}
-                >
-                  <img
-                    src="/logo.jpg"
-                    style={{ display: "block", width: "300px", height: "auto" }}
-                    alt="logo"
-                  />
-                  <Typography variant="h4">
-                    Not Yet Open For Lunch System Registration
-                  </Typography>
-                  <Typography variant="h6">
-                    You will receive an email when registration is open.
-                  </Typography>
-                </Stack>
-              )
-            }
-          />
-          <Route
-            path="/register"
-            element={
-              user.id ? <Navigate to={"/"} replace /> : <RegistrationPanel />
-            }
-          />
-          <Route
-            path="/login"
-            element={
-              user.id ? <Navigate to={defaultUrl} replace /> : <LoginPanel />
-            }
-          />
-          <Route
-            path="/forgot/:forgottenLoginId"
-            element={
-              user.id ? (
-                <Navigate to={defaultUrl} replace />
-              ) : (
-                <ChangeForgottenPwdPanel />
-              )
-            }
-          />
-
-          <Route
-            path="/admin"
-            element={
-              user.id ? <Navigate to={defaultUrl} replace /> : <LoginPanel />
-            }
-          />
-          <Route
-            path="/"
-            element={
-              !user.id ? <Navigate to={LOGIN_URL} replace /> : <MainAppPanel />
-            }
-          >
-            {user.role === Role.PARENT || user.role === Role.STAFF ? (
-              <>
-                <Route
-                  path="calendar"
-                  element={<CalendarPage></CalendarPage>}
-                />
-                <Route
-                  path="meals"
-                  element={<OrderedMealsPage></OrderedMealsPage>}
-                />
-                <Route
-                  path="cart"
-                  element={<ShoppingCartPage></ShoppingCartPage>}
-                />
-              </>
-            ) : (
-              <></>
-            )}
-            {user.role === Role.CAFETERIA || user.role === Role.ADMIN || user.role === Role.PRINCIPAL || user.role === Role.TEACHER ? (
-              <>
-                <Route
-                  path="cafeteria/:date"
-                  element={<CafeteriaPage></CafeteriaPage>}
-                />
-              </>
-            ) : (
-              <></>
-            )}
-
-            {user.role === Role.PRINCIPAL ? (
-              <>
-                <Route
-                  path="calendar"
-                  element={<PrincipalsCalendar></PrincipalsCalendar>}
-                />
-                <Route
-                  path="meals"
-                  element={<OrderedMealsPage></OrderedMealsPage>}
-                />
-                <Route
-                  path="cart"
-                  element={<ShoppingCartPage></ShoppingCartPage>}
-                />
-                <Route path="users" element={<UsersPage></UsersPage>} />
-                <Route
-                  path="students"
-                  element={<StudentsPage></StudentsPage>}
-                />
-              </>
-            ) : (
-              <></>
-            )}
-            {user.role === Role.ADMIN ? (
-              <>
-                <Route path="calendar" element={<PlannerPage></PlannerPage>} />
-                <Route
-                  path="meals"
-                  element={<OrderedMealsPage></OrderedMealsPage>}
-                />
-                <Route
-                  path="cart"
-                  element={<ShoppingCartPage></ShoppingCartPage>}
-                />
-                <Route path="users" element={<UsersPage></UsersPage>} />
-                <Route
-                  path="students"
-                  element={<StudentsPage></StudentsPage>}
-                />
-                <Route path="account" element={<SchoolSettingsPage />} />
-                <Route path="years" element={<SchoolYearsPage />} />
-                <Route path="year/:yearId" element={<SchoolYearTabsPanel />} />
-                <Route
-                  path="year/:yearId/teachers"
-                  element={<SchoolYearTabsPanel />}
-                />
-                <Route
-                  path="year/:yearId/grades"
-                  element={<SchoolYearTabsPanel />}
-                />
-                <Route path="import-test" element={<UserImportTest />} />
-              </>
-            ) : (
-              <></>
-            )}
-
-            {user.role === Role.CAFETERIA ? (
-              <>
-                <Route
-                  path="students"
-                  element={<StudentsPage></StudentsPage>}
-                />
-                <Route
-                  path="calendar"
-                  element={<CalendarPage></CalendarPage>}
-                />
-                <Route
-                  path="cart"
-                  element={<ShoppingCartPage></ShoppingCartPage>}
-                />
-                <Route
-                  path="meals"
-                  element={<OrderedMealsPage></OrderedMealsPage>}
-                />
-              </>
-            ) : (
-              <></>
-            )}
-
-            {user.role === Role.TEACHER ? (
-              <>
-                <Route
-                  path="students"
-                  element={<StudentsPage></StudentsPage>}
-                />
-                <Route
-                  path="classroom"
-                  element={<ClassroomStudentsPage></ClassroomStudentsPage>}
-                />
-                <Route
-                  path="calendar"
-                  element={<CalendarPage></CalendarPage>}
-                />
-                <Route
-                  path="cart"
-                  element={<ShoppingCartPage></ShoppingCartPage>}
-                />
-                <Route
-                  path="meals"
-                  element={<OrderedMealsPage></OrderedMealsPage>}
-                />
-              </>
-            ) : (
-              <></>
-            )}
-
-            <Route
-              path="orders"
-              element={
-                <OrderHistoryPage
-                  purchaser={
-                    user.role === Role.ADMIN || user.role === Role.PRINCIPAL
-                      ? undefined
-                      : user
-                  }
-                ></OrderHistoryPage>
-              }
-            />
-            <Route path="family" element={<FamilyPage></FamilyPage>} />
-            <Route path="notifications" element={<NotificationsPage />} />
+          {getPublicRoutes()}
+          <Route path="/" element={<MainAppPanel />}>
+            {user.role !== Role.KITCHEN && getCommonRoutes()}
+            {user.role === Role.ADMIN && getAdminRoutes()}
+            {user.role === Role.PRINCIPAL && getPrincipalRoutes()}
+            {user.role === Role.CAFETERIA && getCafeteriaRoutes()}
+            {user.role === Role.TEACHER && getTeacherRoutes()}
           </Route>
+          {user.role === Role.KITCHEN && getKitchenRoutes()}
           <Route path="*" element={<PageNotFound />} />
         </Routes>
       </AppWrapper>

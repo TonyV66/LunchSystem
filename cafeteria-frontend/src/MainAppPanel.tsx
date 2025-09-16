@@ -58,7 +58,7 @@ export const CLASSROOM_URL = "/classroom";
 export const FAMILY_URL = "/family";
 export const SCHOOL_YEARS_URL = "/years";
 export const SCHOOL_YEAR_URL = "/year";
-export const CAFETERIA_URL = "/cafeteria";
+export const KITCHEN_URL = "/kitchen";
 
 export const NOTIFICATIONS_URL = "/notifications";
 

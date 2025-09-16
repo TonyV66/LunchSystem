@@ -7,6 +7,7 @@ export enum Role {
   CAFETERIA,
   STAFF,
   PRINCIPAL,
+  KITCHEN,
 }
 
 export default class User {

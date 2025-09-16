@@ -11,8 +11,6 @@ import { DateTimeFormat, DateTimeUtils } from "../../DateTimeUtils";
 import PrintableCafeteriaReport from "../printing/PrintableCafeteriaReport";
 import CafeteriaReport from "./CafeteriaReport";
 import { useReactToPrint } from "react-to-print";
-import { CAFETERIA_URL } from "../../MainAppPanel";
-import { useNavigate } from "react-router-dom";
 
 interface DialogProps {
   date: string;
@@ -22,7 +20,6 @@ interface DialogProps {
 const CafeteriaDialog: React.FC<DialogProps> = ({ date, onClose }) => {
   const reportRef = React.useRef<HTMLDivElement>(null);
   const reactToPrintFn = useReactToPrint({ contentRef: reportRef });
-  const navigate = useNavigate();
 
   return (
     <Dialog open={true} maxWidth="lg" onClose={() => {}}>
@@ -35,12 +32,6 @@ const CafeteriaDialog: React.FC<DialogProps> = ({ date, onClose }) => {
         <CafeteriaReport date={date} />
       </DialogContent>
       <DialogActions>
-        <Button
-          variant="contained"
-          onClick={() => navigate(`${CAFETERIA_URL}/${date}`)}
-        >
-          Full Screen
-        </Button>
         <Button variant="contained" onClick={() => reactToPrintFn()}>
           Print
         </Button>

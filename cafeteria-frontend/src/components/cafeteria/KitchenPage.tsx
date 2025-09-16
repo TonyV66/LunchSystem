@@ -8,9 +8,9 @@ import { useReactToPrint } from "react-to-print";
 import { useParams, useNavigate } from "react-router-dom";
 import { DateTimeFormat, DateTimeUtils } from "../../DateTimeUtils";
 import { AppContext } from "../../AppContextProvider";
-import { CAFETERIA_URL } from "../../MainAppPanel";
+import { KITCHEN_URL } from "../../MainAppPanel";
 
-const CafeteriaPage: React.FC = () => {
+const KitchenPage: React.FC = () => {
   const { date } = useParams();
   const reportRef = React.useRef<HTMLDivElement>(null);
   const reactToPrintFn = useReactToPrint({ contentRef: reportRef });
@@ -34,13 +34,13 @@ const CafeteriaPage: React.FC = () => {
 
   const handlePreviousDate = () => {
     if (previousDate) {
-      navigate(`${CAFETERIA_URL}/${previousDate}`);
+      navigate(`${KITCHEN_URL}/${previousDate}`);
     }
   };
 
   const handleNextDate = () => {
     if (nextDate) {
-      navigate(`${CAFETERIA_URL}/${nextDate}`);
+      navigate(`${KITCHEN_URL}/${nextDate}`);
     }
   };
 
@@ -120,4 +120,4 @@ const CafeteriaPage: React.FC = () => {
   );
 };
 
-export default CafeteriaPage;
+export default KitchenPage;
