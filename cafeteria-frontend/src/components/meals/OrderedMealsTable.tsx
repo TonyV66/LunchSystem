@@ -8,7 +8,8 @@ import { grey, yellow } from "@mui/material/colors";
 import { DateTimeFormat, DateTimeUtils } from "../../DateTimeUtils";
 import { Delete } from "@mui/icons-material";
 import Meal from "../../models/Meal";
-import User from "../../models/User";
+import User, { Role } from "../../models/User";
+import CancelMealDialog from "../orders/CancelMealDialog";
 
 interface StudentDailyOrdersProps {
   date: string;
@@ -18,14 +19,19 @@ interface StudentDailyOrdersProps {
   hidePrice?: boolean;
   highlightMealsNotOrderedByMe?: boolean;
   onDelete?: (meal: Meal) => void;
+  hideCancelledMeals?: boolean;
 }
 
-const StudentMealDescription: React.FC<{
+const MealDescription: React.FC<{
   meal: Meal;
   hidePrice?: boolean;
   onDelete?: (meal: Meal) => void;
   orderedBy?: string;
 }> = ({ meal, onDelete, hidePrice, orderedBy }) => {
+  const amountPaid = meal.items
+    .map((item) => item.price)
+    .reduce((prev, curr) => prev + curr, 0);
+
   return (
     <>
       <Box
@@ -43,8 +49,36 @@ const StudentMealDescription: React.FC<{
           borderBottomColor: grey[400],
           borderBottomStyle: "solid",
           backgroundColor: orderedBy ? yellow[500] : undefined,
+          position: "relative",
         }}
       >
+        {meal.cancelled && (
+          <Box
+            sx={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: "rgba(0, 0, 0, 0.4)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              zIndex: 1,
+            }}
+          >
+            <Typography
+              variant="h6"
+              sx={{
+                color: "white",
+                fontWeight: "bold",
+                textShadow: "1px 1px 2px rgba(0,0,0,0.8)",
+              }}
+            >
+              CANCELLED
+            </Typography>
+          </Box>
+        )}
         {meal.items
           .sort(
             (item1, item2) =>
@@ -73,11 +107,11 @@ const StudentMealDescription: React.FC<{
             justifyContent: "center",
           }}
         >
-          $
-          {meal.items
-            .map((item) => item.price)
-            .reduce((prev, curr) => prev + curr, 0)
-            .toFixed(2)}
+          <Typography
+            sx={{ textDecoration: (meal.refundType && amountPaid > 0) ? "line-through" : "none" }}
+          >
+            ${amountPaid.toFixed(2)}
+          </Typography>
         </Box>
       ) : (
         <></>
@@ -93,10 +127,12 @@ const StudentMealDescription: React.FC<{
         >
           <IconButton
             onClick={() => onDelete(meal)}
+            disabled={meal.cancelled}
             size="small"
             aria-label="delete"
+            color="primary"
           >
-            <Delete color="primary" />
+            <Delete />
           </IconButton>
         </Box>
       ) : (
@@ -123,6 +159,7 @@ const DailyOrdersForPerson: React.FC<StudentDailyOrdersProps> = ({
   hidePrice,
   onDelete,
   highlightMealsNotOrderedByMe,
+  hideCancelledMeals,
 }) => {
   const { user, users } = useContext(AppContext);
 
@@ -142,6 +179,7 @@ const DailyOrdersForPerson: React.FC<StudentDailyOrdersProps> = ({
     .flatMap((order) => order.meals)
     .filter(
       (meal) =>
+        (!hideCancelledMeals || !meal.cancelled) &&
         meal.date === date &&
         ((student && meal.studentId === student.id) ||
           (staffMember && meal.staffMemberId === staffMember.id))
@@ -172,7 +210,7 @@ const DailyOrdersForPerson: React.FC<StudentDailyOrdersProps> = ({
       </Box>
 
       {meals.map((meal) => (
-        <StudentMealDescription
+        <MealDescription
           orderedBy={
             highlightMealsNotOrderedByMe
               ? mealsOrderedBySomeoneElse.get(meal.id)
@@ -197,6 +235,7 @@ interface DailyOrdersProps {
   staffMembers: User[];
   onDelete?: (meal: Meal) => void;
   highlightMealsNotOrderedByMe?: boolean;
+  hideCancelledMeals?: boolean;
 }
 interface Person {
   student?: Student;
@@ -212,6 +251,7 @@ const DailyOrders: React.FC<DailyOrdersProps> = ({
   highlightMealsNotOrderedByMe,
   students,
   staffMembers,
+  hideCancelledMeals,
 }) => {
   const studentIds = new Set<number>(students.map((student) => student.id));
   const staffMemberIds = new Set<number>(staffMembers.map((user) => user.id));
@@ -220,6 +260,7 @@ const DailyOrders: React.FC<DailyOrdersProps> = ({
     .flatMap((order) => order.meals)
     .filter(
       (meal) =>
+        (!hideCancelledMeals || !meal.cancelled) &&
         meal.date === date &&
         ((meal.studentId && studentIds.has(meal.studentId)) ||
           (meal.staffMemberId && staffMemberIds.has(meal.staffMemberId)))
@@ -297,6 +338,7 @@ const DailyOrders: React.FC<DailyOrdersProps> = ({
           staffMember={person.staffMember}
           hidePrice={hidePrice}
           onDelete={onDelete}
+          hideCancelledMeals={hideCancelledMeals}
           highlightMealsNotOrderedByMe={highlightMealsNotOrderedByMe}
         ></DailyOrdersForPerson>
       ))}
@@ -306,6 +348,7 @@ const DailyOrders: React.FC<DailyOrdersProps> = ({
 
 interface OrdersTableProps {
   order?: Order;
+  onDelete?: (meal: Meal) => void;
   user?: User;
   student?: Student;
   startDate?: string;
@@ -313,166 +356,190 @@ interface OrdersTableProps {
   hidePrice?: boolean;
   hideDate?: boolean;
   hideTitlebar?: boolean;
-  onDelete?: (meal: Meal) => void;
+  hideCancelledMeals?: boolean;
   highlightMealsNotOrderedByMe?: boolean;
 }
 
 const OrderedMealsTable: React.FC<OrdersTableProps> = ({
   order,
+  onDelete,
   user,
   student,
-  onDelete,
   startDate,
   endDate,
   hideDate,
   hidePrice,
   hideTitlebar,
+  hideCancelledMeals,
   highlightMealsNotOrderedByMe,
 }) => {
-  const {orders: allOrders, students: allStudents, users} = useContext(AppContext);
+  const {
+    orders: allOrders,
+    students: allStudents,
+    users,
+    user: loggedInUser,
+  } = useContext(AppContext);
+
+  const [mealToCancel, setMealToCancel] = React.useState<Meal | null>(null);
+
   const orders = order ? [order] : allOrders;
-  const students = (student ? [student] : allStudents).filter(s => !user || s.parents.includes(user.id));
+  const students = (student ? [student] : allStudents).filter(
+    (s) => !user || s.parents.includes(user.id)
+  );
   const dates = new Set<string>();
   orders
     .flatMap((order) => order.meals)
+    .filter((meal) => !hideCancelledMeals || !meal.cancelled)
     .map((meal) => meal.date)
     .filter((mealDate) => !startDate || mealDate >= startDate)
     .filter((mealDate) => !endDate || mealDate <= endDate)
     .forEach((date) => dates.add(date));
 
-  let gridColumns = "auto 1fr";
-  if (!hideDate) {
-    gridColumns = "auto " + gridColumns;
-  }
+  let gridColumns = (hideDate ? "" : "auto") + " auto 1fr";
   if (!hidePrice) {
     gridColumns = gridColumns + " auto";
   }
-  if (onDelete) {
+  if (loggedInUser?.role === Role.ADMIN || onDelete) {
     gridColumns = gridColumns + " auto";
   }
 
+  const showDeleteButton = loggedInUser?.role === Role.ADMIN || onDelete;
   return (
-    <Box
-      sx={{
-        display: "grid",
-        gridTemplateColumns: gridColumns,
-        borderWidth: "1px",
-        borderColor: grey[400],
-        borderStyle: "solid",
-        backgroundColor: "white",
-      }}
-    >
-      {!hideDate && !hideTitlebar ? (
-        <Box
-          sx={{
-            borderBottomWidth: "1px",
-            borderBottomColor: grey[400],
-            borderBottomStyle: "solid",
-            borderRightWidth: "1px",
-            borderRightColor: grey[400],
-            borderRightStyle: "solid",
-            p: 1,
-          }}
-        >
-          <Typography fontWeight="bold">Meal Date</Typography>
-        </Box>
-      ) : (
-        <></>
-      )}
-      {!hideTitlebar ? (
-        <Box
-          sx={{
-            borderBottomWidth: "1px",
-            borderBottomColor: grey[400],
-            borderBottomStyle: "solid",
-            borderRightWidth: "1px",
-            borderRightColor: grey[400],
-            borderRightStyle: "solid",
-            p: 1,
-          }}
-        >
-          <Typography fontWeight="bold">Name</Typography>
-        </Box>
-      ) : (
-        <></>
-      )}
+    <>
+      <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: gridColumns,
+          borderWidth: "1px",
+          borderColor: grey[400],
+          borderStyle: "solid",
+          backgroundColor: "white",
+        }}
+      >
+        {!hideDate && !hideTitlebar ? (
+          <Box
+            sx={{
+              borderBottomWidth: "1px",
+              borderBottomColor: grey[400],
+              borderBottomStyle: "solid",
+              borderRightWidth: "1px",
+              borderRightColor: grey[400],
+              borderRightStyle: "solid",
+              p: 1,
+            }}
+          >
+            <Typography fontWeight="bold">Meal Date</Typography>
+          </Box>
+        ) : (
+          <></>
+        )}
+        {!hideTitlebar ? (
+          <Box
+            sx={{
+              borderBottomWidth: "1px",
+              borderBottomColor: grey[400],
+              borderBottomStyle: "solid",
+              borderRightWidth: "1px",
+              borderRightColor: grey[400],
+              borderRightStyle: "solid",
+              p: 1,
+            }}
+          >
+            <Typography fontWeight="bold">Name</Typography>
+          </Box>
+        ) : (
+          <></>
+        )}
 
-      {!hideTitlebar ? (
-        <Box
-          sx={{
-            borderRightWidth: onDelete || !hidePrice ? "1px" : "0px",
-            borderRightColor: grey[400],
-            borderRightStyle: "solid",
-            borderBottomWidth: "1px",
-            borderBottomColor: grey[400],
-            borderBottomStyle: "solid",
-            p: 1,
+        {!hideTitlebar ? (
+          <Box
+            sx={{
+              borderRightWidth: showDeleteButton || !hidePrice ? "1px" : "0px",
+              borderRightColor: grey[400],
+              borderRightStyle: "solid",
+              borderBottomWidth: "1px",
+              borderBottomColor: grey[400],
+              borderBottomStyle: "solid",
+              p: 1,
+            }}
+          >
+            <Typography fontWeight="bold">Meal</Typography>
+          </Box>
+        ) : (
+          <></>
+        )}
+        {!hidePrice && !hideTitlebar ? (
+          <Box
+            sx={{
+              borderRightWidth: showDeleteButton ? "1px" : "0px",
+              borderRightColor: grey[400],
+              borderRightStyle: "solid",
+              borderBottomWidth: "1px",
+              borderBottomColor: grey[400],
+              borderBottomStyle: "solid",
+              p: 1,
+            }}
+          >
+            <Typography fontWeight="bold">Cost</Typography>
+          </Box>
+        ) : (
+          <></>
+        )}
+        {showDeleteButton && !hideTitlebar ? (
+          <Box
+            sx={{
+              borderBottomWidth: "1px",
+              borderBottomColor: grey[400],
+              borderBottomStyle: "solid",
+              p: 1,
+            }}
+          ></Box>
+        ) : (
+          <></>
+        )}
+        {!dates.size ? (
+          <Box
+            sx={{
+              borderBottomWidth: "1px",
+              borderBottomColor: grey[400],
+              borderBottomStyle: "solid",
+              p: 1,
+              gridColumn:
+                "1/span " + (loggedInUser?.role === Role.ADMIN ? "5" : "4"),
+            }}
+          >
+            No meals ordered
+          </Box>
+        ) : (
+          Array.from(dates)
+            .sort((d1, d2) => d1.localeCompare(d2))
+            .map((date) => (
+              <DailyOrders
+                key={date}
+                students={students}
+                staffMembers={!student ? users : []}
+                orders={orders}
+                date={date}
+                hideCancelledMeals={hideCancelledMeals}
+                onDelete={
+                  onDelete || showDeleteButton ? setMealToCancel : undefined
+                }
+                hideDate={hideDate}
+                hidePrice={hidePrice}
+                highlightMealsNotOrderedByMe={highlightMealsNotOrderedByMe}
+              ></DailyOrders>
+            ))
+        )}
+      </Box>
+      {mealToCancel && (
+        <CancelMealDialog
+          onClose={() => {
+            setMealToCancel(null);
           }}
-        >
-          <Typography fontWeight="bold">Meal</Typography>
-        </Box>
-      ) : (
-        <></>
+          meal={mealToCancel}
+        />
       )}
-      {!hidePrice && !hideTitlebar ? (
-        <Box
-          sx={{
-            borderRightWidth: onDelete ? "1px" : "0px",
-            borderRightColor: grey[400],
-            borderRightStyle: "solid",
-            borderBottomWidth: "1px",
-            borderBottomColor: grey[400],
-            borderBottomStyle: "solid",
-            p: 1,
-          }}
-        >
-          <Typography fontWeight="bold">Price</Typography>
-        </Box>
-      ) : (
-        <></>
-      )}
-      {onDelete && !hideTitlebar ? (
-        <Box
-          sx={{
-            borderBottomWidth: "1px",
-            borderBottomColor: grey[400],
-            borderBottomStyle: "solid",
-            p: 1,
-          }}
-        ></Box>
-      ) : (
-        <></>
-      )}
-      {!dates.size ? (
-        <Box
-          sx={{
-            borderBottomWidth: "1px",
-            borderBottomColor: grey[400],
-            borderBottomStyle: "solid",
-            p: 1,
-            gridColumn: "1/span " + (onDelete ? "5" : "4"),
-          }}
-        >
-          No meals ordered
-        </Box>
-      ) : (
-        Array.from(dates)
-          .sort((d1, d2) => d1.localeCompare(d2))
-          .map((date) => (
-            <DailyOrders
-              key={date}
-              students={students}
-              staffMembers={!student ? users : []}
-              orders={orders}
-              date={date}
-              onDelete={onDelete}
-              hideDate={hideDate}
-              hidePrice={hidePrice}
-              highlightMealsNotOrderedByMe={highlightMealsNotOrderedByMe}
-            ></DailyOrders>
-          ))
-      )}
-    </Box>
+    </>
   );
 };
 

@@ -144,7 +144,7 @@ const OrderMealDialog: React.FC<DialogProps> = ({
       const mealsOrdered = orders
         .map((order) =>
           order.meals.filter(
-            (meal) => meal.date === DateTimeUtils.toString(menu.date)
+            (meal) => !meal.cancelled && meal.date === DateTimeUtils.toString(menu.date)
           )
         )
         .flat();

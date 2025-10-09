@@ -7,6 +7,7 @@ import Meal from "../../models/Meal";
 import { ShoppingCart } from "../../models/ShoppingCart";
 import { Order } from "../../models/Order";
 import User from "../../models/User";
+import { RefundType } from "../../models/RefundType";
 
 const buildOrder = (
   shoppingCart: ShoppingCart,
@@ -19,6 +20,7 @@ const buildOrder = (
     taxes: 0,
     processingFee: 0,
     otherFees: 0,
+    appliedCredits: 0,
     userId: user.id,
     meals: shoppingCart.items.map((shoppingCartItem, index) => {
       const dailyMenu = dailyMenus.find(
@@ -76,6 +78,8 @@ const buildOrder = (
         id: index,
         date: dailyMenu.date,
         time: "",
+        cancelled: false,
+        refundType: RefundType.NONE,
         staffMemberId: !shoppingCartItem.studentId ? user.id : undefined,
         studentId: shoppingCartItem.studentId,
         items: entrees

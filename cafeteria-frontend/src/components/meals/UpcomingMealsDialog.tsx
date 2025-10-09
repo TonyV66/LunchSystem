@@ -13,7 +13,6 @@ import OrderedMealsTable from "./OrderedMealsTable";
 import { TransitionProps } from "@mui/material/transitions";
 import User from "../../models/User";
 
-
 const Transition = React.forwardRef(function Transition(
   props: TransitionProps & {
     children: React.ReactElement<unknown>;
@@ -28,6 +27,8 @@ export const UpcomingMealsDialog: React.FC<{
   onClose: () => void;
 }> = ({ user, onClose }) => {
   const today = DateTimeUtils.toString(new Date());
+
+
   return (
     <Dialog
       open={true}
@@ -46,11 +47,18 @@ export const UpcomingMealsDialog: React.FC<{
             <Close />
           </IconButton>
           <Typography sx={{ ml: 2, flex: 1 }} variant="h6" component="div">
-            Upcoming Meals For Family Of - {user.firstName + " " + user.lastName}
+            Upcoming Meals For Family Of -{" "}
+            {user.firstName + " " + user.lastName}
           </Typography>
         </Toolbar>
       </AppBar>
-      {<OrderedMealsTable user={user} startDate={today}/>}
+      {
+        <OrderedMealsTable
+          user={user}
+          startDate={today}
+        />
+      }
+      
     </Dialog>
   );
 };

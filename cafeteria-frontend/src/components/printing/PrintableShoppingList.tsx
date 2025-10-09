@@ -25,7 +25,7 @@ const getMenuItems = (
 
   orders
     .flatMap((order) => order.meals)
-    .filter((meal) => meal.date === date)
+    .filter((meal) => !meal.cancelled && meal.date === date)
     .flatMap((meal) => meal.items)
     .forEach((orderedItem) => {
       const matchingItem = orderedItems.find(
@@ -81,7 +81,7 @@ const DailyShoppingList: React.FC<TotalRowProps> = ({ startDate, endDate }) => {
       item,
       quantity: orders
         .flatMap((order) => order.meals)
-        .filter((meal) => meal.date === date)
+        .filter((meal) => !meal.cancelled && meal.date === date)
         .flatMap((meal) => meal.items)
         .filter(
           (orderedItem) =>

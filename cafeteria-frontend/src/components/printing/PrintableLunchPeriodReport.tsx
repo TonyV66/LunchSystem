@@ -435,7 +435,7 @@ const PrintableStaffMealReport: React.FC<StaffMealReportProps> = ({
   const { orders } = React.useContext(AppContext);
   const meals: Meal[] = orders
     .flatMap((order) => order.meals)
-    .filter((m) => m.staffMemberId === staffMember.id && m.date === date);
+    .filter((m) => !m.cancelled && m.staffMemberId === staffMember.id && m.date === date);
 
   if (!meals.length) {
     return <></>;
@@ -455,7 +455,7 @@ const StudentMealReport: React.FC<StudentMealReportProps> = ({
   const { orders } = React.useContext(AppContext);
   const meals: Meal[] = orders
     .flatMap((order) => order.meals)
-    .filter((m) => m.studentId === student.id && m.date === date);
+    .filter((m) => !m.cancelled && m.studentId === student.id && m.date === date);
 
   if (!meals.length) {
     return <></>;

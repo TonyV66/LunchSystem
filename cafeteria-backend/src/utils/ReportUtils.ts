@@ -1231,6 +1231,7 @@ const getMenuItems = (
   const orderedItems: PantryItem[] = [];
 
   allMeals
+    .filter((meal) => !meal.cancelled)
     .flatMap((meal) => meal.items)
     .forEach((orderedItem) => {
       const matchingItem = orderedItems.find(
@@ -1319,6 +1320,7 @@ const getMealsAtTime = (
 ) => {
   return allMeals.filter(
     (meal: MealEntity) =>
+      !meal.cancelled &&
       meal.date === date &&
       (meal.time === time ||
         getTeacherLunchtime(

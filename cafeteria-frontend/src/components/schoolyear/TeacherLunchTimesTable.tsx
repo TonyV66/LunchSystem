@@ -12,8 +12,14 @@ import {
   Stack,
   Typography,
   Switch,
+  Menu,
+  MenuItem,
+  ListItemIcon,
+  ListItemText,
 } from "@mui/material";
+import MoreVertIcon from "@mui/icons-material/MoreVert";
 import EditIcon from "@mui/icons-material/Edit";
+import SwapHorizIcon from "@mui/icons-material/SwapHoriz";
 import SchoolYear from "../../models/SchoolYear";
 import { AppContext } from "../../AppContextProvider";
 import { DayOfWeek } from "../../models/DayOfWeek";
@@ -22,9 +28,16 @@ import { Role } from "../../models/User";
 import { DateTimeUtils } from "../../DateTimeUtils";
 import { updateSchoolYearTeacherConfig } from "../../api/CafeteriaClient";
 import { getGradeName } from "../../models/GradeLevel";
+import ReplaceTeacherDialog from "./ReplaceTeacherDialog";
 
 interface TeacherLunchTimesTableProps {
   schoolYear: SchoolYear;
+}
+
+enum TeacherAction {
+  EDIT = "edit",
+  REPLACE = "replace",
+  NONE = "",
 }
 
 const TeacherLunchTimesTable: React.FC<TeacherLunchTimesTableProps> = ({
@@ -39,9 +52,16 @@ const TeacherLunchTimesTable: React.FC<TeacherLunchTimesTableProps> = ({
     setCurrentSchoolYear,
   } = useContext(AppContext);
   const [selectedTeacher, setSelectedTeacher] = useState<number | null>(null);
+  const [teacherAction, setTeacherAction] = useState<TeacherAction>(
+    TeacherAction.NONE
+  );
   const [oneTeacherPerStudent, setOneTeacherPerStudent] = useState(
     schoolYear.oneTeacherPerStudent
   );
+  const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null);
+  const [selectedTeacherForMenu, setSelectedTeacherForMenu] = useState<
+    number | null
+  >(null);
 
   const teachers = users.filter((user) => user.role === Role.TEACHER);
 
@@ -68,10 +88,44 @@ const TeacherLunchTimesTable: React.FC<TeacherLunchTimesTableProps> = ({
 
   const handleEditClick = (teacherId: number) => {
     setSelectedTeacher(teacherId);
+    setTeacherAction(TeacherAction.EDIT);
+  };
+
+  const handleReplaceClick = (teacherId: number) => {
+    setSelectedTeacher(teacherId);
+    setTeacherAction(TeacherAction.REPLACE);
   };
 
   const handleDialogClose = () => {
     setSelectedTeacher(null);
+    setTeacherAction(TeacherAction.NONE);
+  };
+
+  const handleMenuClick = (
+    event: React.MouseEvent<HTMLElement>,
+    teacherId: number
+  ) => {
+    setMenuAnchorEl(event.currentTarget);
+    setSelectedTeacherForMenu(teacherId);
+  };
+
+  const handleMenuClose = () => {
+    setMenuAnchorEl(null);
+    setSelectedTeacherForMenu(null);
+  };
+
+  const handleEditMenuItemClick = () => {
+    if (selectedTeacherForMenu) {
+      handleEditClick(selectedTeacherForMenu);
+    }
+    handleMenuClose();
+  };
+
+  const handleReplaceMenuItemClick = () => {
+    if (selectedTeacherForMenu) {
+      handleReplaceClick(selectedTeacherForMenu);
+    }
+    handleMenuClose();
   };
 
   const handleOneTeacherPerStudent = async (
@@ -233,7 +287,12 @@ const TeacherLunchTimesTable: React.FC<TeacherLunchTimesTableProps> = ({
                   </Typography>
                 </TableCell>
                 <TableCell
-                  sx={{ borderRight: 1, borderColor: "divider", width: "17%", textAlign: "center" }}
+                  sx={{
+                    borderRight: 1,
+                    borderColor: "divider",
+                    width: "17%",
+                    textAlign: "center",
+                  }}
                 >
                   <Typography variant="body2">
                     {getLunchTime(teacher.id, DayOfWeek.TUESDAY)}
@@ -243,7 +302,12 @@ const TeacherLunchTimesTable: React.FC<TeacherLunchTimesTableProps> = ({
                   </Typography>
                 </TableCell>
                 <TableCell
-                  sx={{ borderRight: 1, borderColor: "divider", width: "17%", textAlign: "center" }}
+                  sx={{
+                    borderRight: 1,
+                    borderColor: "divider",
+                    width: "17%",
+                    textAlign: "center",
+                  }}
                 >
                   <Typography variant="body2">
                     {getLunchTime(teacher.id, DayOfWeek.WEDNESDAY)}
@@ -253,7 +317,12 @@ const TeacherLunchTimesTable: React.FC<TeacherLunchTimesTableProps> = ({
                   </Typography>
                 </TableCell>
                 <TableCell
-                  sx={{ borderRight: 1, borderColor: "divider", width: "17%", textAlign: "center" }}
+                  sx={{
+                    borderRight: 1,
+                    borderColor: "divider",
+                    width: "17%",
+                    textAlign: "center",
+                  }}
                 >
                   <Typography variant="body2">
                     {getLunchTime(teacher.id, DayOfWeek.THURSDAY)}
@@ -263,7 +332,12 @@ const TeacherLunchTimesTable: React.FC<TeacherLunchTimesTableProps> = ({
                   </Typography>
                 </TableCell>
                 <TableCell
-                  sx={{ borderRight: 1, borderColor: "divider", width: "17%", textAlign: "center" }}
+                  sx={{
+                    borderRight: 1,
+                    borderColor: "divider",
+                    width: "17%",
+                    textAlign: "center",
+                  }}
                 >
                   <Typography variant="body2">
                     {getLunchTime(teacher.id, DayOfWeek.FRIDAY)}
@@ -273,13 +347,13 @@ const TeacherLunchTimesTable: React.FC<TeacherLunchTimesTableProps> = ({
                   </Typography>
                 </TableCell>
                 <TableCell sx={{ width: "5%" }}>
-                  <Tooltip title="Edit lunch times">
+                  <Tooltip title="More options">
                     <IconButton
-                      onClick={() => handleEditClick(teacher.id)}
+                      onClick={(event) => handleMenuClick(event, teacher.id)}
                       color="primary"
                       size="small"
                     >
-                      <EditIcon />
+                      <MoreVertIcon />
                     </IconButton>
                   </Tooltip>
                 </TableCell>
@@ -289,13 +363,48 @@ const TeacherLunchTimesTable: React.FC<TeacherLunchTimesTableProps> = ({
         </Table>
       </TableContainer>
 
-      {selectedTeacher && (
+      {selectedTeacher && teacherAction === "edit" && (
         <TeacherLunchTimesDialog
           schoolYear={schoolYear}
           teacher={teachers.find((t) => t.id === selectedTeacher)!}
           onClose={handleDialogClose}
         />
       )}
+
+      {selectedTeacher && teacherAction === "replace" && (
+        <ReplaceTeacherDialog
+          schoolYear={schoolYear}
+          teacher={teachers.find((t) => t.id === selectedTeacher)!}
+          onClose={handleDialogClose}
+        />
+      )}
+
+      <Menu
+        anchorEl={menuAnchorEl}
+        open={Boolean(menuAnchorEl)}
+        onClose={handleMenuClose}
+        anchorOrigin={{
+          vertical: "bottom",
+          horizontal: "right",
+        }}
+        transformOrigin={{
+          vertical: "top",
+          horizontal: "right",
+        }}
+      >
+        <MenuItem onClick={handleEditMenuItemClick}>
+          <ListItemIcon>
+            <EditIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Edit Classroom Schedule</ListItemText>
+        </MenuItem>
+        <MenuItem onClick={handleReplaceMenuItemClick}>
+          <ListItemIcon>
+            <SwapHorizIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Replace Classroom Teacher</ListItemText>
+        </MenuItem>
+      </Menu>
     </Stack>
   );
 };

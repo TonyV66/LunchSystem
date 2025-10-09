@@ -16,6 +16,7 @@ import { OrderEntity } from "../entity/OrderEntity";
 import { getAdminSession, SessionInfo } from "./SessionRouter";
 import { Not, LessThan, In, IsNull } from "typeorm";
 import StudentEntity from "../entity/StudentEntity";
+import StudentLunchTimeEntity from "../entity/StudentLunchTimeEntity";
 
 const SchoolYearRouter: Router = express.Router();
 
@@ -46,9 +47,7 @@ SchoolYearRouter.post<{}, SchoolYear | string, SchoolYear, {}>(
         .loadMany();
 
     const overlappingSchoolYear: SchoolYearEntity | undefined =
-      existingSchoolYears.find(
-        (esy) => startDate === esy.startDate
-      );
+      existingSchoolYears.find((esy) => startDate === esy.startDate);
 
     if (overlappingSchoolYear) {
       res.status(400).send("Duplicate school year start dates");
@@ -169,7 +168,9 @@ SchoolYearRouter.post<
 
     for (const dlt of req.body) {
       const newTimes = dlt.times.sort().join("|");
-      const newGrades = (dlt as any).grades ? (dlt as any).grades.join("|") : "";
+      const newGrades = (dlt as any).grades
+        ? (dlt as any).grades.join("|")
+        : "";
       const dailyTimes = schoolYear.teacherLunchTimes.find(
         (lt) => lt.dayOfWeek === dlt.dayOfWeek && lt.teacher.id === teacher.id
       );
@@ -191,6 +192,82 @@ SchoolYearRouter.post<
         });
       }
     }
+
+    res.sendStatus(200);
+  }
+);
+
+SchoolYearRouter.post<
+  { schoolYearId: string; teacherId: string; newTeacherId: string },
+  {},
+  DailyLunchTimes[],
+  {}
+>(
+  "/:schoolYearId/teacher/:teacherId/replacewith/:newTeacherId",
+  authorizeRequest,
+  async (req, res) => {
+    const schoolYearRepository = AppDataSource.getRepository(SchoolYearEntity);
+    const teacherLunchTimeRepository = AppDataSource.getRepository(
+      TeacherLunchTimeEntity
+    );
+    const userRepository = AppDataSource.getRepository(UserEntity);
+
+    let schoolYear = await schoolYearRepository.findOne({
+      where: { id: parseInt(req.params.schoolYearId) },
+      relations: {
+        teacherLunchTimes: { teacher: true }
+      },
+    });
+
+    if (!schoolYear) {
+      res.status(401).send("School year not found");
+      return;
+    }
+
+    const teacher = await userRepository.findOne({
+      where: { id: parseInt(req.params.teacherId) },
+    });
+
+    if (!teacher) {
+      res.status(401).send("Teacher not found");
+      return;
+    }
+
+    const newTeacher = await userRepository.findOne({
+      where: { id: parseInt(req.params.newTeacherId) },
+    });
+
+    if (!newTeacher) {
+      res.status(401).send("New teacher not found");
+      return;
+    }
+
+    if (
+      schoolYear.teacherLunchTimes.some(
+        (tlt) => tlt.teacher.id === newTeacher.id
+      )
+    ) {
+      res.status(401).send("New teacher already has lunch times");
+      return;
+    }
+
+    await teacherLunchTimeRepository.update(
+      { 
+        teacher: { id: teacher.id },
+        schoolYear: { id: schoolYear.id }
+      },
+      { teacher: newTeacher }
+    );
+
+    const studentLunchTimeRepository = AppDataSource.getRepository(StudentLunchTimeEntity);
+    
+    await studentLunchTimeRepository.update(
+      {
+        lunchtimeTeacher: { id: teacher.id },
+        schoolYear: { id: schoolYear.id },
+      },
+      { lunchtimeTeacher: newTeacher }
+    );
 
     res.sendStatus(200);
   }
@@ -415,8 +492,8 @@ SchoolYearRouter.put<{ schoolYearId: string }, SessionInfo | string, {}, {}>(
       const staffUsers = await userRepository.find({
         where: {
           school: { id: req.user.school.id },
-          role: Not(Role.PARENT)
-        }
+          role: Not(Role.PARENT),
+        },
       });
 
       // Add all staff users to the school year
@@ -472,7 +549,10 @@ SchoolYearRouter.put<{ schoolYearId: string }, SessionInfo | string, {}, {}>(
 );
 
 // Helper function to clean up unused user accounts
-async function cleanupUnusedUserAccounts(schoolId: number, currentSchoolYearStartDate: string) {
+async function cleanupUnusedUserAccounts(
+  schoolId: number,
+  currentSchoolYearStartDate: string
+) {
   const userRepository = AppDataSource.getRepository(UserEntity);
   const studentRepository = AppDataSource.getRepository(StudentEntity);
   const orderRepository = AppDataSource.getRepository(OrderEntity);
@@ -482,17 +562,20 @@ async function cleanupUnusedUserAccounts(schoolId: number, currentSchoolYearStar
     where: {
       school: { id: schoolId },
       role: Role.PARENT,
-      lastLoginDate: IsNull()
+      lastLoginDate: IsNull(),
     },
     relations: {
       students: true,
-      schoolYears: true
-    }
+      schoolYears: true,
+    },
   });
 
   // Filter out users from the current school year
-  const usersFromPreviousYears = unusedUsers.filter(user => 
-    !user.schoolYears.some(sy => sy.startDate >= currentSchoolYearStartDate) && user.role === Role.PARENT
+  const usersFromPreviousYears = unusedUsers.filter(
+    (user) =>
+      !user.schoolYears.some(
+        (sy) => sy.startDate >= currentSchoolYearStartDate
+      ) && user.role === Role.PARENT
   );
 
   for (const user of usersFromPreviousYears) {
@@ -504,16 +587,16 @@ async function cleanupUnusedUserAccounts(schoolId: number, currentSchoolYearStar
       const studentMeals = await orderRepository.find({
         where: {
           meals: {
-            student: { id: student.id }
-          }
-        }
+            student: { id: student.id },
+          },
+        },
       });
 
       if (studentMeals.length > 0) {
         // Student has purchased meals, check if user is the only parent
         const studentWithParents = await studentRepository.findOne({
           where: { id: student.id },
-          relations: { parents: true }
+          relations: { parents: true },
         });
 
         if (studentWithParents && studentWithParents.parents.length === 1) {
@@ -530,9 +613,9 @@ async function cleanupUnusedUserAccounts(schoolId: number, currentSchoolYearStar
         const studentMeals = await orderRepository.find({
           where: {
             meals: {
-              student: { id: student.id }
-            }
-          }
+              student: { id: student.id },
+            },
+          },
         });
 
         if (studentMeals.length === 0) {
@@ -541,7 +624,7 @@ async function cleanupUnusedUserAccounts(schoolId: number, currentSchoolYearStar
             .relation(UserEntity, "students")
             .of(user)
             .remove(student);
-          
+
           // Delete the student
           await studentRepository.remove(student);
         }

@@ -309,7 +309,7 @@ interface ReportProps {
 const getMealsBeingServed = (orders: Order[], date: string) => {
   return orders
     .flatMap((order) => order.meals)
-    .filter((meal) => meal.date === date);
+    .filter((meal) => !meal.cancelled && meal.date === date);
 };
 
 const getStudentsBeingServed = (meals: Meal[], students: Student[]) => {

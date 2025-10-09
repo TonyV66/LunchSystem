@@ -42,6 +42,7 @@ const EditUserDialog: React.FC<DialogProps> = ({ user, onClose }) => {
   const [email, setEmail] = useState(user?.email ?? "");
   const [properName, setProperName] = useState(user?.name ?? "");
   const [shouldSendInvitation, setShouldSendInvitation] = useState(!user);
+  const [availableCredits, setAvailableCredits] = useState(loggedInUser?.availableCredits.toFixed(2) ?? '0.00');
 
   const handleRoleChanged = (roleName: string) => {
     setRole(roleName);
@@ -84,6 +85,7 @@ const EditUserDialog: React.FC<DialogProps> = ({ user, onClose }) => {
       pwd: "",
       role: parseInt(role),
       description: "",
+      availableCredits: parseFloat(availableCredits),
     };
 
     try {
@@ -180,6 +182,20 @@ const EditUserDialog: React.FC<DialogProps> = ({ user, onClose }) => {
                 ))}
             </Select>
           </FormControl>
+          {user && (
+            <TextField
+              fullWidth
+              label="Available Credits"
+              variant="standard"
+              value={availableCredits}
+              onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
+                setAvailableCredits(event.target.value);
+              }}
+              disabled={loggedInUser?.role !== Role.ADMIN}
+              type="number"
+              inputProps={{ step: "0.01", min: "0" }}
+            />
+          )}
           {role === Role.TEACHER.toString() && (
             <TextField
               fullWidth

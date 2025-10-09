@@ -4,12 +4,7 @@ import {
   Button,
   Checkbox,
   FormControlLabel,
-  List,
-  ListItem,
-  ListItemButton,
-  ListItemIcon,
-  ListItemText,
-  Radio,
+  Stack,
   Typography,
 } from "@mui/material";
 import { useNavigate } from "react-router-dom";
@@ -17,189 +12,19 @@ import { CALENDAR_URL, MEALS_URL } from "../../MainAppPanel";
 import { useContext, useEffect, useState } from "react";
 import { AppContext } from "../../AppContextProvider";
 import { checkout, getSavedCards } from "../../api/CafeteriaClient";
-import {
-  CreditCard,
-  GiftCard,
-  PaymentForm,
-} from "react-square-web-payments-sdk";
 import { CreditCard as SavedCreditCard } from "../../models/CreditCard";
 import { GiftCard as SavedGiftCard } from "../../models/GiftCard";
 import ShoppingCartTable from "./ShoppingCartTable";
+import CheckoutForm from "./CheckoutForm";
 import { AxiosError } from "axios";
-import { grey } from "@mui/material/colors";
 import ConfirmDialog from "../ConfirmDialog";
 import { Role } from "../../models/User";
-
-const PaymentOptions: React.FC<{
-  onCardSelected: (selectedCard: string) => void;
-  onSendEmail?: (save: boolean) => void;
-  sendEmail: boolean;
-  selectedCard: string;
-  savedGiftCards: SavedGiftCard[];
-  savedCreditCards: SavedCreditCard[];
-}> = ({
-  onCardSelected,
-  onSendEmail,
-  sendEmail,
-  selectedCard,
-  savedCreditCards,
-  savedGiftCards,
-}) => {
-  const { user } = useContext(AppContext);
-
-  return (
-    <Box sx={{ display: "flex", flexDirection: "column" }}>
-      <Typography fontWeight="bold" variant="body1">
-        Payment Method
-      </Typography>
-
-      <List
-        dense={true}
-        sx={{
-          flexGrow: 1,
-          bgcolor: "background.paper",
-          borderWidth: 1,
-          borderColor: grey[300],
-          borderStyle: "solid",
-        }}
-      >
-        {savedCreditCards.map((cc) => (
-          <ListItem key={cc.id} disablePadding>
-            <ListItemButton
-              role={undefined}
-              onClick={() => onCardSelected(cc.id)}
-            >
-              <ListItemIcon sx={{ minWidth: "0px" }}>
-                <Radio
-                  sx={{
-                    paddingLeft: "0px",
-                    paddingTop: "0px",
-                    paddingBottom: "0px",
-                  }}
-                  size="small"
-                  checked={selectedCard === cc.id}
-                  tabIndex={-1}
-                  disableRipple
-                  inputProps={{ "aria-labelledby": "creditCardLabel" }}
-                />
-              </ListItemIcon>
-              <ListItemText
-                id="creditCardLabel"
-                primary={
-                  cc.cardBrand +
-                  " ..." +
-                  cc.last4 +
-                  " (exp. " +
-                  cc.expMonth +
-                  "/" +
-                  cc.expYear +
-                  ")"
-                }
-              />
-            </ListItemButton>
-          </ListItem>
-        ))}
-        <ListItem disablePadding>
-          <ListItemButton
-            role={undefined}
-            onClick={() => onCardSelected("creditcard")}
-          >
-            <ListItemIcon sx={{ minWidth: "0px" }}>
-              <Radio
-                sx={{
-                  paddingLeft: "0px",
-                  paddingTop: "0px",
-                  paddingBottom: "0px",
-                }}
-                size="small"
-                checked={selectedCard === "creditcard"}
-                tabIndex={-1}
-                disableRipple
-                inputProps={{ "aria-labelledby": "creditCardLabel" }}
-              />
-            </ListItemIcon>
-            <ListItemText
-              id="creditCardLabel"
-              primary={
-                savedCreditCards.length ? "Other Credit Card" : "Credit Card"
-              }
-            />
-          </ListItemButton>
-        </ListItem>
-        <ListItem disablePadding>
-          <ListItemButton
-            role={undefined}
-            onClick={() => onCardSelected("giftcard")}
-          >
-            <ListItemIcon sx={{ minWidth: "0px" }}>
-              <Radio
-                sx={{
-                  paddingLeft: "0px",
-                  paddingTop: "0px",
-                  paddingBottom: "0px",
-                }}
-                size="small"
-                checked={selectedCard === "giftcard"}
-                tabIndex={-1}
-                disableRipple
-                inputProps={{ "aria-labelledby": "giftCardLabel" }}
-              />
-            </ListItemIcon>
-            <ListItemText
-              id="giftCardLabel"
-              primary={savedGiftCards.length ? "Other Gift Card" : "Gift Card"}
-            />
-          </ListItemButton>
-        </ListItem>
-        {user.role === Role.ADMIN && (
-          <ListItem disablePadding>
-            <ListItemButton
-              role={undefined}
-              onClick={() => onCardSelected("donate")}
-            >
-              <ListItemIcon sx={{ minWidth: "0px" }}>
-                <Radio
-                  sx={{
-                    paddingLeft: "0px",
-                    paddingTop: "0px",
-                    paddingBottom: "0px",
-                  }}
-                  size="small"
-                  checked={selectedCard === "donate"}
-                  tabIndex={-1}
-                  disableRipple
-                  inputProps={{ "aria-labelledby": "donateLabel" }}
-                />
-              </ListItemIcon>
-              <ListItemText id="donateLabel" primary="Free Meal" />
-            </ListItemButton>
-          </ListItem>
-        )}
-      </List>
-      {onSendEmail ? (
-        <FormControlLabel
-          sx={{ mt: 1 }}
-          label={<Typography variant="subtitle2">Email Receipt</Typography>}
-          control={
-            <Checkbox
-              sx={{ p: 0, pr: 1, pl: 1 }}
-              checked={sendEmail}
-              onChange={() => onSendEmail(!sendEmail)}
-              size="small"
-            />
-          }
-        />
-      ) : (
-        <></>
-      )}
-    </Box>
-  );
-};
 
 const ShoppingCartPage: React.FC = () => {
   const {
     shoppingCart,
     user,
+    setUser,
     orders,
     setOrders,
     school,
@@ -209,8 +34,13 @@ const ShoppingCartPage: React.FC = () => {
     students,
   } = useContext(AppContext);
 
-  const [selectedCard, setSelectedCard] = useState("creditcard");
+  type PaymentMethod = "creditcard" | "giftcard" | "donate";
+
+  const [paymentMethod, setPaymentMethod] =
+    useState<PaymentMethod>("creditcard");
+  const [useCredits, setUseCredits] = useState(false);
   const [showThankYou, setShowThankYou] = useState(false);
+  // const [useCredits, setUseCredits] = useState(false);
   const [saveCard, setSaveCard] = useState(false);
   const [sendEmail, setSendEmail] = useState(false);
   const [savedCreditCards, setSavedCreditCards] = useState<SavedCreditCard[]>(
@@ -261,10 +91,15 @@ const ShoppingCartPage: React.FC = () => {
   const handleCheckout = async (paymentToken: string) => {
     try {
       const completedOrder = await checkout(
+        useCredits,
         paymentToken,
         shoppingCart,
         saveCard
       );
+
+      if (useCredits) {
+        setUser({...user, availableCredits: Math.max(0, user.availableCredits - completedOrder.appliedCredits)});
+      }
 
       setOrders(orders.concat(completedOrder));
       setShowThankYou(true);
@@ -289,15 +124,31 @@ const ShoppingCartPage: React.FC = () => {
     if (paymentMethod !== "giftcard" && paymentMethod !== "creditcard") {
       setSaveCard(false);
     }
-    setSelectedCard(paymentMethod);
+    setPaymentMethod(paymentMethod as PaymentMethod);
   };
 
-  const total = shoppingCart.items
+  const handleDonationChange = (checked: boolean) => {
+    if (checked) {
+      setPaymentMethod("donate");
+      setSaveCard(false);
+    } else {
+      setPaymentMethod("creditcard");
+    }
+  };
+
+  const handleUseCreditsChange = (checked: boolean) => {
+    setUseCredits(checked);
+  };
+
+  let total = shoppingCart.items
     .map((item) => {
       const menu = scheduledMenus.find((menu) => menu.id == item.dailyMenuId)!;
       return item.isDrinkOnly ? menu.drinkOnlyPrice : menu.price;
     })
     .reduce((p1, p2) => p1 + p2, 0);
+  if (useCredits) {
+    total = Math.max(0, total - user.availableCredits);
+  }
 
   return (
     <Box
@@ -309,109 +160,82 @@ const ShoppingCartPage: React.FC = () => {
         gap: 2,
       }}
     >
-      <ShoppingCartTable hidePrice={selectedCard === "donate"} editable={true}></ShoppingCartTable>
-      {selectedCard === "giftcard" || selectedCard === "creditcard" ? (
-        <Box
-          sx={{
-            display: "flex",
-            flexDirection: "row",
-            flexWrap: "wrap",
-            justifyContent: "center",
-            gap: 2,
-          }}
-        >
-          <PaymentOptions
+      <ShoppingCartTable
+        hidePrice={paymentMethod === "donate"}
+        editable={true}
+      ></ShoppingCartTable>
+
+      <Stack direction="column" gap={4} alignItems="center">
+        <Stack>
+          {user.role === Role.ADMIN && (
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={paymentMethod === "donate"}
+                  onChange={(e) => handleDonationChange(e.target.checked)}
+                  color="primary"
+                />
+              }
+              label={
+                <Typography variant="body2" color="text.secondary">
+                  This meal is being donated
+                </Typography>
+              }
+            />
+          )}
+
+          {user.availableCredits > 0 && (
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={useCredits}
+                  disabled={paymentMethod === "donate"}
+                  onChange={(e) => handleUseCreditsChange(e.target.checked)}
+                  color="primary"
+                />
+              }
+              label={
+                <Typography variant="body2" color="text.secondary">
+                  Use my credits (Avail.: ${user.availableCredits.toFixed(2)})
+                </Typography>
+              }
+            />
+          )}
+        </Stack>
+
+        {paymentMethod === "donate" || total === 0 ? (
+          <Button
+            variant="contained"
+            onClick={() => handleCheckout(paymentMethod)}
+          >
+            Submit Order
+          </Button>
+        ) : (
+          <CheckoutForm
+            school={school}
+            user={user}
+            selectedCard={paymentMethod}
+            total={total}
+            saveCard={saveCard}
             sendEmail={sendEmail}
-            onSendEmail={user.email?.length ? setSendEmail : undefined}
-            onCardSelected={handlePaymentChanged}
             savedCreditCards={savedCreditCards}
             savedGiftCards={savedGiftCards}
-            selectedCard={selectedCard}
-          />
-
-          <Box>
-            <Box>
-              <Typography fontWeight="bold" variant="body1">
-                Total: ${total.toFixed(2)}
-              </Typography>
-              <PaymentForm
-                applicationId={school.squareAppId}
-                locationId={school.squareLocationId}
-                cardTokenizeResponseReceived={(tokenResult, buyer) => {
-                  if (tokenResult.status !== "OK") {
-                    console.log("Tokenization failed");
-                  } else {
-                    console.log(buyer);
-                    handleCheckout(tokenResult.token!);
-                  }
-                }}
-              >
-                {selectedCard === "giftcard" ? <GiftCard /> : <CreditCard />}
-              </PaymentForm>
-              {user.firstName &&
-              user.firstName.length &&
-              user.lastName &&
-              user.lastName.length &&
-              user.email &&
-              user.email.length ? (
-                <FormControlLabel
-                  sx={{ mt: 1 }}
-                  label={
-                    <Typography variant="subtitle2">
-                      Save Card For Future Use
-                    </Typography>
-                  }
-                  control={
-                    <Checkbox
-                      sx={{ p: 0, pr: 1, pl: 1 }}
-                      disabled={
-                        selectedCard != "creditcard" &&
-                        selectedCard != "giftcard"
-                      }
-                      checked={saveCard}
-                      onChange={() => setSaveCard(!saveCard)}
-                      size="small"
-                    />
-                  }
-                />
-              ) : (
-                <></>
-              )}
-            </Box>
-          </Box>
-        </Box>
-      ) : (
-        <Box
-          sx={{
-            display: "flex",
-            flexDirection: "row",
-            justifyContent: "center",
-          }}
-        >
-          <Box
-            sx={{
-              display: "inline-flex",
-              flexDirection: "column",
-              gap: 2,
+            onCardSelected={handlePaymentChanged}
+            onSaveCardChange={setSaveCard}
+            onSendEmailChange={user.email?.length ? setSendEmail : undefined}
+            onTokenReceived={(tokenResult, buyer) => {
+              const result = tokenResult as { status: string; token?: string };
+              if (result.status !== "OK") {
+                console.log("Tokenization failed");
+              } else {
+                console.log(buyer);
+                handleCheckout(result.token!);
+              }
             }}
-          >
-            <PaymentOptions
-              sendEmail={sendEmail}
-              onSendEmail={user.email?.length ? setSendEmail : undefined}
-              onCardSelected={handlePaymentChanged}
-              savedCreditCards={savedCreditCards}
-              savedGiftCards={savedGiftCards}
-              selectedCard={selectedCard}
-            />
-            <Button
-              variant="contained"
-              onClick={() => handleCheckout(selectedCard)}
-            >
-              Pay ${total.toFixed(2)}
-            </Button>
-          </Box>
-        </Box>
-      )}
+          />
+        )}
+      </Stack>
+
       {showThankYou && (
         <ConfirmDialog
           open={true}

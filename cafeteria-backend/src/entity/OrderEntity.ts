@@ -40,6 +40,14 @@ export class OrderEntity {
     transformer: new DecimalTransformer(),
   })
   otherFees: number;
+  @Column({
+    type: "decimal",
+    precision: 5,
+    scale: 2,
+    default: 0.0,
+    transformer: new DecimalTransformer(),
+  })
+  appliedCredits: number;
   @Column()
   lastMealDate: string;
   @OneToMany(() => MealEntity, (meal) => meal.order, { cascade: true })

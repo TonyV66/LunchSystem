@@ -135,7 +135,7 @@ const PrincipalMealButtons: React.FC<PrincipalMealButtonProps> = ({
 
   const hasOrderedMeals = orders
     .flatMap((order) => order.meals)
-    .find((meal) => meal.date === dateStr)
+    .find((meal) => !meal.cancelled && meal.date === dateStr)
     ? true
     : false;
 
@@ -327,7 +327,7 @@ const AdminMealButtons: React.FC<AdminMealButtonProps> = ({
 
   const hasOrderedMeals = orders
     .flatMap((order) => order.meals)
-    .find((meal) => meal.date === dateStr)
+    .find((meal) => !meal.cancelled && meal.date === dateStr)
     ? true
     : false;
 
@@ -717,7 +717,7 @@ const TeacherMealButtons: React.FC<CafeteriaMealButtonProps> = ({
     .flatMap((order) => order.meals)
     .find(
       (meal) =>
-        meal.date === date &&
+        !meal.cancelled && meal.date === date &&
         (!meal.studentId || studentIds.includes(meal.studentId))
     )
     ? true
@@ -727,7 +727,7 @@ const TeacherMealButtons: React.FC<CafeteriaMealButtonProps> = ({
     .flatMap((order) => order.meals)
     .find(
       (meal) =>
-        meal.date === date &&
+        !meal.cancelled && meal.date === date &&
         (!meal.studentId || childrenIds.includes(meal.studentId))
     )
     ? true
@@ -843,7 +843,7 @@ const CafeteriaMealButtons: React.FC<CafeteriaMealButtonProps> = ({
 
   const hasOrderedMeals = orders
     .flatMap((order) => order.meals)
-    .find((meal) => meal.date === date)
+    .find((meal) => !meal.cancelled && meal.date === date)
     ? true
     : false;
 
@@ -896,7 +896,7 @@ const ParentMealButtons: React.FC<ParentMealButtonProps> = ({ menuOrDate }) => {
   const today = DateTimeUtils.toString(new Date());
   const hasOrderedMeals = orders
     .flatMap((order) => order.meals)
-    .find((meal) => meal.date === date)
+    .find((meal) => !meal.cancelled && meal.date === date)
     ? true
     : false;
 

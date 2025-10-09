@@ -22,6 +22,7 @@ export default class User {
   description: string;
   role: Role;
   pending: boolean;
+  availableCredits: number;
   notificationReviewDate: Date;
   resetPwd: boolean;
   forgotPwdUri: string | null;
@@ -39,6 +40,7 @@ export default class User {
     this.description = entity.description;
     this.role = entity.role;
     this.pending = entity.pending;
+    this.availableCredits = entity.availableCredits;
     this.notificationReviewDate = entity.notificationReviewDate;
     this.resetPwd = entity.resetPwd;
     this.forgotPwdUri = entity.forgotPwdUri;

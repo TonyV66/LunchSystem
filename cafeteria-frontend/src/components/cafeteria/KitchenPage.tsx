@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import {
   Box,
   Button,
+  Divider,
   IconButton,
   ListItemIcon,
   ListItemText,
@@ -81,7 +82,11 @@ const KitchenPage: React.FC = () => {
 
   // Find current date index
   const currentDate = date || DateTimeUtils.toString(new Date());
-  const currentIndex = scheduledDates.indexOf(currentDate);
+  const currentIndex = scheduledDates.findIndex((date) => date >= currentDate);
+
+  if (!date && currentIndex >= 0) {
+    navigate(`${KITCHEN_URL}/${scheduledDates[currentIndex]}`);
+  }
 
   // Get previous and next dates
   const previousDate =
@@ -111,7 +116,7 @@ const KitchenPage: React.FC = () => {
   }, []);
 
   return (
-    <Box>
+    <Stack sx={{ height: "100%" }}>
       <Stack pl={2} pr={2} direction="row" alignItems="center">
         <Stack
           flexGrow={1}
@@ -164,21 +169,19 @@ const KitchenPage: React.FC = () => {
             <Print />
           </IconButton>
           <Tooltip title={user.userName}>
-            <IconButton
-              onClick={handleClick}
-              size="large"
-              color="primary"
-            >
+            <IconButton onClick={handleClick} size="large" color="primary">
               <AccountCircle />
             </IconButton>
           </Tooltip>
         </Stack>
       </Stack>
-
-      <CafeteriaReport
-        date={date || DateTimeUtils.toString(new Date())}
-        large={true}
-      />
+      <Divider />
+      <Box sx={{ flexGrow: 1, overflow: "auto" }}>
+        <CafeteriaReport
+          date={date || DateTimeUtils.toString(new Date())}
+          large={true}
+        />
+      </Box>
       <Box display="none">
         <Box ref={reportRef}>
           <PrintableCafeteriaReport
@@ -213,7 +216,7 @@ const KitchenPage: React.FC = () => {
           <ListItemText>Logout</ListItemText>
         </MenuItem>
       </Menu>
-    </Box>
+    </Stack>
   );
 };
 

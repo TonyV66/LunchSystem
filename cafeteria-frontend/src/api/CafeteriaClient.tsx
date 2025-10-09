@@ -84,6 +84,20 @@ export const saveTeacherLunchTimes = async (
   return response.data;
 };
 
+export const replaceTeacher = async (schoolYearId: number, teacherId: number, newTeacherId: number) => {
+  const response: AxiosResponse<Student> = await http.post(
+    API_BASE_URL +
+      "/schoolyear/" +
+      schoolYearId +
+      "/teacher/" +
+      teacherId +
+      "/replacewith/" +
+      newTeacherId,
+  );
+  return response.data;
+};
+
+
 export const acceptInvitation = async (invitationId: string) => {
   const response: AxiosResponse<Student[]> = await http.put(
     API_BASE_URL + "/user/accept/" + invitationId
@@ -171,21 +185,30 @@ export const getSavedCards = async () => {
 };
 
 export const checkout = async (
+  useCredits: boolean,
   cardId: string,
   shoppingCart: ShoppingCart,
   saveCard: boolean
 ) => {
   const response: AxiosResponse<Order> = await http.post(
     API_BASE_URL + "/order",
-    { cardId, shoppingCart, saveCard }
+    { cardId, shoppingCart, saveCard, useCredits }
   );
   return response.data;
 };
 
-export const donate = async (shoppingCart: ShoppingCart) => {
-  const response: AxiosResponse<Order> = await http.post(
-    API_BASE_URL + "/order/donate",
-    shoppingCart
+export const cancelOrder = async (orderId: number, issueCredits: boolean) => {
+  const response: AxiosResponse<{order: Order, availableCredits: number}> = await http.put(
+    API_BASE_URL + `/order/${orderId}/cancel`,
+    { issueCredits }
+  );
+  return response.data;
+};
+
+export const cancelMeal = async (mealId: number, issueCredits: boolean) => {
+  const response: AxiosResponse<{order: Order, availableCredits: number}> = await http.put(
+    API_BASE_URL + `/meal/${mealId}/cancel`,
+    { issueCredits }
   );
   return response.data;
 };

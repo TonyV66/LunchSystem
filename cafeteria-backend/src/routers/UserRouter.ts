@@ -302,6 +302,10 @@ UserRouter.put<Empty, User | string, User, Empty>(
       ...req.body,
       firstName: req.body.firstName,
       lastName: req.body.lastName,
+      availableCredits:
+        req.user.role === Role.ADMIN
+          ? req.body.availableCredits
+          : user.availableCredits,
       name: req.body.name,
       email: req.body.email.toLowerCase(),
     };

@@ -71,6 +71,7 @@ export const getTeacherLunchtime = (
       .flatMap((order) => order.meals)
       .filter(
         (meal: Meal) =>
+          !meal.cancelled &&
           meal.date === date &&
           (meal.time === time ||
             getTeacherLunchtime(
@@ -102,6 +103,7 @@ export const getTeacherLunchtime = (
       .flatMap((order) => order.meals)
       .filter(
         (meal) =>
+          !meal.cancelled &&
           meal.date === date &&
           !lunchTimes.includes(meal.time) &&
           !lunchTimes.includes(meal.studentId ? 

@@ -323,7 +323,7 @@ interface DialogProps {
 const getMealsBeingServed = (orders: Order[], date: string) => {
   return orders
     .flatMap((order) => order.meals)
-    .filter((meal) => meal.date === date);
+    .filter((meal) => !meal.cancelled && meal.date === date);
 };
 
 const getStudentsBeingServed = (meals: Meal[], students: Student[]) => {
@@ -626,40 +626,45 @@ const MealReportDialog: React.FC<DialogProps> = ({
             DateTimeUtils.toString(date, DateTimeFormat.SHORT_DAY_OF_WEEK_DESC)}
       </DialogTitle>
       <DialogContent>
-        <Box p={2} overflow="visible">
-          {teacherId ? (
-            <MealReport customers={reportData[0].customers} />
-          ) : (
-            <>
-              {reportData.map((report) => {
-                return (
-                  <Accordion elevation={3} key={report.title}>
-                    <AccordionSummary
-                      expandIcon={<ExpandMore />}
-                      aria-controls="panel1-content"
-                      id="panel1-header"
-                    >
-                      <Typography fontWeight="bold">
-                        {report.title}
-                        {report.time
-                          ? " @ " + DateTimeUtils.toTwelveHourTime(report.time)
-                          : ""}
-                      </Typography>
-                    </AccordionSummary>
-                    <AccordionDetails>
-                      <MealReport customers={report.customers} />
-                    </AccordionDetails>
-                  </Accordion>
-                );
-              })}
-            </>
-          )}
-        </Box>
+        {!reportData.length ? (
+          <Typography>No meals served on this day.</Typography>
+        ) : (
+          <Box p={2} overflow="visible">
+            {teacherId ? (
+              <MealReport customers={reportData[0].customers} />
+            ) : (
+              <>
+                {reportData.map((report) => {
+                  return (
+                    <Accordion elevation={3} key={report.title}>
+                      <AccordionSummary
+                        expandIcon={<ExpandMore />}
+                        aria-controls="panel1-content"
+                        id="panel1-header"
+                      >
+                        <Typography fontWeight="bold">
+                          {report.title}
+                          {report.time
+                            ? " @ " +
+                              DateTimeUtils.toTwelveHourTime(report.time)
+                            : ""}
+                        </Typography>
+                      </AccordionSummary>
+                      <AccordionDetails>
+                        <MealReport customers={report.customers} />
+                      </AccordionDetails>
+                    </Accordion>
+                  );
+                })}
+              </>
+            )}
+          </Box>
+        )}
       </DialogContent>
       <DialogActions>
-        <Button variant="contained" onClick={() => reactToPrintFn()}>
+        {reportData.length > 0 && <Button variant="contained" onClick={() => reactToPrintFn()}>
           Print
-        </Button>
+        </Button>}
         <Button variant="contained" onClick={onClose}>
           Close
         </Button>

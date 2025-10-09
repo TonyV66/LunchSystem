@@ -101,7 +101,7 @@ const StudentMealsTable: React.FC<StudentMealsTableProps> = ({
 
   const meals = orders
     .flatMap((order) => order.meals)
-    .filter((meal) => meal.date === date && meal.studentId === student.id);
+    .filter((meal) => !meal.cancelled && meal.date === date && meal.studentId === student.id);
   if (!meals.length) {
     return <></>;
   }
@@ -118,7 +118,7 @@ const StaffMealsTable: React.FC<StaffMealsTableProps> = ({
   const meals = orders
     .flatMap((order) => order.meals)
     .filter(
-      (meal) => meal.date === date && meal.staffMemberId === staffMember.id
+      (meal) => !meal.cancelled && meal.date === date && meal.staffMemberId === staffMember.id
     );
   if (!meals.length) {
     return <></>;
@@ -151,7 +151,7 @@ const DailyMealsDialog: React.FC<DialogProps> = ({ date, onClose, user }) => {
   
   const hasOrderedMeals = orders
     .flatMap((order) => order.meals)
-    .find((meal) => meal.date === date)
+    .find((meal) => !meal.cancelled && meal.date === date)
     ? true
     : false;
 

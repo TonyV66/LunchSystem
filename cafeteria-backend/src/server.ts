@@ -11,6 +11,7 @@ import MenuRouter from "./routers/MenuRouter";
 import DailyMenuRouter from "./routers/DailyMenuRouter";
 import StudentRouter from "./routers/StudentRouter";
 import OrderRouter from "./routers/OrderRouter";
+import MealRouter from "./routers/MealRouter";
 import SessionRouter from "./routers/SessionRouter";
 import SchoolRouter from "./routers/SchoolRouter";
 import LoginRouter from "./routers/LoginRouter";
@@ -49,6 +50,7 @@ AppDataSource.initialize()
     app.use("/api/dailymenu", authorizeRequest, DailyMenuRouter);
     app.use("/api/student", authorizeRequest, StudentRouter);
     app.use("/api/order", authorizeRequest, OrderRouter);
+    app.use("/api/meal", authorizeRequest, MealRouter);
     app.use("/api/session", authorizeRequest, SessionRouter);
     app.use("/api/school", authorizeRequest, SchoolRouter);
     app.use("/api/schoolyear", authorizeRequest, SchoolYearRouter);

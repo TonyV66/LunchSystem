@@ -8,4 +8,5 @@ export interface Order {
   taxes: number;
   processingFee: number;
   otherFees: number;
+  appliedCredits: number;
 }

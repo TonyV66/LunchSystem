@@ -8,6 +8,7 @@ export class Order {
   taxes: number;
   processingFee: number;
   otherFees: number;
+  appliedCredits: number;
   meals: Meal[];
 
   constructor(entity: OrderEntity) {
@@ -17,6 +18,7 @@ export class Order {
     this.taxes = entity.taxes;
     this.processingFee = entity.processingFee;
     this.otherFees = entity.otherFees;
+    this.appliedCredits = entity.appliedCredits;
     this.meals = entity.meals?.map(meal => new Meal(meal)) ?? [];
   }
 }

@@ -609,7 +609,7 @@ const StudentsTable: React.FC<StudentsTableProps> = ({
         <StudentMenu
           anchor={pulldownMenuAnchor!}
           onEdit={canEdit ? handleEditStudent : undefined}
-          onShowMeals={handleShowMeals}
+          onShowMeals={() => handleShowMeals()}
           onClose={handleCloseMenu}
         />
       ) : (

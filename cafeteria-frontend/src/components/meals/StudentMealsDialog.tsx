@@ -16,7 +16,6 @@ import OrderedMealsTable from "./OrderedMealsTable";
 import { TransitionProps } from "@mui/material/transitions";
 import Student from "../../models/Student";
 
-
 const Transition = React.forwardRef(function Transition(
   props: TransitionProps & {
     children: React.ReactElement<unknown>;
@@ -30,17 +29,22 @@ export const StudentMealsDialog: React.FC<{
   student: Student;
   onClose: () => void;
 }> = ({ student, onClose }) => {
-  const {orders} = useContext(AppContext);
+  const { orders } = useContext(AppContext);
+  
   const today = DateTimeUtils.toString(new Date());
   const order: Order = {
     id: 0,
     userId: 0,
+    appliedCredits: 0,
     date: today,
-    meals: orders.flatMap(order => order.meals).filter(meal => meal.date >= today && meal.studentId === student.id),
+    meals: orders
+      .flatMap((order) => order.meals)
+      .filter((meal) => meal.date >= today && meal.studentId === student.id),
     taxes: 0,
     processingFee: 0,
-    otherFees: 0
-  }
+    otherFees: 0,
+  };
+
   return (
     <Dialog
       open={true}
@@ -63,7 +67,13 @@ export const StudentMealsDialog: React.FC<{
           </Typography>
         </Toolbar>
       </AppBar>
-      {<OrderedMealsTable student={student} order={order} hidePrice={true}/>}
+      {
+        <OrderedMealsTable
+          student={student}
+          order={order}
+          hidePrice={true}
+        />
+      }
     </Dialog>
   );
 };

@@ -16,6 +16,7 @@ import TeacherLunchTimeEntity from "./TeacherLunchTimeEntity";
 import StudentLunchTimeEntity from "./StudentLunchTimeEntity";
 import SchoolYearEntity from "./SchoolYearEntity";
 import MealEntity from "./MealEntity";
+import { DecimalTransformer } from "./DecimalTransformer";
 
 @Entity("user")
 export default class UserEntity {
@@ -46,6 +47,14 @@ export default class UserEntity {
   role: Role;
   @Column({ nullable: true })
   paymentSysUserId: string;
+  @Column({
+    type: "decimal",
+    precision: 5,
+    scale: 2,
+    default: 0.0,
+    transformer: new DecimalTransformer(),
+  })
+  availableCredits: number;
   @Column({ default: "2024-01-01 00:00:00" })
   notificationReviewDate: Date;
   @Column({ default: false })
