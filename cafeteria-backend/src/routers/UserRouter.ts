@@ -90,6 +90,7 @@ UserRouter.post<Empty, Empty, InvitationRequest, Empty>(
       firstName: req.body.firstName,
       lastName: req.body.lastName,
       email: req.body.email.toLowerCase(),
+      availableCredits: 0,
       pwd: "",
       lunchTimes: [],
       role: req.body.role as Role,

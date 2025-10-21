@@ -80,14 +80,14 @@ export class EmailReportService {
               ? teacher.name
               : `${teacher.firstName} ${teacher.lastName}`;
           await sendClassroomReportEmail(
-            'angelorod65@gmail.com',
-            // teacher.email,
+            teacher.email,
             teacherName,
             DateTimeUtils.toString(dates[0]),
             DateTimeUtils.toString(dates[dates.length - 1]),
             `<html><body>${html}</body></html>`
           );
         } catch (error) {
+          console.error("Error in sendClassroomReportEmail:", error);
         }
       }
     } catch (error) {
@@ -168,13 +168,13 @@ export class EmailReportService {
             continue;
           }
           for (let i = 1; i <= 5; i++) {
-            dates.push(DateTimeUtils.addDays(startingDate, i).toString());
+            dates.push(DateTimeUtils.toString(DateTimeUtils.addDays(startingDate, i)));
           }
         } else {
           if (startingDate.getDay() === 0 || startingDate.getDay() === 6) {
             continue;
           }
-          dates.push(startingDate.toString());
+          dates.push(DateTimeUtils.toString(startingDate));
         }
 
         await this.sendClassroomReports(school, dates);
