@@ -25,6 +25,7 @@ export default class User {
   availableCredits: number;
   notificationReviewDate: Date;
   resetPwd: boolean;
+  surveyCompleted: boolean;
   forgotPwdUri: string | null;
   forgotPwdDate: Date;
 
@@ -43,6 +44,7 @@ export default class User {
     this.availableCredits = entity.availableCredits;
     this.notificationReviewDate = entity.notificationReviewDate;
     this.resetPwd = entity.resetPwd;
+    this.surveyCompleted = entity.surveyCompleted;
     this.forgotPwdUri = entity.forgotPwdUri;
     this.forgotPwdDate = entity.forgotPwdDate;
   }

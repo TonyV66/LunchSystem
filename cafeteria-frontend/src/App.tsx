@@ -38,6 +38,7 @@ import SchoolSettingsPage from "./components/settings/SchoolSettingsPage";
 import { Box, Stack, Typography } from "@mui/material";
 import PrincipalsCalendar from "./components/mealplan/PrincipalsCalendar";
 import KitchenPage from "./components/cafeteria/KitchenPage";
+import AdminSurveyPage from "./components/survey/AdminSurveyPage";
 
 const AppWrapper: React.FC<React.PropsWithChildren> = ({ children }) => {
   const location = useLocation();
@@ -141,6 +142,7 @@ const App: React.FC = () => {
         <Route path="year/:yearId/teachers" element={<SchoolYearTabsPanel />} />
         <Route path="year/:yearId/grades" element={<SchoolYearTabsPanel />} />
         <Route path="import-test" element={<UserImportTest />} />
+        <Route path="survey" element={<AdminSurveyPage />} />
       </>
     );
   };

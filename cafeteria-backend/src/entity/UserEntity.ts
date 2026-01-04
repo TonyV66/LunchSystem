@@ -59,6 +59,8 @@ export default class UserEntity {
   notificationReviewDate: Date;
   @Column({ default: false })
   resetPwd: boolean;
+  @Column({ nullable: false, default: false })
+  surveyCompleted: boolean;
   @Column({ nullable: true, type: String })
   forgotPwdUri: string | null;
   @Column({ nullable: true })

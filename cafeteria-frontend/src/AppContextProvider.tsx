@@ -19,6 +19,7 @@ import { Notification } from "./models/Notification";
 import School from "./models/School";
 import { ShoppingCart } from "./models/ShoppingCart";
 import SchoolYear, { NO_SCHOOL_YEAR } from "./models/SchoolYear";
+import { Survey } from "./models/Survey";
 
 export interface AppContextType extends SessionInfo {
   shoppingCart: ShoppingCart;
@@ -41,6 +42,7 @@ export interface AppContextType extends SessionInfo {
   setPantryItems: (pantryItems: PantryItem[]) => void;
   setNotifications: (notifications: Notification[]) => void;
   setSchool: (school: School) => void;
+  setSurvey: (survey: Survey | null) => void;
 }
 
 const DEFAULT_SYSTEM_DEFAULTS: School = {
@@ -96,6 +98,8 @@ export const INITIAL_APP_CONTEXT: AppContextType = {
   setPantryItems: () => {},
   setNotifications: () => {},
   setSchool: () => {},
+  setSurvey: () => {},
+  survey: null,
 };
 
 export const AppContext = createContext<AppContextType>(INITIAL_APP_CONTEXT);
@@ -135,6 +139,7 @@ const AppContextProvider: React.FC<React.PropsWithChildren> = (props) => {
   const [school, setSchool] = useState<School>(DEFAULT_SYSTEM_DEFAULTS);
   const [showLogoutWarning, setShowLogoutWarning] = useState<boolean>(false);
   const [inactivityTimeout, setInactivityTimeout] = useState<number>(30); // in minutes
+  const [survey, setSurvey] = useState<Survey | null>(null);
 
 
   // Auto-logout functionality
@@ -182,11 +187,12 @@ const AppContextProvider: React.FC<React.PropsWithChildren> = (props) => {
     setOrders([]);
     setMenus([]);
     setScheduledMenus([]);
-    setPantryItems([]);
-    setNotifications([]);
-    setSchoolYears([]);
-    setCurrentSchoolYear(NO_SCHOOL_YEAR);
-    setShoppingCart({ items: [] });
+        setPantryItems([]);
+        setNotifications([]);
+        setSchoolYears([]);
+        setCurrentSchoolYear(NO_SCHOOL_YEAR);
+        setShoppingCart({ items: [] });
+        setSurvey(null);
     
     // Hide warning dialog
     setShowLogoutWarning(false);
@@ -329,6 +335,7 @@ const AppContextProvider: React.FC<React.PropsWithChildren> = (props) => {
         setIsInitialized(true);
         setSchoolYears(sessionInfo.schoolYears);
         setCurrentSchoolYear(sessionInfo.schoolYears.find((sy) => sy.isCurrent) ?? NO_SCHOOL_YEAR);
+        setSurvey(sessionInfo.survey);
         
         // Reset inactivity timer when user logs in
         resetInactivityTimer();
@@ -396,6 +403,8 @@ const AppContextProvider: React.FC<React.PropsWithChildren> = (props) => {
         setUser,
         setSchool,
         setSchoolYears,
+        setSurvey,
+        survey,
       }}
     >
       <Box

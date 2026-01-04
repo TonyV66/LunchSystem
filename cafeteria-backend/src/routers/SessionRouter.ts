@@ -21,6 +21,8 @@ import SchoolYear from "../models/SchoolYear";
 import StudentLunchTime from "../models/StudentLunchTime";
 import StudentEntity from "../entity/StudentEntity";
 import { DateTimeUtils } from "../DateTimeUtils";
+import SurveyEntity from "../entity/SurveyEntity";
+import Survey from "../models/Survey";
 
 const SessionRouter: Router = express.Router();
 interface Empty {}
@@ -36,6 +38,7 @@ export interface SessionInfo {
   notifications: Notification[];
   school: School;
   schoolYears: SchoolYear[];
+  survey: Survey | null;
 }
 
 const getStudentLunchTimes = async (
@@ -304,8 +307,28 @@ const getParentSession = async (user: UserEntity): Promise<SessionInfo> => {
     users.push(new User(user));
   }
 
+  // Check if school has an active survey
+  const surveyRepository = AppDataSource.getRepository(SurveyEntity);
+  const surveyEntity = await surveyRepository.findOne({
+    where: { school: { id: user.school.id } },
+    relations: { questions: true },
+  });
+
+  // If no active survey exists, set surveyCompleted to true in the returned session
+  const sessionUser = new User(user);
+  if (!surveyEntity || !surveyEntity.active) {
+    sessionUser.surveyCompleted = true;
+  }
+
+  // Add survey to session info if user has not completed it and survey is active
+  let survey: Survey | null = null;
+  if (surveyEntity && surveyEntity.active && !user.surveyCompleted) {
+    surveyEntity.questions.sort((a, b) => a.order - b.order);
+    survey = new Survey(surveyEntity);
+  }
+
   const sessionInfo: SessionInfo = {
-    user: new User(user),
+    user: sessionUser,
     users,
     menus: [],
     students: myChildren.map((c) => new Student(c)),
@@ -317,6 +340,7 @@ const getParentSession = async (user: UserEntity): Promise<SessionInfo> => {
     schoolYears: currentSchoolYear.id
       ? [{ ...new SchoolYear(currentSchoolYear), studentLunchTimes }]
       : [],
+    survey,
   };
 
   return sessionInfo;
@@ -486,8 +510,28 @@ export const getAdminSession = async (
     )!.studentLunchTimes = studentLunchTimes;
   }
 
+  // Check if school has an active survey
+  const surveyRepository = AppDataSource.getRepository(SurveyEntity);
+  const surveyEntity = await surveyRepository.findOne({
+    where: { school: { id: user.school.id } },
+    relations: { questions: true },
+  });
+
+  // If no active survey exists, set surveyCompleted to true in the returned session
+  const sessionUser = new User(user);
+  if (!surveyEntity || !surveyEntity.active) {
+    sessionUser.surveyCompleted = true;
+  }
+
+  // Add survey to session info if user has not completed it and survey is active
+  let survey: Survey | null = null;
+  if (surveyEntity && surveyEntity.active && !user.surveyCompleted) {
+    surveyEntity.questions.sort((a, b) => a.order - b.order);
+    survey = new Survey(surveyEntity);
+  }
+
   const sessionInfo: SessionInfo = {
-    user: new User(user),
+    user: sessionUser,
     users: users.map((u) => new User(u)),
     menus: menus.map((menu) => new Menu(menu)),
     students: studentDtos,
@@ -497,6 +541,7 @@ export const getAdminSession = async (
     notifications: notifications.map((n) => new Notification(n)),
     school: new School(user.school),
     schoolYears,
+    survey,
   };
 
   return sessionInfo;

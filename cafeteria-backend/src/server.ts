@@ -19,6 +19,7 @@ import { authorizeRequest } from "./routers/RouterUtils";
 import SchoolYearRouter from "./routers/SchoolYearRouter";
 import ReportsRouter from "./routers/ReportsRouter";
 import SchoolRegistrationRouter from "./routers/SchoolRegistrationRouter";
+import SurveyRouter from "./routers/SurveyRouter";
 import { EmailSchedulerService } from "./services/EmailSchedulerService";
 
 AppDataSource.initialize()
@@ -54,6 +55,7 @@ AppDataSource.initialize()
     app.use("/api/session", authorizeRequest, SessionRouter);
     app.use("/api/school", authorizeRequest, SchoolRouter);
     app.use("/api/schoolyear", authorizeRequest, SchoolYearRouter);
+    app.use("/api/survey", authorizeRequest, SurveyRouter);
     app.use("/api/user", UserRouter);
     app.use("/api/login", LoginRouter);
     app.use("/api/register", SchoolRegistrationRouter);

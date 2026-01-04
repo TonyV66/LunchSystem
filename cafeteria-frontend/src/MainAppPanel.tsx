@@ -33,6 +33,7 @@ import {
   Lock,
   AccountCircle,
   Print,
+  Poll,
 } from "@mui/icons-material";
 import User, { NULL_USER, Role } from "./models/User";
 import { grey, red } from "@mui/material/colors";
@@ -61,6 +62,7 @@ export const SCHOOL_YEAR_URL = "/year";
 export const KITCHEN_URL = "/kitchen";
 
 export const NOTIFICATIONS_URL = "/notifications";
+export const SURVEY_URL = "/survey";
 
 export enum SidebarSelection {
   ACCOUNT = "Account",
@@ -73,6 +75,7 @@ export enum SidebarSelection {
   NOTIFICATIONS = "Notifications",
   YEARS = "Years",
   PRINT = "Print",
+  SURVEY = "Survey",
 }
 
 const primaryColor = "primary.dark";
@@ -287,6 +290,26 @@ const SchoolYearsButton: React.FC<SidebarButtonProps> = ({
   );
 };
 
+const SurveyButton: React.FC<SidebarButtonProps> = ({
+  onClick,
+  isSelected,
+}) => {
+  return (
+    <Tooltip title="Survey">
+      <Poll
+        onClick={() => onClick(SidebarSelection.SURVEY)}
+        sx={{
+          cursor: !isSelected ? "pointer" : undefined,
+          p: 1,
+          backgroundColor: isSelected ? ALT_COLOR : undefined,
+          color: isSelected ? primaryColor : ALT_COLOR,
+        }}
+        fontSize="large"
+      />
+    </Tooltip>
+  );
+};
+
 const SettingsButton: React.FC<SidebarButtonProps> = ({
   onClick,
   isSelected,
@@ -398,6 +421,8 @@ const getSidebarSelection = (path: string) => {
     matchRoutes([{ path: YEARS_URL }, { path: YEAR_URL + "/*" }], path)
   ) {
     return SidebarSelection.YEARS;
+  } else if (matchRoutes([{ path: SURVEY_URL }], path)) {
+    return SidebarSelection.SURVEY;
   } else if (matchRoutes([{ path: CART_URL }], path)) {
     return SidebarSelection.CART;
   } else if (matchRoutes([{ path: CALENDAR_URL }], path)) {
@@ -476,6 +501,10 @@ const AdminSidebar: React.FC<SidebarProps> = ({ onLogout }) => {
         <NotificationsButton
           onClick={() => navigate(NOTIFICATIONS_URL)}
           isSelected={selection === SidebarSelection.NOTIFICATIONS}
+        />
+        <SurveyButton
+          onClick={() => navigate(SURVEY_URL)}
+          isSelected={selection === SidebarSelection.SURVEY}
         />
         <SchoolYearsButton
           onClick={() => navigate(SCHOOL_YEARS_URL)}

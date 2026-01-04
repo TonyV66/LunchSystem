@@ -16,6 +16,8 @@ import DailyLunchTimes from "../models/DailyLunchTimes";
 import { GradeLevel } from "../models/GradeLevel";
 import GradeLunchTime from "../models/GradeLunchTime";
 import TeacherLunchTime from "../models/TeacherLunchTime";
+import { Survey } from "../models/Survey";
+import { QuestionRequest } from "../models/Question";
 
 const API_BASE_URL = "/api";
 
@@ -516,4 +518,31 @@ export const importTeachers = async (
     }
   );
   return response.data;
+};
+
+export const startSurvey = async (questions: QuestionRequest[]): Promise<Survey> => {
+  const response: AxiosResponse<Survey> = await http.post(API_BASE_URL + "/survey/start", questions);
+  return response.data;
+};
+
+export const endSurvey = async (): Promise<Survey> => {
+  const response: AxiosResponse<Survey> = await http.put(
+    API_BASE_URL + "/survey/end",
+  );
+  return response.data;
+};
+
+export const getSurvey = async (): Promise<Survey> => {
+  const response: AxiosResponse<Survey> = await http.get(API_BASE_URL + "/survey");
+  return response.data;
+};
+
+export const submitSurvey = async (
+  ratings: number[],
+  comment?: string
+): Promise<void> => {
+  await http.post(API_BASE_URL + "/survey/submit", {
+    ratings,
+    comment: comment?.trim() || undefined,
+  });
 };

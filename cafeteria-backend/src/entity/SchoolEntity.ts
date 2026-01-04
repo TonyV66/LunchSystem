@@ -1,10 +1,11 @@
-import { Column, Entity, OneToMany, PrimaryGeneratedColumn } from "typeorm";
+import { Column, Entity, OneToMany, OneToOne, PrimaryGeneratedColumn } from "typeorm";
 import UserEntity from "./UserEntity";
 import NotificationEntity from "./NotificationEntity";
 import MenuEntity, { PantryItemEntity } from "./MenuEntity";
 import SchoolYearEntity from "./SchoolYearEntity";
 import { DecimalTransformer } from "./DecimalTransformer";
 import StudentEntity from "./StudentEntity";
+import SurveyEntity from "./SurveyEntity";
 
 @Entity("school")
 export default class SchoolEntity {
@@ -72,4 +73,6 @@ export default class SchoolEntity {
   schoolYears: SchoolYearEntity[];
   @OneToMany(() => MenuEntity, (menu) => menu.school)
   menus: MenuEntity[];
+  @OneToOne(() => SurveyEntity, (survey) => survey.school)
+  survey: SurveyEntity;
 }

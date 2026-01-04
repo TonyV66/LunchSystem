@@ -18,6 +18,8 @@ import SchoolYearLunchTimeEntity from "./entity/SchoolYearLunchTimeEntity";
 import TeacherLunchTimeEntity from "./entity/TeacherLunchTimeEntity";
 import GradeLunchTimeEntity from "./entity/GradeLunchTimeEntity";
 import StudentLunchTimeEntity from "./entity/StudentLunchTimeEntity";
+import SurveyEntity from "./entity/SurveyEntity";
+import QuestionEntity from "./entity/QuestionEntity";
 
 export const AppDataSource = new DataSource({
   type: "mysql",
@@ -46,6 +48,8 @@ export const AppDataSource = new DataSource({
     TeacherLunchTimeEntity,
     StudentLunchTimeEntity,
     GradeLunchTimeEntity,
+    SurveyEntity,
+    QuestionEntity,
   ],
   migrations: [],
   subscribers: [],

@@ -29,6 +29,7 @@ export const NULL_USER: User = {
   availableCredits: 0,
   notificationReviewDate: new Date('2020-01-01 00:00:00').toJSON(),
   resetPwd: false,
+  surveyCompleted: false,
   forgotPwdUri: null,
   forgotPwdDate: null,
 }
@@ -48,6 +49,7 @@ export default interface User {
   availableCredits: number;
   notificationReviewDate: string;
   resetPwd: boolean;
+  surveyCompleted: boolean;
   forgotPwdUri: string | null;
   forgotPwdDate: string | null;
 }

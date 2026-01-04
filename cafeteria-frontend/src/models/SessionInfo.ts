@@ -5,6 +5,7 @@ import User from "./User";
 import { Notification } from "./Notification";
 import School from "./School";
 import SchoolYear from "./SchoolYear";
+import { Survey } from "./Survey";
 
 export default interface SessionInfo {
   users: User[];
@@ -17,4 +18,5 @@ export default interface SessionInfo {
   pantryItems: PantryItem[];
   notifications: Notification[];
   school: School;
+  survey: Survey | null;
 }

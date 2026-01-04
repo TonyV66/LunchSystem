@@ -6,9 +6,10 @@ import { AppContext } from "../../AppContextProvider";
 import { Role } from "../../models/User";
 import { useNavigate } from "react-router-dom";
 import { CART_URL } from "../../MainAppPanel";
+import SurveyDialog from "../survey/SurveyDialog";
 
 const CalendarPage: React.FC = () => {
-  const { user, shoppingCart } = useContext(AppContext);
+  const { user, shoppingCart, survey } = useContext(AppContext);
   const [checkoutDisabled, setCheckoutDisabled] = useState(true);
 
 
@@ -17,6 +18,7 @@ const CalendarPage: React.FC = () => {
   useEffect(() => {
     setCheckoutDisabled(!shoppingCart.items.length);
   }, [shoppingCart]);
+
 
   return (
     <Box
@@ -81,6 +83,7 @@ const CalendarPage: React.FC = () => {
           <MealCalendar/>
         </Box>
       </Box>
+      {survey && <SurveyDialog onClose={() => {}} />}
     </Box>
   );
 };

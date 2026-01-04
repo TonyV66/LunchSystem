@@ -42,6 +42,7 @@ export const CredentialsPanel: React.FC = () => {
     setSchoolYears,
     setSnackbarMsg,
     setCurrentSchoolYear,
+    setSurvey,
   } = useContext(AppContext);
 
   const [password, setPassword] = useState<string>("");
@@ -70,6 +71,7 @@ export const CredentialsPanel: React.FC = () => {
       setPantryItems(loginResponse.pantryItems);
       setSchool(loginResponse.school);
       setSchoolYears(loginResponse.schoolYears);
+      setSurvey(loginResponse.survey);
       setCurrentSchoolYear(loginResponse.schoolYears.find((sy) => sy.isCurrent) ?? NO_SCHOOL_YEAR);
 
 
