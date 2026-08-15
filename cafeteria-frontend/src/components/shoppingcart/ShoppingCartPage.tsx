@@ -34,10 +34,8 @@ const ShoppingCartPage: React.FC = () => {
     students,
   } = useContext(AppContext);
 
-  type PaymentMethod = "creditcard" | "giftcard" | "donate";
-
-  const [paymentMethod, setPaymentMethod] =
-    useState<PaymentMethod>("creditcard");
+  // "creditcard" | "giftcard" | "donate" | Square saved-card id
+  const [paymentMethod, setPaymentMethod] = useState("creditcard");
   const [useCredits, setUseCredits] = useState(false);
   const [showThankYou, setShowThankYou] = useState(false);
   // const [useCredits, setUseCredits] = useState(false);
@@ -94,7 +92,8 @@ const ShoppingCartPage: React.FC = () => {
         useCredits,
         paymentToken,
         shoppingCart,
-        saveCard
+        saveCard,
+        sendEmail
       );
 
       if (useCredits) {
@@ -120,11 +119,11 @@ const ShoppingCartPage: React.FC = () => {
     navigate(MEALS_URL);
   };
 
-  const handlePaymentChanged = (paymentMethod: string) => {
-    if (paymentMethod !== "giftcard" && paymentMethod !== "creditcard") {
+  const handlePaymentChanged = (nextPaymentMethod: string) => {
+    if (nextPaymentMethod !== "creditcard") {
       setSaveCard(false);
     }
-    setPaymentMethod(paymentMethod as PaymentMethod);
+    setPaymentMethod(nextPaymentMethod);
   };
 
   const handleDonationChange = (checked: boolean) => {
@@ -222,7 +221,8 @@ const ShoppingCartPage: React.FC = () => {
             savedGiftCards={savedGiftCards}
             onCardSelected={handlePaymentChanged}
             onSaveCardChange={setSaveCard}
-            onSendEmailChange={user.email?.length ? setSendEmail : undefined}
+            onSendEmailChange={setSendEmail}
+            onPayWithSavedCard={handleCheckout}
             onTokenReceived={(tokenResult, buyer) => {
               const result = tokenResult as { status: string; token?: string };
               if (result.status !== "OK") {

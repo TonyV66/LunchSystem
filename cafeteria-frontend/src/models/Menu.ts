@@ -1,22 +1,4 @@
-export enum PantryItemType {
-  ENTREE,
-  SIDE,
-  DESSERT,
-  DRINK
-}
-
-export interface PantryItem {
-  id: number;
-  name: string;
-  type: PantryItemType;
-}
-
-export interface DailyMenu extends Menu {
-  date: string;
-  orderStartTime: string;
-  orderEndTime: string;
-
-}
+import MenuItem from "./MenuItem";
 
 export default interface Menu {
   id: number;
@@ -25,5 +7,5 @@ export default interface Menu {
   numSidesWithMeal: number;
   price: number;
   drinkOnlyPrice: number;
-  items: PantryItem[];
+  items: MenuItem[];
 }

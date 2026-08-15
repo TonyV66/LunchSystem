@@ -20,6 +20,7 @@ interface CheckoutFormProps {
   onSaveCardChange: (save: boolean) => void;
   onSendEmailChange?: (send: boolean) => void;
   onTokenReceived: (tokenResult: unknown, buyer: unknown) => void;
+  onPayWithSavedCard: (cardId: string) => void;
 }
 
 const CheckoutForm: React.FC<CheckoutFormProps> = ({
@@ -35,6 +36,7 @@ const CheckoutForm: React.FC<CheckoutFormProps> = ({
   onSaveCardChange,
   onSendEmailChange,
   onTokenReceived,
+  onPayWithSavedCard,
 }) => {
   return (
     <Stack
@@ -62,6 +64,7 @@ const CheckoutForm: React.FC<CheckoutFormProps> = ({
         saveCard={saveCard}
         onSaveCardChange={onSaveCardChange}
         onTokenReceived={onTokenReceived}
+        onPayWithSavedCard={onPayWithSavedCard}
       />
     </Stack>
   );

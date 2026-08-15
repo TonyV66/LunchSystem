@@ -8,7 +8,7 @@ import {
   DialogTitle,
   Typography,
 } from "@mui/material";
-import { DailyMenu } from "../../models/Menu";
+import DailyMenu from "../../models/DailyMenu";
 import { DateTimeFormat, DateTimeUtils } from "../../DateTimeUtils";
 
 interface DialogProps {

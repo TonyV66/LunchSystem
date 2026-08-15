@@ -86,6 +86,23 @@ export class DateTimeUtils {
     return firstDayOfWeek;
   }
 
+  static getCurrentDate(): Date {
+    const configured =
+      (typeof window !== "undefined"
+        ? window.__CAFETERIA_CONFIG__?.currentDate?.trim()
+        : undefined) || process.env.REACT_APP_CURRENT_DATE?.trim();
+    if (configured) {
+      const parsed = new Date(configured);
+      if (!isNaN(parsed.getTime())) {
+        return new Date(parsed.getTime());
+      }
+      console.warn(
+        `Invalid REACT_APP_CURRENT_DATE environment variable: "${configured}"`
+      );
+    }
+    return new Date();
+  }
+
   static getDateParts(date: Date | string) {
     const parts = { year: 0, month: 0, date: 0 };
     if (typeof date === "string") {

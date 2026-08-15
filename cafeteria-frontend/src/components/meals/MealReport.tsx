@@ -1,9 +1,9 @@
 import * as React from "react";
 import { Box, Typography } from "@mui/material";
 import { grey } from "@mui/material/colors";
-import MenuItemChip from "./MenuItemChip";
+import PantryItemChip from "./PantryItemChip";
 import Meal from "../../models/Meal";
-
+import { AppContext } from "../../AppContextProvider";
 
 export interface CustomerData {
   name: string;
@@ -17,9 +17,7 @@ export interface ReportData {
   customers: CustomerData[];
 }
 
-
-const MealReport: React.FC<{customers: CustomerData[]}> = ({customers}) => {
-
+const MealReport: React.FC<{ customers: CustomerData[] }> = ({ customers }) => {
   return (
     <Box
       sx={{
@@ -30,13 +28,18 @@ const MealReport: React.FC<{customers: CustomerData[]}> = ({customers}) => {
       }}
     >
       {customers.map((customer) => (
-        <MealReportRow key={customer.name} name={customer.name} meals={customer.meals} />
+        <MealReportRow
+          key={customer.name}
+          name={customer.name}
+          meals={customer.meals}
+        />
       ))}
     </Box>
   );
 };
 
-const MealReportRow: React.FC<CustomerData> = ({name, meals}) => {
+const MealReportRow: React.FC<CustomerData> = ({ name, meals }) => {
+  const { pantryItems } = React.useContext(AppContext);
 
   if (!meals.length) {
     return <></>;
@@ -75,7 +78,13 @@ const MealReportRow: React.FC<CustomerData> = ({name, meals}) => {
             gap: 1,
           }}
         >
-          {[...meal.items]
+          {meal.items
+            .map(
+              (item) =>
+                pantryItems.find(
+                  (pantryItem) => pantryItem.id === item.pantryItemId,
+                )!,
+            )
             .sort((item1, item2) => {
               return (
                 item1.type - item2.type ||
@@ -83,14 +92,12 @@ const MealReportRow: React.FC<CustomerData> = ({name, meals}) => {
               );
             })
             .map((item) => (
-              <MenuItemChip key={item.id} menuItem={item} />
+              <PantryItemChip key={item.id} pantryItem={item} />
             ))}
         </Box>
       ))}
     </>
   );
 };
-
-
 
 export default MealReport;

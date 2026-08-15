@@ -2,7 +2,7 @@ import React from "react";
 import {
   Fab,
   Menu as PulldownMenu,
-  MenuItem,
+  MenuItem as MuiMenuItem,
   Stack,
   Typography,
   FormControlLabel,
@@ -11,29 +11,37 @@ import {
 import { AppContext } from "../../AppContextProvider";
 import { useContext, useState } from "react";
 import { Add } from "@mui/icons-material";
-import User, { Role } from "../../models/User";
+import { AccountStatus, Role } from "../../models/User";
+import SchoolUser from "../../models/SchoolUser";
 import { USERS_URL } from "../../MainAppPanel";
 import { UserOrderHistoryDialog } from "../orders/UserOrderHistoryDialog";
 import EditUserDialog from "./EditUserDialog";
+import CreateUserDialog from "./CreateUserDialog";
 import UsersTable from "./UsersTable";
 import { SiblingsDialog } from "./SiblingsDialog";
-import UserImportDialog from "./UserImportDialog";
 import PeopleTabs from "./PeopleTabs";
 import { UpcomingMealsDialog } from "../meals/UpcomingMealsDialog";
+import ConfirmDialog from "../ConfirmDialog";
+import { createInvitation } from "../../api/CafeteriaClient";
+import { AxiosError } from "axios";
 
 interface UserMenuProps {
   anchor: HTMLElement;
+  isPending: boolean;
   onOrderHistory: () => void;
   onShowMeals: () => void;
   onEdit: () => void;
+  onResendInvite: () => void;
   onClose: () => void;
 }
 
 const UserMenu: React.FC<UserMenuProps> = ({
   anchor,
+  isPending,
   onEdit,
   onOrderHistory,
   onShowMeals,
+  onResendInvite,
   onClose,
 }) => {
   const { user } = useContext(AppContext);
@@ -54,27 +62,39 @@ const UserMenu: React.FC<UserMenuProps> = ({
         horizontal: "left",
       }}
     >
-      <MenuItem onClick={onOrderHistory}>Order History</MenuItem>
-      <MenuItem onClick={onShowMeals}>
-        Upcoming Meals
-      </MenuItem>
-      {user.role === Role.ADMIN && <MenuItem onClick={onEdit}>Edit</MenuItem>}
+      {isPending ? (
+        <MuiMenuItem onClick={onResendInvite}>Resend Invite</MuiMenuItem>
+      ) : (
+        <>
+          <MuiMenuItem onClick={onOrderHistory}>Order History</MuiMenuItem>
+          <MuiMenuItem onClick={onShowMeals}>Upcoming Meals</MuiMenuItem>
+        </>
+      )}
+      {user.role === Role.ADMIN && (
+        <MuiMenuItem onClick={onEdit}>Edit</MuiMenuItem>
+      )}
     </PulldownMenu>
   );
 };
 
-type MenuAction = "edit" | "delete" | "history" | "children" | "meals";
+type MenuAction = "edit" | "delete" | "history" | "children" | "meals" | "resend";
 
 const UsersPage: React.FC = () => {
-  const { users, currentSchoolYear } = useContext(AppContext);
+  const {
+    users,
+    setUsers,
+    currentSchoolYear,
+    setSnackbarMsg,
+    setSnackbarErrorMsg,
+  } = useContext(AppContext);
   const [showNewUserDialog, setShowNewUserDialog] = useState(false);
-  const [showImportDialog, setShowImportDialog] = useState(false);
   const [pulldownMenuAnchor, setPulldownMenuAnchor] =
     useState<null | HTMLElement>(null);
-  const [targetUser, setTargetUser] = useState<null | User>(null);
+  const [targetUser, setTargetUser] = useState<null | SchoolUser>(null);
   const [action, setAction] = useState<null | MenuAction>(null);
   const [includeRegisteredUsers, setIncludeRegisteredUsers] = useState(true);
   const [includePendingUsers, setIncludePendingUsers] = useState(false);
+  const [resendingInvite, setResendingInvite] = useState(false);
 
   const handleShowPopupMenu = (
     userId: number,
@@ -104,6 +124,11 @@ const UsersPage: React.FC = () => {
     setPulldownMenuAnchor(null);
   };
 
+  const handleResendInvite = () => {
+    setAction("resend");
+    setPulldownMenuAnchor(null);
+  };
+
   const handleCloseEditUserDialog = () => {
     setAction(null);
     setShowNewUserDialog(false);
@@ -114,8 +139,39 @@ const UsersPage: React.FC = () => {
     setPulldownMenuAnchor(null);
   };
 
-  const handleCloseImportDialog = () => {
-    setShowImportDialog(false);
+  const handleConfirmResendInvite = async () => {
+    if (!targetUser) {
+      return;
+    }
+    const email = targetUser.email?.trim();
+    if (!email) {
+      setSnackbarErrorMsg("This user does not have an email address.");
+      handleActionComplete();
+      return;
+    }
+
+    setResendingInvite(true);
+    try {
+      const updated = await createInvitation(
+        targetUser.firstName,
+        targetUser.lastName,
+        email,
+        targetUser.role
+      );
+      setUsers(users.map((user) => (user.id === updated.id ? updated : user)));
+      setSnackbarMsg("Invitation resent");
+      handleActionComplete();
+    } catch (error) {
+      const axiosError = error as AxiosError;
+      setSnackbarErrorMsg(
+        "Error resending invitation: " +
+          (axiosError.response?.data?.toString() ??
+            axiosError.response?.statusText ??
+            "Unknown server error")
+      );
+    } finally {
+      setResendingInvite(false);
+    }
   };
 
   return (
@@ -173,7 +229,6 @@ const UsersPage: React.FC = () => {
             size="small"
             onClick={() => setShowNewUserDialog(true)}
             color="primary"
-            disabled={!currentSchoolYear.id}
           >
             <Add />
           </Fab>
@@ -184,9 +239,14 @@ const UsersPage: React.FC = () => {
         includePendingUsers={includePendingUsers}
         onShowMenu={handleShowPopupMenu}
       />
-      {showNewUserDialog || action === "edit" ? (
+      {showNewUserDialog ? (
+        <CreateUserDialog onClose={handleCloseEditUserDialog} />
+      ) : (
+        <></>
+      )}
+      {action === "edit" && targetUser ? (
         <EditUserDialog
-          user={showNewUserDialog ? undefined : targetUser!}
+          user={targetUser}
           onClose={handleCloseEditUserDialog}
         />
       ) : (
@@ -195,9 +255,11 @@ const UsersPage: React.FC = () => {
       {targetUser && pulldownMenuAnchor ? (
         <UserMenu
           anchor={pulldownMenuAnchor!}
+          isPending={targetUser.accountStatus === AccountStatus.PENDING}
           onOrderHistory={handleOrderHistory}
           onShowMeals={handleShowMeals}
           onEdit={handleEditUser}
+          onResendInvite={handleResendInvite}
           onClose={handleCloseMenu}
         />
       ) : (
@@ -225,10 +287,24 @@ const UsersPage: React.FC = () => {
       ) : (
         <></>
       )}
-      <UserImportDialog
-        open={showImportDialog}
-        onClose={handleCloseImportDialog}
-      />
+      {action === "resend" && targetUser ? (
+        <ConfirmDialog
+          title="Resend Invitation"
+          open={true}
+          okLabel="Send"
+          isOkDisabled={resendingInvite || !targetUser.email?.trim()}
+          onOk={handleConfirmResendInvite}
+          onCancel={handleActionComplete}
+        >
+          <Typography variant="body2">
+            {targetUser.email?.trim()
+              ? `Resend the invitation email to ${targetUser.email.trim()}?`
+              : "This user does not have an email address, so an invitation cannot be sent."}
+          </Typography>
+        </ConfirmDialog>
+      ) : (
+        <></>
+      )}
     </Stack>
   );
 };

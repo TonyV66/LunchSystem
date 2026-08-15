@@ -2,7 +2,7 @@ import express, { Router } from "express";
 import { AppDataSource } from "../data-source";
 import { DeepPartial } from "typeorm";
 import MenuEntity from "../entity/MenuEntity";
-import { Menu } from "../models/Menu";
+import Menu from "../models/Menu";
 
 const MenuRouter: Router = express.Router();
 interface Empty {}
@@ -16,8 +16,12 @@ MenuRouter.post<Empty, Menu, Menu, Empty>("/", async (req, res) => {
   const menu: DeepPartial<MenuEntity> = {
     ...req.body,
     id: undefined,
-    items: req.body.items.map((item) => ({ ...item, id: undefined })),
-    school: req.user.school,
+    items: req.body.items.map((item) => ({
+      id: undefined,
+      price: item.price,
+      pantryItemId: item.pantryItemId,
+    })),
+    school: req.school,
   };
   const savedMenu = await menuRespository.save(menu);
 
@@ -40,7 +44,11 @@ MenuRouter.put<Empty, Menu, Menu, Empty>("/", async (req, res) => {
 
   const menu: DeepPartial<MenuEntity> = {
     ...req.body,
-    items: req.body.items.map((item) => ({ ...item, id: undefined })),
+    items: req.body.items.map((item) => ({
+      id: undefined,
+      price: item.price,
+      pantryItemId: item.pantryItemId,
+    })),
   };
 
   const savedMenu = await menuRespository.save(menu);

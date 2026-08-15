@@ -10,27 +10,169 @@ import {
   Alert,
   LinearProgress,
   Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
+  IconButton,
 } from "@mui/material";
-import { CloudUpload, Description } from "@mui/icons-material";
-import { uploadUserCsv } from "../../api/CafeteriaClient";
+import { CloudUpload, Description, HelpOutline } from "@mui/icons-material";
+import { importUsersCsv, UserImportResult } from "../../api/CafeteriaClient";
 import { AxiosError } from "axios";
 
 interface UserImportDialogProps {
   open: boolean;
   onClose: () => void;
-  onImportComplete?: (importedCount: number) => void;
+  onImportComplete?: () => void;
 }
 
-interface CsvRow {
-  studentId: string;
-  lastName: string;
+interface CsvPreviewRow {
+  role: string;
+  email: string;
   firstName: string;
-  dob: string;
-  grade: string;
-  contactName: string;
-  contactPhone: string;
-  contactEmail: string;
+  lastName: string;
+  parent1: string;
+  parent2: string;
 }
+
+const REQUIRED_HEADERS = ["email", "firstname", "lastname", "parent1"];
+
+const normalizeHeader = (header: string): string =>
+  header.trim().toLowerCase().replace(/[\s_]+/g, "");
+
+const UserImportHelpDialog: React.FC<{
+  open: boolean;
+  onClose: () => void;
+}> = ({ open, onClose }) => (
+  <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
+    <DialogTitle>How CSV Import Works</DialogTitle>
+    <DialogContent dividers>
+      <Stack spacing={2}>
+        <Box>
+          <Typography variant="subtitle2" gutterBottom>
+            File format
+          </Typography>
+          <Typography variant="body2">
+            Upload a CSV with a header row. Column order does not matter; columns
+            are matched by name (case-insensitive).
+          </Typography>
+          <Typography variant="body2" sx={{ mt: 1, fontFamily: "monospace" }}>
+            email,firstname,lastname,parent1
+          </Typography>
+          <Typography variant="body2" sx={{ mt: 1 }}>
+            Optional columns:{" "}
+            <Box component="span" sx={{ fontFamily: "monospace" }}>
+              role
+            </Box>
+            ,{" "}
+            <Box component="span" sx={{ fontFamily: "monospace" }}>
+              parent2
+            </Box>
+          </Typography>
+        </Box>
+
+        <Box>
+          <Typography variant="subtitle2" gutterBottom>
+            Required fields
+          </Typography>
+          <Typography variant="body2" component="ul" sx={{ m: 0, pl: 2 }}>
+            <li>
+              <Box component="span" sx={{ fontFamily: "monospace" }}>
+                firstname
+              </Box>{" "}
+              and{" "}
+              <Box component="span" sx={{ fontFamily: "monospace" }}>
+                lastname
+              </Box>{" "}
+              are required on every row
+            </li>
+            <li>
+              Adults (parent, staff, teacher) require an{" "}
+              <Box component="span" sx={{ fontFamily: "monospace" }}>
+                email
+              </Box>
+            </li>
+            <li>
+              Students require at least one parent email in{" "}
+              <Box component="span" sx={{ fontFamily: "monospace" }}>
+                parent1
+              </Box>{" "}
+              or{" "}
+              <Box component="span" sx={{ fontFamily: "monospace" }}>
+                parent2
+              </Box>
+            </li>
+          </Typography>
+        </Box>
+
+        <Box>
+          <Typography variant="subtitle2" gutterBottom>
+            Roles
+          </Typography>
+          <Typography variant="body2">
+            Allowed values when{" "}
+            <Box component="span" sx={{ fontFamily: "monospace" }}>
+              role
+            </Box>{" "}
+            is provided: student, parent, staff, or teacher.
+          </Typography>
+          <Typography variant="body2" sx={{ mt: 1 }}>
+            If role is omitted or blank:
+          </Typography>
+          <Typography variant="body2" component="ul" sx={{ m: 0, pl: 2 }}>
+            <li>Row with an email → treated as a parent</li>
+            <li>
+              Row with no email but a parent email → treated as a student
+            </li>
+          </Typography>
+        </Box>
+
+        <Box>
+          <Typography variant="subtitle2" gutterBottom>
+            Parents and students
+          </Typography>
+          <Typography variant="body2" component="ul" sx={{ m: 0, pl: 2 }}>
+            <li>
+              Parent emails on student rows must either appear as their own row
+              in the CSV or already exist in the system
+            </li>
+            <li>A row that has both an email and a parent email is skipped</li>
+            <li>
+              Students are not created unless at least one parent email is
+              specified
+            </li>
+          </Typography>
+        </Box>
+
+        <Box>
+          <Typography variant="subtitle2" gutterBottom>
+            Matching existing records
+          </Typography>
+          <Typography variant="body2" component="ul" sx={{ m: 0, pl: 2 }}>
+            <li>Adults are matched by email (also used as their username)</li>
+            <li>
+              Students are matched by first and last name plus a linked parent
+              email, within the school district when applicable
+            </li>
+            <li>
+              Import updates existing people and adds enrollments for the
+              current school year; it does not remove people or enrollments that
+              are missing from the file
+            </li>
+          </Typography>
+        </Box>
+      </Stack>
+    </DialogContent>
+    <DialogActions>
+      <Button onClick={onClose} variant="contained">
+        Close
+      </Button>
+    </DialogActions>
+  </Dialog>
+);
 
 const UserImportDialog: React.FC<UserImportDialogProps> = ({
   open,
@@ -41,8 +183,19 @@ const UserImportDialog: React.FC<UserImportDialogProps> = ({
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
-  const [previewData, setPreviewData] = useState<CsvRow[]>([]);
+  const [result, setResult] = useState<UserImportResult | null>(null);
+  const [previewData, setPreviewData] = useState<CsvPreviewRow[]>([]);
+  const [showHelp, setShowHelp] = useState(false);
+
+  const resetState = () => {
+    setSelectedFile(null);
+    setPreviewData([]);
+    setError(null);
+    setResult(null);
+    setUploadProgress(0);
+    setIsUploading(false);
+    setShowHelp(false);
+  };
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -53,7 +206,7 @@ const UserImportDialog: React.FC<UserImportDialogProps> = ({
       }
       setSelectedFile(file);
       setError(null);
-      setSuccess(null);
+      setResult(null);
       previewCsvFile(file);
     }
   };
@@ -62,60 +215,49 @@ const UserImportDialog: React.FC<UserImportDialogProps> = ({
     const reader = new FileReader();
     reader.onload = (e) => {
       const text = e.target?.result as string;
-      const lines = text.split("\n");
-      const preview: CsvRow[] = [];
-      
-      if (lines.length < 2) return; // Need at least header and one data row
-      
-      // Parse header row to find column indices
-      const headerRow = lines[0].split(",").map(col => col.trim().replace(/"/g, ""));
-      const columnIndices = {
-        studentId: headerRow.findIndex(col => col.toLowerCase() === "student_id"),
-        lastName: headerRow.findIndex(col => col.toLowerCase() === "last_name"),
-        firstName: headerRow.findIndex(col => col.toLowerCase() === "first_name"),
-        dob: headerRow.findIndex(col => col.toLowerCase() === "dob"),
-        grade: headerRow.findIndex(col => col.toLowerCase() === "grade"),
-        contactName: headerRow.findIndex(col => col.toLowerCase() === "contact_name"),
-        contactPhone: headerRow.findIndex(col => col.toLowerCase() === "contact_phone"),
-        contactEmail: headerRow.findIndex(col => col.toLowerCase() === "contact_email"),
-      };
-      
-      // Check if all required columns are found
-      const requiredColumns = ["studentId", "contactName", "contactEmail"];
-      const missingColumns = requiredColumns
-        .filter(colName => columnIndices[colName as keyof typeof columnIndices] === -1)
-        .map(colName => {
-          switch(colName) {
-            case "studentId": return "student_id";
-            case "contactName": return "contact_name";
-            case "contactEmail": return "contact_email";
-            default: return colName;
-          }
-        });
-      
-      if (missingColumns.length > 0) {
-        setError(`Missing required columns: ${missingColumns.join(", ")}`);
+      const lines = text.split(/\r?\n/).filter((line) => line.trim());
+      if (lines.length < 1) {
+        setError("CSV file is empty");
+        setPreviewData([]);
         return;
       }
-      
-      // Process first 5 data rows for preview
+
+      const headerRow = lines[0]
+        .split(",")
+        .map((col) => normalizeHeader(col.replace(/"/g, "")));
+      const missing = REQUIRED_HEADERS.filter(
+        (required) => !headerRow.includes(required),
+      );
+      if (missing.length > 0) {
+        setError(
+          `Missing required columns: ${missing.join(", ")}. Expected: email,firstname,lastname,parent1 (role and parent2 optional)`,
+        );
+        setPreviewData([]);
+        return;
+      }
+
+      const indices = {
+        role: headerRow.indexOf("role"),
+        email: headerRow.indexOf("email"),
+        firstName: headerRow.indexOf("firstname"),
+        lastName: headerRow.indexOf("lastname"),
+        parent1: headerRow.indexOf("parent1"),
+        parent2: headerRow.indexOf("parent2"),
+      };
+
+      const preview: CsvPreviewRow[] = [];
       for (let i = 1; i < Math.min(lines.length, 6); i++) {
-        const line = lines[i].trim();
-        if (line) {
-          const columns = line.split(",").map(col => col.trim().replace(/"/g, ""));
-          if (columns.length >= Math.max(...Object.values(columnIndices)) + 1) {
-            preview.push({
-              studentId: columns[columnIndices.studentId] || "",
-              lastName: columns[columnIndices.lastName] || "",
-              firstName: columns[columnIndices.firstName] || "",
-              dob: columns[columnIndices.dob] || "",
-              grade: columns[columnIndices.grade] || "",
-              contactName: columns[columnIndices.contactName] || "",
-              contactPhone: columns[columnIndices.contactPhone] || "",
-              contactEmail: columns[columnIndices.contactEmail] || "",
-            });
-          }
-        }
+        const columns = lines[i]
+          .split(",")
+          .map((col) => col.trim().replace(/"/g, ""));
+        preview.push({
+          role: indices.role >= 0 ? columns[indices.role] || "" : "",
+          email: columns[indices.email] || "",
+          firstName: columns[indices.firstName] || "",
+          lastName: columns[indices.lastName] || "",
+          parent1: columns[indices.parent1] || "",
+          parent2: indices.parent2 >= 0 ? columns[indices.parent2] || "" : "",
+        });
       }
       setPreviewData(preview);
     };
@@ -128,10 +270,9 @@ const UserImportDialog: React.FC<UserImportDialogProps> = ({
     setIsUploading(true);
     setUploadProgress(0);
     setError(null);
-    setSuccess(null);
+    setResult(null);
 
     try {
-      // Simulate progress
       const progressInterval = setInterval(() => {
         setUploadProgress((prev) => {
           if (prev >= 90) {
@@ -142,207 +283,190 @@ const UserImportDialog: React.FC<UserImportDialogProps> = ({
         });
       }, 200);
 
-      const result = await uploadUserCsv(selectedFile);
-      
+      const importResult = await importUsersCsv(selectedFile);
+
       clearInterval(progressInterval);
       setUploadProgress(100);
-      
-      setSuccess(`Successfully imported ${result.importedUsersCount} users and ${result.importedStudentsCount} students. ${result.skippedUsersCount} users and ${result.skippedStudentsCount} students were skipped (already existed).`);
-      
-      if (onImportComplete) {
-        onImportComplete(result.importedUsersCount + result.importedStudentsCount);
-      }
-      
-      // Reset form after a delay
-      setTimeout(() => {
-        setSelectedFile(null);
-        setPreviewData([]);
-        setUploadProgress(0);
-        setIsUploading(false);
-      }, 2000);
-      
-    } catch (error) {
-      const axiosError = error as AxiosError;
+      setResult(importResult);
+      onImportComplete?.();
+    } catch (uploadError) {
+      const axiosError = uploadError as AxiosError;
       setError(
         "Error uploading file: " +
-          (axiosError.response?.data?.toString() ??
-            axiosError.response?.statusText ??
-            "Unknown server error")
+          (typeof axiosError.response?.data === "string"
+            ? axiosError.response.data
+            : (axiosError.response?.data?.toString() ??
+              axiosError.response?.statusText ??
+              "Unknown server error")),
       );
+    } finally {
       setIsUploading(false);
-      setUploadProgress(0);
     }
   };
 
   const handleClose = () => {
     if (!isUploading) {
-      setSelectedFile(null);
-      setPreviewData([]);
-      setError(null);
-      setSuccess(null);
-      setUploadProgress(0);
+      resetState();
       onClose();
     }
   };
 
   return (
-    <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth>
-      <DialogTitle>Import Users from CSV</DialogTitle>
-      <DialogContent>
-        <Stack spacing={3}>
-          <Alert severity="info">
-            <Typography variant="body2">
-              Upload a CSV file with the following required columns:
-            </Typography>
-            <Typography variant="body2" component="ul" sx={{ mt: 1, mb: 0 }}>
-              <li>student_id</li>
-              <li>contact_name (full name of the parent/contact)</li>
-              <li>contact_email</li>
-              <li>contact_phone (optional)</li>
-              <li>first_name (for student)</li>
-              <li>last_name (for student)</li>
-              <li>dob (for student)</li>
-              <li>grade (for student)</li>
-            </Typography>
-          </Alert>
+    <>
+      <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth>
+        <DialogTitle
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            pr: 1,
+          }}
+        >
+          Import Users from CSV
+          <IconButton
+            aria-label="How CSV import works"
+            onClick={() => setShowHelp(true)}
+            size="small"
+          >
+            <HelpOutline />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent>
+          <Stack spacing={3}>
+            <Alert severity="info">
+              <Typography variant="body2">
+                Select a CSV file to import parents, students, staff, and
+                teachers for the current school year. Use the help button for
+                column requirements and matching rules.
+              </Typography>
+            </Alert>
 
-          <Box>
-            <input
-              accept=".csv"
-              style={{ display: "none" }}
-              id="csv-file-input"
-              type="file"
-              onChange={handleFileSelect}
-              disabled={isUploading}
-            />
-            <label htmlFor="csv-file-input">
-              <Button
-                variant="outlined"
-                component="span"
-                startIcon={<CloudUpload />}
+            <Box>
+              <input
+                accept=".csv"
+                style={{ display: "none" }}
+                id="csv-file-input"
+                type="file"
+                onChange={handleFileSelect}
                 disabled={isUploading}
-                sx={{ mb: 2 }}
+              />
+              <label htmlFor="csv-file-input">
+                <Button
+                  variant="outlined"
+                  component="span"
+                  startIcon={<CloudUpload />}
+                  disabled={isUploading}
+                  sx={{ mb: 2 }}
+                >
+                  Select CSV File
+                </Button>
+              </label>
+
+              {selectedFile && (
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                  <Description color="primary" />
+                  <Typography variant="body2">
+                    {selectedFile.name} ({(selectedFile.size / 1024).toFixed(1)}{" "}
+                    KB)
+                  </Typography>
+                </Box>
+              )}
+            </Box>
+
+            {error && <Alert severity="error">{error}</Alert>}
+
+            {result && (
+              <Alert
+                severity={result.rowErrors.length > 0 ? "warning" : "success"}
               >
-                Select CSV File
-              </Button>
-            </label>
-            
-            {selectedFile && (
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                <Description color="primary" />
                 <Typography variant="body2">
-                  {selectedFile.name} ({(selectedFile.size / 1024).toFixed(1)} KB)
+                  Created {result.createdUsersCount} users, updated{" "}
+                  {result.updatedUsersCount} users. Created{" "}
+                  {result.createdStudentsCount} students, updated{" "}
+                  {result.updatedStudentsCount} students. Linked{" "}
+                  {result.enrollmentLinksCount} enrollments.
                 </Typography>
+                {result.rowErrors.length > 0 && (
+                  <Box sx={{ mt: 1, maxHeight: 160, overflow: "auto" }}>
+                    {result.rowErrors.map((rowError) => (
+                      <Typography
+                        key={`${rowError.row}-${rowError.message}`}
+                        variant="body2"
+                      >
+                        Row {rowError.row}: {rowError.message}
+                      </Typography>
+                    ))}
+                  </Box>
+                )}
+              </Alert>
+            )}
+
+            {isUploading && (
+              <Box>
+                <Typography variant="body2" gutterBottom>
+                  Uploading and processing file...
+                </Typography>
+                <LinearProgress variant="determinate" value={uploadProgress} />
               </Box>
             )}
-          </Box>
 
-          {error && (
-            <Alert severity="error">
-              {error}
-            </Alert>
-          )}
-
-          {success && (
-            <Alert severity="success">
-              {success}
-            </Alert>
-          )}
-
-          {isUploading && (
-            <Box>
-              <Typography variant="body2" gutterBottom>
-                Uploading and processing file...
-              </Typography>
-              <LinearProgress variant="determinate" value={uploadProgress} />
-            </Box>
-          )}
-
-          {previewData.length > 0 && !isUploading && (
-            <Box>
-              <Typography variant="h6" gutterBottom>
-                Preview (first 5 rows):
-              </Typography>
-              <Box sx={{ maxHeight: 200, overflow: "auto" }}>
-                <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                  <thead>
-                    <tr style={{ backgroundColor: "#f5f5f5" }}>
-                      <th style={{ padding: "8px", textAlign: "left", border: "1px solid #ddd" }}>
-                        Student ID
-                      </th>
-                      <th style={{ padding: "8px", textAlign: "left", border: "1px solid #ddd" }}>
-                        Last Name
-                      </th>
-                      <th style={{ padding: "8px", textAlign: "left", border: "1px solid #ddd" }}>
-                        First Name
-                      </th>
-                      <th style={{ padding: "8px", textAlign: "left", border: "1px solid #ddd" }}>
-                        DOB
-                      </th>
-                      <th style={{ padding: "8px", textAlign: "left", border: "1px solid #ddd" }}>
-                        Grade
-                      </th>
-                      <th style={{ padding: "8px", textAlign: "left", border: "1px solid #ddd" }}>
-                        Contact Name
-                      </th>
-                      <th style={{ padding: "8px", textAlign: "left", border: "1px solid #ddd" }}>
-                        Contact Phone
-                      </th>
-                      <th style={{ padding: "8px", textAlign: "left", border: "1px solid #ddd" }}>
-                        Contact Email
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {previewData.map((row, index) => (
-                      <tr key={index}>
-                        <td style={{ padding: "8px", border: "1px solid #ddd" }}>
-                          {row.studentId}
-                        </td>
-                        <td style={{ padding: "8px", border: "1px solid #ddd" }}>
-                          {row.lastName}
-                        </td>
-                        <td style={{ padding: "8px", border: "1px solid #ddd" }}>
-                          {row.firstName}
-                        </td>
-                        <td style={{ padding: "8px", border: "1px solid #ddd" }}>
-                          {row.dob}
-                        </td>
-                        <td style={{ padding: "8px", border: "1px solid #ddd" }}>
-                          {row.grade}
-                        </td>
-                        <td style={{ padding: "8px", border: "1px solid #ddd" }}>
-                          {row.contactName}
-                        </td>
-                        <td style={{ padding: "8px", border: "1px solid #ddd" }}>
-                          {row.contactPhone}
-                        </td>
-                        <td style={{ padding: "8px", border: "1px solid #ddd" }}>
-                          {row.contactEmail}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+            {previewData.length > 0 && !isUploading && !result && (
+              <Box>
+                <Typography variant="h6" gutterBottom>
+                  Preview (first 5 rows):
+                </Typography>
+                <TableContainer component={Paper}>
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow>
+                        <TableCell>Role</TableCell>
+                        <TableCell>Email</TableCell>
+                        <TableCell>First Name</TableCell>
+                        <TableCell>Last Name</TableCell>
+                        <TableCell>Parent1</TableCell>
+                        <TableCell>Parent2</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {previewData.map((row, index) => (
+                        <TableRow key={index}>
+                          <TableCell>{row.role}</TableCell>
+                          <TableCell>{row.email}</TableCell>
+                          <TableCell>{row.firstName}</TableCell>
+                          <TableCell>{row.lastName}</TableCell>
+                          <TableCell>{row.parent1}</TableCell>
+                          <TableCell>{row.parent2}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
               </Box>
-            </Box>
+            )}
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleClose} disabled={isUploading}>
+            {result ? "Close" : "Cancel"}
+          </Button>
+          {!result && (
+            <Button
+              onClick={handleUpload}
+              variant="contained"
+              disabled={!selectedFile || isUploading}
+            >
+              {isUploading ? "Importing..." : "Upload and Import"}
+            </Button>
           )}
-        </Stack>
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={handleClose} disabled={isUploading}>
-          Cancel
-        </Button>
-        <Button
-          onClick={handleUpload}
-          variant="contained"
-          disabled={!selectedFile || isUploading}
-        >
-          {isUploading ? "Uploading..." : "Upload and Import"}
-        </Button>
-      </DialogActions>
-    </Dialog>
+        </DialogActions>
+      </Dialog>
+
+      <UserImportHelpDialog
+        open={showHelp}
+        onClose={() => setShowHelp(false)}
+      />
+    </>
   );
 };
 
-export default UserImportDialog; 
+export default UserImportDialog;

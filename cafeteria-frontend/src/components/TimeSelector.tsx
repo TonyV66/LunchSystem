@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import {
   FormControl,
   InputLabel,
-  MenuItem,
+  MenuItem as MuiMenuItem,
   Select,
   SelectChangeEvent,
 } from "@mui/material";
@@ -61,9 +61,9 @@ const PlainSelector: React.FC<{
       sx={{ width: "100px" }}
     >
       {(availTimes ?? ALL_TIMES).sort().map((time) => (
-        <MenuItem key={time} value={time}>
+        <MuiMenuItem key={time} value={time}>
           {DateTimeUtils.toTwelveHourTime(time)}
-        </MenuItem>
+        </MuiMenuItem>
       ))}
     </Select>
   );

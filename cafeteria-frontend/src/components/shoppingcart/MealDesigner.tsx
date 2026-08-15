@@ -1,17 +1,19 @@
 import React from "react";
 import { Box, Divider, FormControlLabel, Radio, Stack, Typography } from "@mui/material";
-import { PantryItem, PantryItemType } from "../../models/Menu";
-import { DailyMenu } from "../../models/Menu";
+import { PantryItemType } from "../../models/PantryItemType";
+import DailyMenu from "../../models/DailyMenu";
 import MenuItemsSelector from "./MenuItemsSelector";
+import { AppContext } from "../../AppContextProvider";
+import DailyMenuItem from "../../models/DailyMenuItem";
 
 interface MealDesignerProps {
   menu: DailyMenu;
   typeOfOrder: "meal" | "drink";
   onTypeOfOrderChanged: (type: "meal" | "drink") => void;
-  onEntreeChanged: (menuItems: PantryItem[]) => void;
-  onSidesChanged: (menuItems: PantryItem[]) => void;
-  onDessertChanged: (menuItems: PantryItem[]) => void;
-  onDrinkChanged: (menuItems: PantryItem[]) => void;
+  onEntreeChanged: (menuItems: DailyMenuItem[]) => void;
+  onSidesChanged: (menuItems: DailyMenuItem[]) => void;
+  onDessertChanged: (menuItems: DailyMenuItem[]) => void;
+  onDrinkChanged: (menuItems: DailyMenuItem[]) => void;
 }
 
 const MealDesigner: React.FC<MealDesignerProps> = ({
@@ -23,17 +25,18 @@ const MealDesigner: React.FC<MealDesignerProps> = ({
   onDessertChanged,
   onDrinkChanged,
 }) => {
+  const { pantryItems } = React.useContext(AppContext);
   const entrees = menu.items.filter(
-    (item) => item.type === PantryItemType.ENTREE
+    (item) => pantryItems.find((pantryItem) => pantryItem.id === item.pantryItemId)?.type === PantryItemType.ENTREE
   );
   const sides = menu.items.filter(
-    (item) => item.type === PantryItemType.SIDE
+    (item) => pantryItems.find((pantryItem) => pantryItem.id === item.pantryItemId)?.type === PantryItemType.SIDE
   );
   const desserts = menu.items.filter(
-    (item) => item.type === PantryItemType.DESSERT
+    (item) => pantryItems.find((pantryItem) => pantryItem.id === item.pantryItemId)?.type === PantryItemType.DESSERT
   );
   const drinks = menu.items.filter(
-    (item) => item.type === PantryItemType.DRINK
+    (item) => pantryItems.find((pantryItem) => pantryItem.id === item.pantryItemId)?.type === PantryItemType.DRINK
   );
 
   return (

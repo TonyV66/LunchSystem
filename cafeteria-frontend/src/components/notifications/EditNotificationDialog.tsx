@@ -29,9 +29,9 @@ const EditNotificationDialog: React.FC<DialogProps> = ({
     notification ?? {
       id: 0,
       msg: "",
-      startDate: DateTimeUtils.toString(new Date()),
-      endDate: DateTimeUtils.toString(new Date()),
-      creationDate: new Date().toJSON(),
+      startDate: DateTimeUtils.toString(DateTimeUtils.getCurrentDate()),
+      endDate: DateTimeUtils.toString(DateTimeUtils.getCurrentDate()),
+      creationDate: DateTimeUtils.getCurrentDate().toJSON(),
     }
   );
 

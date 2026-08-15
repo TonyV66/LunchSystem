@@ -1,13 +1,12 @@
-import { Column, Entity, JoinTable, ManyToMany, ManyToOne, OneToMany, PrimaryGeneratedColumn } from "typeorm";
+import { Column, Entity, Index, ManyToOne, OneToMany, PrimaryGeneratedColumn } from "typeorm";
 import SchoolEntity from "./SchoolEntity";
 import SchoolYearLunchTimeEntity from "./SchoolYearLunchTimeEntity";
 import TeacherLunchTimeEntity from "./TeacherLunchTimeEntity";
 import StudentLunchTimeEntity from "./StudentLunchTimeEntity";
 import { OrderEntity } from "./OrderEntity";
-import { DailyMenuEntity } from "./MenuEntity";
-import StudentEntity from "./StudentEntity";
-import UserEntity from "./UserEntity";
+import DailyMenuEntity from "./DailyMenuEntity";
 import GradeLunchTimeEntity from "./GradeLunchTimeEntity";
+import EnrollmentEntity from "./EnrollmentEntity";
 
 @Entity("school_year")
 export default class SchoolYearEntity {
@@ -21,6 +20,9 @@ export default class SchoolYearEntity {
   startDate: string;
   @Column()
   endDate: string;
+  @Index()
+  @Column({ type: "int", nullable: true, default: null })
+  factsId: number | null;
   @Column({default: ''})
   gradesAssignedByClass: string;
   @Column({default: true})
@@ -43,10 +45,6 @@ export default class SchoolYearEntity {
   @ManyToOne(() => SchoolEntity, (school) => school.schoolYears)
   school: SchoolEntity;
 
-  @ManyToMany(() => UserEntity, (user) => user.schoolYears)
-  @JoinTable({name: 'school_year_parents'})
-  parents: UserEntity[];
-
-  // Removing the students relationship as it's redundant
-  // Students can be accessed through parents
+  @OneToMany(() => EnrollmentEntity, (enrollment) => enrollment.schoolYear)
+  enrollments: EnrollmentEntity[];
 }

@@ -3,7 +3,7 @@ import { Box, IconButton, Typography } from "@mui/material";
 import { AppContext } from "../../AppContextProvider";
 import { Order } from "../../models/Order";
 import Student from "../../models/Student";
-import MenuItemChip from "./MenuItemChip";
+import PantryItemChip from "./PantryItemChip";
 import { grey, yellow } from "@mui/material/colors";
 import { DateTimeFormat, DateTimeUtils } from "../../DateTimeUtils";
 import { Delete } from "@mui/icons-material";
@@ -28,6 +28,8 @@ const MealDescription: React.FC<{
   onDelete?: (meal: Meal) => void;
   orderedBy?: string;
 }> = ({ meal, onDelete, hidePrice, orderedBy }) => {
+  const { pantryItems } = useContext(AppContext);
+
   const amountPaid = meal.items
     .map((item) => item.price)
     .reduce((prev, curr) => prev + curr, 0);
@@ -80,16 +82,20 @@ const MealDescription: React.FC<{
           </Box>
         )}
         {meal.items
-          .sort(
-            (item1, item2) =>
+          .map(
+            (item) =>
+              pantryItems.find(
+                (pantryItem) => pantryItem.id === item.pantryItemId,
+              )!,
+          )
+          .sort((item1, item2) => {
+            return (
               item1.type - item2.type ||
               item1.name.toLowerCase().localeCompare(item2.name.toLowerCase())
-          )
+            );
+          })
           .map((item) => (
-            <MenuItemChip
-              key={item.name + ":" + item.type.toString()}
-              menuItem={item}
-            ></MenuItemChip>
+            <PantryItemChip key={item.id} pantryItem={item}></PantryItemChip>
           ))}
       </Box>
       {!hidePrice ? (
@@ -108,7 +114,10 @@ const MealDescription: React.FC<{
           }}
         >
           <Typography
-            sx={{ textDecoration: (meal.refundType && amountPaid > 0) ? "line-through" : "none" }}
+            sx={{
+              textDecoration:
+                meal.refundType && amountPaid > 0 ? "line-through" : "none",
+            }}
           >
             ${amountPaid.toFixed(2)}
           </Typography>
@@ -170,9 +179,9 @@ const DailyOrdersForPerson: React.FC<StudentDailyOrdersProps> = ({
       o.meals.forEach((m) =>
         mealsOrderedBySomeoneElse.set(
           m.id,
-          getUserName(users.find((u) => u.id === o.userId))
-        )
-      )
+          getUserName(users.find((u) => u.id === o.userId)),
+        ),
+      ),
     );
 
   const meals = orders
@@ -182,7 +191,7 @@ const DailyOrdersForPerson: React.FC<StudentDailyOrdersProps> = ({
         (!hideCancelledMeals || !meal.cancelled) &&
         meal.date === date &&
         ((student && meal.studentId === student.id) ||
-          (staffMember && meal.staffMemberId === staffMember.id))
+          (staffMember && meal.staffMemberId === staffMember.id)),
     );
 
   let title = student ? student.firstName + " " + student.lastName : "Unknown";
@@ -263,14 +272,14 @@ const DailyOrders: React.FC<DailyOrdersProps> = ({
         (!hideCancelledMeals || !meal.cancelled) &&
         meal.date === date &&
         ((meal.studentId && studentIds.has(meal.studentId)) ||
-          (meal.staffMemberId && staffMemberIds.has(meal.staffMemberId)))
+          (meal.staffMemberId && staffMemberIds.has(meal.staffMemberId))),
     );
 
   const studentsWithMeals = students.filter((student) =>
-    meals.some((meal) => meal.studentId === student.id)
+    meals.some((meal) => meal.studentId === student.id),
   );
   const staffMembersWithMeals = staffMembers.filter((user) =>
-    meals.some((meal) => meal.staffMemberId === user.id)
+    meals.some((meal) => meal.staffMemberId === user.id),
   );
 
   const uniquePersons: Person[] = [
@@ -317,7 +326,7 @@ const DailyOrders: React.FC<DailyOrdersProps> = ({
           <Typography textAlign="left">
             {DateTimeUtils.toString(
               date,
-              DateTimeFormat.SHORT_DAY_OF_WEEK_DESC
+              DateTimeFormat.SHORT_DAY_OF_WEEK_DESC,
             )}
           </Typography>
         </Box>
@@ -384,7 +393,7 @@ const OrderedMealsTable: React.FC<OrdersTableProps> = ({
 
   const orders = order ? [order] : allOrders;
   const students = (student ? [student] : allStudents).filter(
-    (s) => !user || s.parents.includes(user.id)
+    (s) => !user || s.parents.includes(user.id),
   );
   const dates = new Set<string>();
   orders

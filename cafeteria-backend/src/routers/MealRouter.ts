@@ -1,12 +1,12 @@
 import express, { Router } from "express";
 import { AppDataSource } from "../data-source";
 import { Role } from "../models/User";
-import UserEntity from "../entity/UserEntity";
 import MealEntity from "../entity/MealEntity";
 import { OrderEntity } from "../entity/OrderEntity";
-import { MealItemEntity } from "../entity/MenuEntity";
+import MealItemEntity from "../entity/MealItemEntity";
 import { Order } from "../models/Order";
 import { RefundType } from "../models/RefundType";
+import { saveUserStatus } from "../utils/UserStatusUtils";
 
 const MealRouter: Router = express.Router();
 interface Empty {}
@@ -19,7 +19,6 @@ MealRouter.put<
   Empty
 >("/:id/cancel", async (req, res) => {
   const mealRepository = AppDataSource.getRepository(MealEntity);
-  const userRepository = AppDataSource.getRepository(UserEntity);
   const orderRepository = AppDataSource.getRepository(OrderEntity);
   const mealItemRepository = AppDataSource.getRepository(MealItemEntity);
 
@@ -35,7 +34,7 @@ MealRouter.put<
     }
 
     // Check if user owns the order containing this meal or is admin
-    if (meal.order.user.id !== req.user.id && req.user.role !== Role.ADMIN) {
+    if (meal.order.user.id !== req.user.id && req.userStatus.role !== Role.ADMIN) {
       res.status(403).send("Unauthorized to cancel this meal");
       return;
     }
@@ -57,8 +56,8 @@ MealRouter.put<
         return mealTotal + item.price;
       }, 0);
 
-      req.user.availableCredits += cost;
-      await userRepository.save(req.user);
+      req.userStatus.availableCredits += cost;
+      await saveUserStatus(req.userStatus);
 
       meal.order.appliedCredits = Math.min(0, meal.order.appliedCredits - cost);
       await orderRepository.save(meal.order);
@@ -78,7 +77,7 @@ MealRouter.put<
 
     res.send({
       order: new Order(orderEntity!),
-      availableCredits: req.user.availableCredits,
+      availableCredits: req.userStatus.availableCredits,
     });
   } catch (error) {
     res.status(500).send("Error cancelling meal");

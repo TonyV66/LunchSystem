@@ -10,6 +10,15 @@ export enum Role {
   KITCHEN,
 }
 
+export const isFactsUserRole = (role: Role): boolean =>
+  role === Role.PARENT || role === Role.TEACHER || role === Role.STAFF;
+
+export enum AccountStatus {
+  ACTIVE = "active",
+  INACTIVE = "inactive",
+  PENDING = "pending",
+}
+
 export default class User {
   id: number;
   userName: string;
@@ -19,13 +28,8 @@ export default class User {
   lastName: string;
   email: string;
   phone: string;
-  description: string;
-  role: Role;
-  pending: boolean;
-  availableCredits: number;
   notificationReviewDate: Date;
   resetPwd: boolean;
-  surveyCompleted: boolean;
   forgotPwdUri: string | null;
   forgotPwdDate: Date;
 
@@ -38,13 +42,8 @@ export default class User {
     this.lastName = entity.lastName;
     this.email = entity.email;
     this.phone = entity.phone;
-    this.description = entity.description;
-    this.role = entity.role;
-    this.pending = entity.pending;
-    this.availableCredits = entity.availableCredits;
     this.notificationReviewDate = entity.notificationReviewDate;
     this.resetPwd = entity.resetPwd;
-    this.surveyCompleted = entity.surveyCompleted;
     this.forgotPwdUri = entity.forgotPwdUri;
     this.forgotPwdDate = entity.forgotPwdDate;
   }

@@ -17,6 +17,7 @@ export default class SchoolYear {
   isCurrent: boolean;
   startDate: string;
   endDate: string;
+  factsId: number | null;
   lunchTimes: DailyLunchTimes[];
   teacherLunchTimes: TeacherLunchTime[];
   gradeLunchTimes: GradeLunchTime[];
@@ -31,6 +32,7 @@ export default class SchoolYear {
     this.isCurrent = entity.isCurrent;
     this.startDate = entity.startDate;
     this.endDate = entity.endDate;
+    this.factsId = entity.factsId;
     this.lunchTimes =
       entity.lunchTimes?.map((lt) => ({
         dayOfWeek: lt.dayOfWeek,

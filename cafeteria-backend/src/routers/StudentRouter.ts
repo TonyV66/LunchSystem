@@ -6,13 +6,18 @@ import Student from "../models/Student";
 import UserEntity from "../entity/UserEntity";
 import { randomUUID } from "crypto";
 import StudentLunchTimeEntity from "../entity/StudentLunchTimeEntity";
-import { getCurrentSchoolYear } from "./RouterUtils";
 import { GradeLevel } from "../models/GradeLevel";
 import StudentLunchTime from "../models/StudentLunchTime";
-import User from "../models/User";
+import SchoolUser from "../models/SchoolUser";
 import SchoolYearEntity from "../entity/SchoolYearEntity";
 import { OrderEntity } from "../entity/OrderEntity";
 import { Order } from "../models/Order";
+import { getUserStatus } from "../utils/UserStatusUtils";
+import {
+  ensureEnrollment,
+  getStudentsForUserInSchoolYear,
+} from "../utils/EnrollmentUtils";
+import EnrollmentEntity from "../entity/EnrollmentEntity";
 
 const StudentRouter: Router = express.Router();
 interface Empty {}
@@ -23,9 +28,18 @@ interface StudentWithLunchTimes extends Student {
 
 interface Relations {
   students: Student[];
-  parents: User[];
+  parents: SchoolUser[];
   studentLunchTimes: StudentLunchTime[];
 }
+
+const toSchoolUsers = (users: UserEntity[]): SchoolUser[] => {
+  return users
+    .map((user) => {
+      const registration = getUserStatus(user);
+      return registration ? new SchoolUser(user, registration) : null;
+    })
+    .filter((user): user is SchoolUser => user != null);
+};
 
 const getOrdersForStudent = async (
   schoolYear: SchoolYearEntity,
@@ -56,7 +70,7 @@ StudentRouter.post<Empty, Student | string, StudentWithLunchTimes, Empty>(
     );
     const userRepository = AppDataSource.getRepository(UserEntity);
 
-    const currentSchoolYear = getCurrentSchoolYear(req.user.school);
+    const currentSchoolYear = req.schoolYear;
 
     const studentToSave: DeepPartial<StudentEntity> = {
       name: req.body.name,
@@ -64,16 +78,14 @@ StudentRouter.post<Empty, Student | string, StudentWithLunchTimes, Empty>(
       lastName: req.body.lastName,
       birthDate: req.body.birthDate,
       studentId: randomUUID(),
-      school: req.user.school,
+      school: req.school,
     };
 
     const savedStudent = await studentRepository.save(studentToSave);
 
-    await AppDataSource.createQueryBuilder()
-      .relation(UserEntity, "students")
-      .of(req.user)
-      .add(savedStudent);
     if (currentSchoolYear) {
+      await ensureEnrollment(req.user, savedStudent, currentSchoolYear);
+
       // Save lunch times if provided
       if (req.body.lunchTimes && req.body.lunchTimes.length > 0) {
         const teacherIds = req.body.lunchTimes
@@ -100,7 +112,10 @@ StudentRouter.post<Empty, Student | string, StudentWithLunchTimes, Empty>(
     const studentWithLunchTimes = await studentRepository.findOne({
       where: { id: savedStudent.id },
       relations: {
-        parents: true,
+        enrollments: {
+          user: true,
+          schoolYear: true,
+        },
         lunchTimes: {
           lunchtimeTeacher: true,
           schoolYear: true,
@@ -126,7 +141,7 @@ StudentRouter.put<Empty, Student | string, StudentWithLunchTimes, Empty>(
     );
     const userRepository = AppDataSource.getRepository(UserEntity);
 
-    const currentSchoolYear = getCurrentSchoolYear(req.user.school);
+    const currentSchoolYear = req.schoolYear;
     if (!currentSchoolYear) {
       res.status(400).send("No current school year found" as string);
       return;
@@ -214,7 +229,7 @@ StudentRouter.put<
   );
   const userRepository = AppDataSource.getRepository(UserEntity);
 
-  const currentSchoolYear = getCurrentSchoolYear(req.user.school);
+  const currentSchoolYear = req.schoolYear;
   if (!currentSchoolYear) {
     res.status(400).send("No current school year found" as string);
     return;
@@ -267,9 +282,10 @@ StudentRouter.put<
   res.send(savedLunchTimes);
 });
 
+// TODO: How to handle unenrollments?
 StudentRouter.put<
   { studentId: string; userId: string },
-  { student: Student; lunchTimes: StudentLunchTime[]; parents: User[]; orders: Order[] } | string,
+  { student: Student; lunchTimes: StudentLunchTime[]; parents: SchoolUser[]; orders: Order[] } | string,
   Empty,
   Empty
 >("/:studentId/associate/:userId", async (req, res) => {
@@ -286,7 +302,10 @@ StudentRouter.put<
   const student = await studentRepository.findOne({
     where: { id: studentId },
     relations: {
-      parents: true,
+      enrollments: {
+        user: true,
+        schoolYear: true,
+      },
     },
   });
 
@@ -305,43 +324,54 @@ StudentRouter.put<
     return;
   }
 
-  // Check if the association already exists
-  const existingAssociation = student.parents?.find(
-    (parent) => parent.id === userId
-  );
-
-  const currentSchoolYear = getCurrentSchoolYear(req.user.school);
+  const currentSchoolYear = req.schoolYear;
   if (!currentSchoolYear) {
     res.status(400).send("No current school year found" as string);
     return;
   }
 
+  // Check if the association already exists for this school year
+  const existingAssociation = student.enrollments?.find(
+    (enrollment) =>
+      enrollment.active &&
+      enrollment.user?.id === userId &&
+      enrollment.schoolYear?.id === currentSchoolYear.id,
+  );
+
   let lunchTimes: StudentLunchTimeEntity[] = [];
   if (!existingAssociation) {
-    // Add the user to the student's parents
-    await AppDataSource.createQueryBuilder()
-      .relation(UserEntity, "students")
-      .of(user)
-      .add(student);
-      
-    student.parents.push(user);
+    await ensureEnrollment(user, student, currentSchoolYear);
+    student.enrollments = student.enrollments ?? [];
+    student.enrollments.push({
+      user,
+      student,
+      schoolYear: currentSchoolYear,
+      active: true,
+    } as EnrollmentEntity);
   }
 
-  const myChildren = await studentRepository.find({
-    where: {
-      parents: { id: user.id },
-    },
-  });
+  const myChildren = await getStudentsForUserInSchoolYear(
+    user.id,
+    currentSchoolYear.id,
+  );
 
   const ordersForStudent = (await getOrdersForStudent(currentSchoolYear, student)).map(order => ({
     ...order,
     meals: order.meals.filter(meal => myChildren.some(child => child.id === meal.student?.id))
   }));
   
-  const uniqueUserIds = new Set(ordersForStudent.map((order) => order.user.id));
-  const parents = Array.from(uniqueUserIds).map(userId => 
-    ordersForStudent.find(order => order.user.id === userId)!.user
-  );
+  const uniqueUserIds = [...new Set(ordersForStudent.map((order) => order.user.id))];
+  const parentEntities =
+    uniqueUserIds.length > 0
+      ? await userRepository.find({
+          where: { id: In(uniqueUserIds) },
+          relations: {
+            userStatuses: {
+              school: true,
+            },
+          },
+        })
+      : [];
 
   lunchTimes = await studentLunchTimeRepository.find({
     where: {
@@ -358,7 +388,7 @@ StudentRouter.put<
   res.send({
     student: new Student(student),
     lunchTimes: lunchTimes.map((lt) => new StudentLunchTime(lt)),
-    parents: parents.map((p) => new User(p)),
+    parents: toSchoolUsers(parentEntities),
     orders: ordersForStudent.map((o) => new Order(o)),
   });
 });
@@ -378,7 +408,7 @@ StudentRouter.get<
     return;
   }
 
-  const currentSchoolYear = getCurrentSchoolYear(req.user.school);
+  const currentSchoolYear = req.schoolYear;
   if (!currentSchoolYear) {
     res.status(400).send("No current school year found" as string);
     return;
@@ -394,13 +424,19 @@ StudentRouter.get<
     // Find students with matching name and grade (case-insensitive)
     const matchingStudents = await studentRepository
       .createQueryBuilder("student")
-      .leftJoinAndSelect("student.parents", "parents")
+      .leftJoinAndSelect(
+        "student.enrollments",
+        "enrollment",
+        "enrollment.schoolYearId = :schoolYearId AND enrollment.active = true",
+        { schoolYearId: currentSchoolYear.id },
+      )
+      .leftJoinAndSelect("enrollment.user", "parents")
       .leftJoinAndSelect("student.lunchTimes", "lunchTimes")
       .leftJoinAndSelect("lunchTimes.schoolYear", "schoolYear")
       .where("LOWER(student.firstName) = LOWER(:firstName)", { firstName })
       .andWhere("LOWER(student.lastName) = LOWER(:lastName)", { lastName })
       .andWhere("student.school.id = :schoolId", {
-        schoolId: req.user.school.id,
+        schoolId: req.school.id,
       })
       .andWhere("lunchTimes.grade = :grade", { grade })
       .andWhere("schoolYear.id = :schoolYearId", {
@@ -416,8 +452,10 @@ StudentRouter.get<
     // Get all unique parent IDs from matching students
     const parentIds = new Set<number>();
     matchingStudents.forEach((student) => {
-      student.parents?.forEach((parent) => {
-        parentIds.add(parent.id);
+      student.enrollments?.forEach((enrollment) => {
+        if (enrollment.active && enrollment.user?.id) {
+          parentIds.add(enrollment.user.id);
+        }
       });
     });
 
@@ -426,10 +464,15 @@ StudentRouter.get<
       where: {
         id: In(Array.from(parentIds)),
       },
+      relations: {
+        userStatuses: {
+          school: true,
+        },
+      },
     });
 
-    // Convert to User objects
-    const parentUsers = parents.map((parent) => new User(parent));
+    // Convert to SchoolUser objects
+    const parentUsers = toSchoolUsers(parents);
 
     // Get all lunch times for the matching students
     const studentIds = matchingStudents.map((student) => student.id);

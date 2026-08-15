@@ -16,6 +16,7 @@ import { ExpandMore } from "@mui/icons-material";
 import { AppContext } from "../../AppContextProvider";
 import { DateTimeUtils, DateTimeFormat } from "../../DateTimeUtils";
 import User, { Role } from "../../models/User";
+import SchoolUser from "../../models/SchoolUser";
 import MealReport, { ReportData } from "./MealReport";
 import { getGradeName, GradeLevel } from "../../models/GradeLevel";
 import { Order } from "../../models/Order";
@@ -335,7 +336,7 @@ const getStudentsBeingServed = (meals: Meal[], students: Student[]) => {
 };
 
 const getClassroomTeachers = (
-  users: User[],
+  users: SchoolUser[],
   date: string,
   studentLunchTimes: StudentLunchTime[]
 ) => {
@@ -490,7 +491,7 @@ const getTeacherReportData = (
 const getDailyReportData = (
   orders: Order[],
   students: Student[],
-  users: User[],
+  users: SchoolUser[],
   currentSchoolYear: SchoolYear,
   date: string
 ) => {

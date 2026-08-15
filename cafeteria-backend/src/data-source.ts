@@ -1,18 +1,24 @@
 import "reflect-metadata";
+import "./env";
 import { DataSource } from "typeorm";
 import MealEntity from "./entity/MealEntity";
-import MenuEntity, {
-  MealItemEntity,
-  MenuItemEntity,
-  DailyMenuItemEntity,
-  DailyMenuEntity,
-  PantryItemEntity,
-} from "./entity/MenuEntity";
+import MenuEntity from "./entity/MenuEntity";
+import MealItemEntity from "./entity/MealItemEntity";
+import MenuItemEntity from "./entity/MenuItemEntity";
+import DailyMenuItemEntity from "./entity/DailyMenuItemEntity";
+import DailyMenuEntity from "./entity/DailyMenuEntity";
+import PantryItemEntity from "./entity/PantryItemEntity";
+import RecipeItemEntity from "./entity/RecipeItemEntity";
+import IngredientEntity from "./entity/IngredientEntity";
+import UnitOfMeasureEntity from "./entity/UnitOfMeasureEntity";
 import { OrderEntity } from "./entity/OrderEntity";
 import StudentEntity from "./entity/StudentEntity";
 import UserEntity from "./entity/UserEntity";
+import UserStatusEntity from "./entity/UserStatusEntity";
+import EnrollmentEntity from "./entity/EnrollmentEntity";
 import NotificationEntity from "./entity/NotificationEntity";
 import SchoolEntity from "./entity/SchoolEntity";
+import SchoolDistrictEntity from "./entity/SchoolDistrictEntity";
 import SchoolYearEntity from "./entity/SchoolYearEntity";
 import SchoolYearLunchTimeEntity from "./entity/SchoolYearLunchTimeEntity";
 import TeacherLunchTimeEntity from "./entity/TeacherLunchTimeEntity";
@@ -20,6 +26,7 @@ import GradeLunchTimeEntity from "./entity/GradeLunchTimeEntity";
 import StudentLunchTimeEntity from "./entity/StudentLunchTimeEntity";
 import SurveyEntity from "./entity/SurveyEntity";
 import QuestionEntity from "./entity/QuestionEntity";
+import CalendarNoteEntity from "./entity/CalendarNoteEntity";
 
 export const AppDataSource = new DataSource({
   type: "mysql",
@@ -28,10 +35,13 @@ export const AppDataSource = new DataSource({
   username: process.env.DB_USER,
   password: process.env.DB_PWD,
   database: process.env.DB_NAME,
-  synchronize: true,
+  synchronize: false,
   logging: false,
   entities: [
     PantryItemEntity,
+    RecipeItemEntity,
+    IngredientEntity,
+    UnitOfMeasureEntity,
     MealEntity,
     MealItemEntity,
     MenuItemEntity,
@@ -41,7 +51,10 @@ export const AppDataSource = new DataSource({
     OrderEntity,
     StudentEntity,
     UserEntity,
+    UserStatusEntity,
+    EnrollmentEntity,
     NotificationEntity,
+    SchoolDistrictEntity,
     SchoolEntity,
     SchoolYearEntity,
     SchoolYearLunchTimeEntity,
@@ -50,7 +63,8 @@ export const AppDataSource = new DataSource({
     GradeLunchTimeEntity,
     SurveyEntity,
     QuestionEntity,
+    CalendarNoteEntity,
   ],
-  migrations: [],
+  migrations: [__dirname + "/migration/**/*.{ts,js}"],
   subscribers: [],
 });

@@ -30,6 +30,8 @@ const SchoolYearDescriptionPanel: React.FC<SchoolYearDescriptionPanelProps> = ({
     setMenus,
     setNotifications,
     setPantryItems,
+    setIngredients,
+    setUnitsOfMeasure,
     setSchool,
   } = React.useContext(AppContext);
 
@@ -50,17 +52,11 @@ const SchoolYearDescriptionPanel: React.FC<SchoolYearDescriptionPanelProps> = ({
   };
 
   const handleToggleCurrent = async () => {
-    if (schoolYear.isCurrent) {
+    if (schoolYear.isCurrent || currentSchoolYear) {
       setIsConfirmDialogOpen(true);
-      return;
+    } else {
+      await performToggleCurrent();
     }
-
-    if (!schoolYear.isCurrent && currentSchoolYear) {
-      setIsConfirmDialogOpen(true);
-      return;
-    }
-
-    await performToggleCurrent();
   };
 
   const performToggleCurrent = async () => {
@@ -76,6 +72,8 @@ const SchoolYearDescriptionPanel: React.FC<SchoolYearDescriptionPanelProps> = ({
       setScheduledMenus(updatedSessionInfo.scheduledMenus);
       setNotifications(updatedSessionInfo.notifications);
       setPantryItems(updatedSessionInfo.pantryItems);
+      setIngredients(updatedSessionInfo.ingredients);
+      setUnitsOfMeasure(updatedSessionInfo.unitsOfMeasure);
       setSchool(updatedSessionInfo.school);
       setSchoolYears(updatedSessionInfo.schoolYears);
       setCurrentSchoolYear(

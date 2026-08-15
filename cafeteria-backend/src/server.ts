@@ -6,6 +6,8 @@ import { AppDataSource } from "./data-source";
 import path from "path";
 import NotificationRouter from "./routers/NotificationRouter";
 import PantryRouter from "./routers/PantryRouter";
+import IngredientRouter from "./routers/IngredientRouter";
+import UnitOfMeasureRouter from "./routers/UnitOfMeasureRouter";
 import UserRouter from "./routers/UserRouter";
 import MenuRouter from "./routers/MenuRouter";
 import DailyMenuRouter from "./routers/DailyMenuRouter";
@@ -15,11 +17,12 @@ import MealRouter from "./routers/MealRouter";
 import SessionRouter from "./routers/SessionRouter";
 import SchoolRouter from "./routers/SchoolRouter";
 import LoginRouter from "./routers/LoginRouter";
-import { authorizeRequest } from "./routers/RouterUtils";
+import { authorizeUserWithRole } from "./routers/RouterUtils";
 import SchoolYearRouter from "./routers/SchoolYearRouter";
 import ReportsRouter from "./routers/ReportsRouter";
 import SchoolRegistrationRouter from "./routers/SchoolRegistrationRouter";
 import SurveyRouter from "./routers/SurveyRouter";
+import CalendarNoteRouter from "./routers/CalendarNoteRouter";
 import { EmailSchedulerService } from "./services/EmailSchedulerService";
 
 AppDataSource.initialize()
@@ -45,17 +48,20 @@ AppDataSource.initialize()
       express.static(path.join(__dirname, "../../cafeteria-frontend/build"))
     );
 
-    app.use("/api/notification", authorizeRequest, NotificationRouter);
-    app.use("/api/pantry", authorizeRequest, PantryRouter);
-    app.use("/api/menu", authorizeRequest, MenuRouter);
-    app.use("/api/dailymenu", authorizeRequest, DailyMenuRouter);
-    app.use("/api/student", authorizeRequest, StudentRouter);
-    app.use("/api/order", authorizeRequest, OrderRouter);
-    app.use("/api/meal", authorizeRequest, MealRouter);
-    app.use("/api/session", authorizeRequest, SessionRouter);
-    app.use("/api/school", authorizeRequest, SchoolRouter);
-    app.use("/api/schoolyear", authorizeRequest, SchoolYearRouter);
-    app.use("/api/survey", authorizeRequest, SurveyRouter);
+    app.use("/api/notification", authorizeUserWithRole(), NotificationRouter);
+    app.use("/api/pantry", authorizeUserWithRole(), PantryRouter);
+    app.use("/api/ingredient", authorizeUserWithRole(), IngredientRouter);
+    app.use("/api/unit-of-measure", authorizeUserWithRole(), UnitOfMeasureRouter);
+    app.use("/api/menu", authorizeUserWithRole(), MenuRouter);
+    app.use("/api/dailymenu", authorizeUserWithRole(), DailyMenuRouter);
+    app.use("/api/student", authorizeUserWithRole(), StudentRouter);
+    app.use("/api/order", authorizeUserWithRole(), OrderRouter);
+    app.use("/api/meal", authorizeUserWithRole(), MealRouter);
+    app.use("/api/session", authorizeUserWithRole(), SessionRouter);
+    app.use("/api/school", authorizeUserWithRole(), SchoolRouter);
+    app.use("/api/schoolyear", authorizeUserWithRole(), SchoolYearRouter);
+    app.use("/api/survey", authorizeUserWithRole(), SurveyRouter);
+    app.use("/api/calendar-note", authorizeUserWithRole(), CalendarNoteRouter);
     app.use("/api/user", UserRouter);
     app.use("/api/login", LoginRouter);
     app.use("/api/register", SchoolRegistrationRouter);

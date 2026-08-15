@@ -12,14 +12,40 @@ import UserEntity from "../entity/UserEntity";
 import { Role } from "../models/User";
 import GradeLunchTimeEntity from "../entity/GradeLunchTimeEntity";
 import { DateTimeFormat, DateTimeUtils } from "../DateTimeUtils";
-import { DailyMenuEntity } from "../entity/MenuEntity";
+import DailyMenuEntity from "../entity/DailyMenuEntity";
 import SchoolEntity from "../entity/SchoolEntity";
-import { PantryItem } from "../models/Menu";
+import PantryItem from "../models/PantryItem";
+import PantryItemEntity from "../entity/PantryItemEntity";
+import { getUserStatus } from "./UserStatusUtils";
 
 const router = express.Router();
 
+const loadPantryByIdForMeals = async (
+  meals: MealEntity[]
+): Promise<Map<number, PantryItemEntity>> => {
+  const ids = [
+    ...new Set(
+      meals.flatMap((meal) => meal.items?.map((item) => item.pantryItemId) ?? [])
+    ),
+  ];
+  if (ids.length === 0) {
+    return new Map();
+  }
+  const items = await AppDataSource.getRepository(PantryItemEntity).find({
+    where: { id: In(ids) },
+  });
+  return new Map(items.map((item) => [item.id, item]));
+};
+
+const mealItemNames = (
+  meal: MealEntity,
+  pantryById: Map<number, PantryItemEntity>
+): string[] =>
+  meal.items.map((item) => pantryById.get(item.pantryItemId)?.name ?? "");
+
+
 export interface MealData {
-  items: string[];
+  pantryItems: PantryItem[];
 }
 
 export interface CustomerData {
@@ -77,7 +103,7 @@ function generateStudentMealsTable(reportData: ReportData, pageBreak: boolean) {
                 <td class="student-name">${
                   mealIndex === 0 ? customer.name : ""
                 }</td>
-                <td>${meal.items.join(", ")}</td>
+                <td>${meal.pantryItems.map((item) => item.name).join(", ")}</td>
               </tr>
             `
               )
@@ -190,7 +216,9 @@ const getClassroomTeachers = async (
   // Find all teachers who have students assigned to them for lunchtime on this day
   const teachersWithStudents = await userRepository.find({
     where: {
-      role: Role.TEACHER,
+      userStatuses: {
+        role: Role.TEACHER,
+      },
       studentLunchTimes: {
         schoolYear: { id: schoolYear.id },
         dayOfWeek: dayOfWeek,
@@ -360,7 +388,8 @@ const buildClassroomReportData = (
   classroomMap: Map<number, StudentEntity[]>,
   classroomTeachers: UserEntity[],
   date: string,
-  teacherLunchTimes: TeacherLunchTimeEntity[]
+  teacherLunchTimes: TeacherLunchTimeEntity[],
+  pantryById: Map<number, PantryItemEntity>
 ): ReportData[] => {
   const dayOfWeek = DateTimeUtils.toDate(date).getDay();
   const reportDataArray: ReportData[] = [];
@@ -408,16 +437,20 @@ const buildClassroomReportData = (
 
     // Add students and their meals
     for (const student of students) {
-      const studentMealsForStudent = studentMeals
+      const mealData: MealData[] = [];
+      studentMeals
         .filter((meal) => meal.student?.id === student.id)
-        .map((meal) => ({
-          items: meal.items.map((item) => item.name),
-        }));
+        .forEach((meal) => {
+          mealData.push({
+            pantryItems: meal.items.map((item) => pantryById.get(item.pantryItemId)!),
+          });
+        });
 
-      if (studentMealsForStudent.length > 0) {
+
+      if (mealData.length > 0) {
         reportData.customers.push({
           name: student.firstName + " " + student.lastName,
-          meals: studentMealsForStudent,
+          meals: mealData,
         });
       }
     }
@@ -426,9 +459,13 @@ const buildClassroomReportData = (
 
     // Add teacher meals last (if any)
     if (teacherMeals.length > 0) {
-      const teacherMealData = teacherMeals.map((meal) => ({
-        items: meal.items.map((item) => item.name),
-      }));
+      const teacherMealData: MealData[] = [];
+      teacherMeals.forEach((meal) => {
+        teacherMealData.push({
+          pantryItems: meal.items.map((item) => pantryById.get(item.pantryItemId)!),
+        });
+      });
+
 
       reportData.customers.push({
         name:
@@ -449,7 +486,8 @@ const buildGradeLevelReportData = (
   mealsBeingServed: MealEntity[],
   gradeLevelMap: Map<GradeLevel, StudentEntity[]>,
   date: string,
-  gradeLevelLunchTimes: GradeLunchTimeEntity[]
+  gradeLevelLunchTimes: GradeLunchTimeEntity[],
+  pantryById: Map<number, PantryItemEntity>
 ): ReportData[] => {
   const dayOfWeek = DateTimeUtils.toDate(date).getDay();
   const reportDataArray: ReportData[] = [];
@@ -485,16 +523,19 @@ const buildGradeLevelReportData = (
 
     // Add students and their meals
     for (const student of students) {
-      const studentMealsForStudent = studentMeals
+      const mealData: MealData[] = [];
+      studentMeals
         .filter((meal) => meal.student?.id === student.id)
-        .map((meal) => ({
-          items: meal.items.map((item) => item.name),
-        }));
+        .forEach((meal) => {
+          mealData.push({
+            pantryItems: meal.items.map((item) => pantryById.get(item.pantryItemId)!),
+          });
+        });
 
-      if (studentMealsForStudent.length > 0) {
+      if (mealData.length > 0) {
         reportData.customers.push({
           name: student.firstName + " " + student.lastName,
-          meals: studentMealsForStudent,
+          meals: mealData,
         });
       }
     }
@@ -509,7 +550,8 @@ const buildGradeLevelReportData = (
 const buildOtherStudentsReportData = (
   mealsBeingServed: MealEntity[],
   otherStudents: StudentEntity[],
-  date: string
+  date: string,
+  pantryById: Map<number, PantryItemEntity>
 ): ReportData[] => {
   // Get meals for the other students
   const studentMeals = mealsBeingServed.filter(
@@ -534,16 +576,19 @@ const buildOtherStudentsReportData = (
 
   // Add students and their meals
   for (const student of otherStudents) {
-    const studentMealsForStudent = studentMeals
-      .filter((meal) => meal.student?.id === student.id)
-      .map((meal) => ({
-        items: meal.items.map((item) => item.name),
-      }));
+    const mealData: MealData[] = [];
+    studentMeals
+    .filter((meal) => meal.student?.id === student.id)
+    .forEach((meal) => {
+      mealData.push({
+        pantryItems: meal.items.map((item) => pantryById.get(item.pantryItemId)!),
+      });
+    });
 
-    if (studentMealsForStudent.length > 0) {
+    if (mealData.length > 0) {
       reportData.customers.push({
         name: student.firstName + " " + student.lastName,
-        meals: studentMealsForStudent,
+        meals: mealData,
       });
     }
   }
@@ -555,7 +600,8 @@ const buildOtherStudentsReportData = (
 const buildStaffReportData = (
   mealsBeingServed: MealEntity[],
   staffMembers: UserEntity[],
-  date: string
+  date: string,
+  pantryById: Map<number, PantryItemEntity>
 ): ReportData[] => {
   // Get meals for the other staff members
   const staffMeals = mealsBeingServed.filter(
@@ -580,16 +626,19 @@ const buildStaffReportData = (
 
   // Add staff members and their meals
   for (const staff of staffMembers) {
-    const staffMealsForMember = staffMeals
-      .filter((meal) => meal.staffMember?.id === staff.id)
-      .map((meal) => ({
-        items: meal.items.map((item) => item.name),
-      }));
+    const mealData: MealData[] = [];
+    staffMeals
+    .filter((meal) => meal.staffMember?.id === staff.id)
+    .forEach((meal) => {
+      mealData.push({
+        pantryItems: meal.items.map((item) => pantryById.get(item.pantryItemId)!),
+      });
+    });
 
-    if (staffMealsForMember.length > 0) {
+    if (mealData.length > 0) {
       reportData.customers.push({
         name: `${staff.firstName} ${staff.lastName}`,
-        meals: staffMealsForMember,
+        meals: mealData,
       });
     }
   }
@@ -624,13 +673,15 @@ const getClassroomReportData = async (
 
   // Create classroom map
   const classroomMap = new Map([[teacher.id, students]]);
+  const pantryById = await loadPantryByIdForMeals(mealsBeingServed);
 
   const reportData = buildClassroomReportData(
     mealsBeingServed,
     classroomMap,
     [teacher],
     date,
-    teacherLunchTimes
+    teacherLunchTimes,
+    pantryById
   );
 
   return !reportData || reportData.length === 0 ? [] : reportData;
@@ -689,19 +740,22 @@ export const getDailyReport = async (
 
   const teacherLunchTimes = await getTeacherLunchTimes(schoolYear, date);
   const gradeLevelLunchTimes = await getGradeLevelLunchTimes(schoolYear, date);
+  const pantryById = await loadPantryByIdForMeals(mealsBeingServed);
 
   const classroomReportData = buildClassroomReportData(
     mealsBeingServed,
     classroomMap,
     classroomTeachers,
     date,
-    teacherLunchTimes
+    teacherLunchTimes,
+    pantryById
   );
   const gradeLevelReportData = buildGradeLevelReportData(
     mealsBeingServed,
     gradeLevelMap,
     date,
-    gradeLevelLunchTimes
+    gradeLevelLunchTimes,
+    pantryById
   );
 
   // Find students who are being served meals but not in either map
@@ -725,7 +779,8 @@ export const getDailyReport = async (
   const otherStudentsReportData = buildOtherStudentsReportData(
     mealsBeingServed,
     otherStudents,
-    date
+    date,
+    pantryById
   );
 
   // Find staff members who are being served meals but not in classroomTeachers array
@@ -739,7 +794,8 @@ export const getDailyReport = async (
   const otherStaffReportData = buildStaffReportData(
     mealsBeingServed,
     staffBeingServed,
-    date
+    date,
+    pantryById
   );
 
   const allReportData: ReportData[] = classroomReportData
@@ -788,7 +844,7 @@ export async function generatePDFBuffer(html: string): Promise<Buffer> {
 }
 
 // Generate HTML for ordered items table
-const generateOrderedItemsTable = (
+const generateOrderedItemsTable = async (
   allMeals: MealEntity[],
   dailyMenu: DailyMenuEntity,
   staff: UserEntity[],
@@ -796,7 +852,7 @@ const generateOrderedItemsTable = (
   schoolYear: SchoolYearEntity,
   date: string,
   mealTimes: string[]
-): string => {
+): Promise<string> => {
   let tableRows = "";
 
   // Add header row
@@ -807,7 +863,7 @@ const generateOrderedItemsTable = (
     </tr>
   `;
 
-  const pantryItems = getMenuItems(allMeals, dailyMenu).sort(
+  const pantryItems = (await getPantryItems(allMeals, dailyMenu)).sort(
     (item1, item2) =>
       item1.type - item2.type ||
       item1.name.toLowerCase().localeCompare(item2.name.toLowerCase())
@@ -836,9 +892,7 @@ const generateOrderedItemsTable = (
       const quantity = meals
         .flatMap((meal) => meal.items)
         .filter(
-          (orderedItem) =>
-            pantryItem.name.toLowerCase() === orderedItem.name.toLowerCase() &&
-            pantryItem.type === orderedItem.type
+          (orderedItem) => pantryItem.id === orderedItem.pantryItemId
         ).length;
       timeItems.push(`${pantryItem.name} (${quantity})`);
       totalQtysMap.set(
@@ -864,9 +918,7 @@ const generateOrderedItemsTable = (
     const quantity = leftOverMeals
       .flatMap((meal) => meal.items)
       .filter(
-        (orderedItem) =>
-          pantryItem.name.toLowerCase() === orderedItem.name.toLowerCase() &&
-          pantryItem.type === orderedItem.type
+        (orderedItem) => pantryItem.id === orderedItem.pantryItemId
       ).length;
     leftOverItems.push(`${pantryItem.name} (${quantity})`);
     totalQtysMap.set(
@@ -911,7 +963,10 @@ const generateOrderedItemsTable = (
   `;
 };
 
-const buildMealsTable = (meals: MealEntity[]): string => {
+const buildMealsTable = (
+  meals: MealEntity[],
+  pantryById: Map<number, PantryItemEntity>
+): string => {
   const studentsBeingServed = getStudentsBeingServed(meals).sort((a, b) => {
     const aName = a.firstName + " " + a.lastName;
     const bName = b.firstName + " " + b.lastName;
@@ -944,7 +999,7 @@ const buildMealsTable = (meals: MealEntity[]): string => {
 
     // Add first row with rowspan
     const firstMeal = personMeals[0];
-    const firstItems = firstMeal.items.map((item) => item.name).join(", ");
+    const firstItems = mealItemNames(firstMeal, pantryById).join(", ");
 
     tableRows += `
       <tr>
@@ -956,7 +1011,7 @@ const buildMealsTable = (meals: MealEntity[]): string => {
     // Add remaining rows for this person (without name column)
     for (let i = 1; i < personMeals.length; i++) {
       const meal = personMeals[i];
-      const items = meal.items.map((item) => item.name).join(", ");
+      const items = mealItemNames(meal, pantryById).join(", ");
 
       tableRows += `
         <tr>
@@ -976,7 +1031,7 @@ const buildMealsTable = (meals: MealEntity[]): string => {
 
     // Add first row with rowspan
     const firstMeal = personMeals[0];
-    const firstItems = firstMeal.items.map((item) => item.name).join(", ");
+    const firstItems = mealItemNames(firstMeal, pantryById).join(", ");
 
     tableRows += `
       <tr>
@@ -988,7 +1043,7 @@ const buildMealsTable = (meals: MealEntity[]): string => {
     // Add remaining rows for this person (without name column)
     for (let i = 1; i < personMeals.length; i++) {
       const meal = personMeals[i];
-      const items = meal.items.map((item) => item.name).join(", ");
+      const items = mealItemNames(meal, pantryById).join(", ");
 
       tableRows += `
         <tr>
@@ -1006,14 +1061,14 @@ const buildMealsTable = (meals: MealEntity[]): string => {
 };
 
 // Generate HTML for hourly meal report
-const generateHourlyMealReport = (
+const generateHourlyMealReport = async (
   allMeals: MealEntity[],
   staff: UserEntity[],
   students: StudentEntity[],
   schoolYear: SchoolYearEntity,
   date: string,
   time: string
-): string => {
+): Promise<string> => {
   // Get meals for this time
   const meals = getMealsAtTime(
     allMeals,
@@ -1028,7 +1083,8 @@ const generateHourlyMealReport = (
     return "";
   }
 
-  const mealsTable = buildMealsTable(meals);
+  const pantryById = await loadPantryByIdForMeals(meals);
+  const mealsTable = buildMealsTable(meals, pantryById);
 
   return `
     <div style="page-break-before: always;">
@@ -1044,14 +1100,14 @@ const generateHourlyMealReport = (
 };
 
 // Generate HTML for unassigned meals report
-const generateUnassignedMealsReport = (
+const generateUnassignedMealsReport = async (
   allMeals: MealEntity[],
   staff: UserEntity[],
   students: StudentEntity[],
   schoolYear: SchoolYearEntity,
   date: string,
   mealTimes: string[]
-): string => {
+): Promise<string> => {
   let leftOverMeals: MealEntity[] = [...allMeals];
   for (const time of mealTimes) {
     const meals = getMealsAtTime(
@@ -1070,7 +1126,8 @@ const generateUnassignedMealsReport = (
     return "";
   }
 
-  const mealsTable = buildMealsTable(leftOverMeals);
+  const pantryById = await loadPantryByIdForMeals(leftOverMeals);
+  const mealsTable = buildMealsTable(leftOverMeals, pantryById);
   return `
     <div style="page-break-before: always;">
       <h2 style="margin-bottom: 20px;">Unassigned Meals - ${DateTimeUtils.toString(
@@ -1141,6 +1198,7 @@ export const getDailyCafeteriaReport = async (
       schoolYear: { id: schoolYear.id },
       date: date,
     },
+    relations: { items: true },
   });
 
   const uniqueStudentIds = new Set<number>();
@@ -1163,6 +1221,7 @@ export const getDailyCafeteriaReport = async (
 
   const staff = await staffRepository.find({
     where: { id: In(Array.from(uniqueStaffIds)) },
+    relations: { userStatuses: { school: true } },
   });
 
   const dayOfWeek = DateTimeUtils.toDate(date).getDay();
@@ -1173,7 +1232,7 @@ export const getDailyCafeteriaReport = async (
   );
   const mealTimes = dailyTimes?.time ? dailyTimes.time.split("|").sort() : [];
 
-  const orderedItemsHtml = generateOrderedItemsTable(
+  const orderedItemsHtml = await generateOrderedItemsTable(
     meals,
     dailyMenu!,
     staff,
@@ -1185,7 +1244,7 @@ export const getDailyCafeteriaReport = async (
 
   let hourlyReportsHtml = "";
   for (const time of mealTimes) {
-    const hourlyHtml = generateHourlyMealReport(
+    const hourlyHtml = await generateHourlyMealReport(
       meals,
       staff,
       students,
@@ -1198,7 +1257,7 @@ export const getDailyCafeteriaReport = async (
     }
   }
 
-  const unassignedMealsHtml = generateUnassignedMealsReport(
+  const unassignedMealsHtml = await generateUnassignedMealsReport(
     meals,
     staff,
     students,
@@ -1224,40 +1283,28 @@ export const getDailyCafeteriaReport = async (
   return html;
 };
 
-const getMenuItems = (
+const getPantryItems = async (
   allMeals: MealEntity[],
   scheduledMenu: DailyMenuEntity
-): PantryItem[] => {
-  const orderedItems: PantryItem[] = [];
+): Promise<PantryItem[]> => {
+  let pantryItemIds = new Set<number>();
 
   allMeals
     .filter((meal) => !meal.cancelled)
     .flatMap((meal) => meal.items)
     .forEach((orderedItem) => {
-      const matchingItem = orderedItems.find(
-        (item) =>
-          item.name.toLowerCase() === orderedItem.name.toLowerCase() &&
-          item.type === orderedItem.type
-      );
-      if (!matchingItem) {
-        orderedItems.push(orderedItem);
-      }
+      pantryItemIds.add(orderedItem.pantryItemId);
     });
 
-  const servedItems: PantryItem[] = scheduledMenu?.items ?? [];
-
-  servedItems.forEach((orderedItem) => {
-    const matchingItem = orderedItems.find(
-      (item) =>
-        item.name.toLowerCase() === orderedItem.name.toLowerCase() &&
-        item.type === orderedItem.type
-    );
-    if (!matchingItem) {
-      orderedItems.push(orderedItem);
-    }
+  scheduledMenu?.items?.forEach((item) => {
+    pantryItemIds.add(item.pantryItemId);
   });
 
-  return orderedItems;
+  const pantryItemRepository = AppDataSource.getRepository(PantryItemEntity);
+  const pantryItems = await pantryItemRepository.find({
+    where: { id: In(Array.from(pantryItemIds)) },
+  });
+  return pantryItems.map((item) => new PantryItem(item));
 };
 
 const getTeacherLunchtime = (
@@ -1265,7 +1312,10 @@ const getTeacherLunchtime = (
   date: string,
   schoolYear: SchoolYearEntity
 ) => {
-  if (teacher === undefined || teacher.role !== Role.TEACHER) {
+  if (
+    teacher === undefined ||
+    getUserStatus(teacher)?.role !== Role.TEACHER
+  ) {
     return undefined;
   }
 

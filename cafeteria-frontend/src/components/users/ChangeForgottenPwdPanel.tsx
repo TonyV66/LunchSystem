@@ -7,6 +7,10 @@ import { AxiosError } from "axios";
 import { changeForgottenPassword } from "../../api/CafeteriaClient";
 import { LOGIN_URL } from "../../MainAppPanel";
 import ConfirmDialog from "../ConfirmDialog";
+import {
+  meetsPasswordRequirements,
+  PASSWORD_HELPER_TEXT,
+} from "../../utils/PasswordUtils";
 
 const ChangeForgottenPwdPanel: React.FC = () => {
   const {
@@ -20,6 +24,7 @@ const ChangeForgottenPwdPanel: React.FC = () => {
   const [showSuccessDialog, setShowSuccessDialog] = useState<boolean>(false);
 
   const navigate = useNavigate();
+  const passwordValid = meetsPasswordRequirements(password);
 
   const handleRegistration = async () => {
     try {
@@ -79,7 +84,7 @@ const ChangeForgottenPwdPanel: React.FC = () => {
             <Typography textAlign="center" variant="h6">
               Password Reset
             </Typography>
-
+        {/* TODO: Set label according to user role. */}
             <TextField
               fullWidth
               required
@@ -93,12 +98,9 @@ const ChangeForgottenPwdPanel: React.FC = () => {
 
             <TextField
               fullWidth
-              error={
-                (password.length > 0 && password.length < 8) ||
-                /\s/.test(password)
-              }
+              error={password.length > 0 && !passwordValid}
               required
-              helperText="Minimum of 8 characters. No spaces allowed."
+              helperText={PASSWORD_HELPER_TEXT}
               type="password"
               label="New Password"
               variant="standard"
@@ -111,11 +113,14 @@ const ChangeForgottenPwdPanel: React.FC = () => {
               fullWidth
               required
               error={
-                password.length &&
-                confirmationPassword.length &&
+                confirmationPassword.length > 0 &&
                 password !== confirmationPassword
-                  ? true
-                  : false
+              }
+              helperText={
+                confirmationPassword.length > 0 &&
+                password !== confirmationPassword
+                  ? "Passwords do not match."
+                  : undefined
               }
               type="Password"
               label="Confirm New Password"
@@ -131,8 +136,7 @@ const ChangeForgottenPwdPanel: React.FC = () => {
               disabled={
                 !userName.length ||
                 /\s/.test(userName) ||
-                password.length < 8 ||
-                /\s/.test(password) ||
+                !passwordValid ||
                 password !== confirmationPassword
               }
               onClick={handleRegistration}

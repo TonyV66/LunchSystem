@@ -2,33 +2,23 @@ import {
   Column,
   Entity,
   Index,
-  JoinTable,
-  ManyToMany,
-  ManyToOne,
   OneToMany,
   PrimaryGeneratedColumn,
 } from "typeorm";
 import { OrderEntity } from "./OrderEntity";
-import StudentEntity from "./StudentEntity";
-import User, { Role } from "../models/User";
-import SchoolEntity from "./SchoolEntity";
 import TeacherLunchTimeEntity from "./TeacherLunchTimeEntity";
 import StudentLunchTimeEntity from "./StudentLunchTimeEntity";
-import SchoolYearEntity from "./SchoolYearEntity";
 import MealEntity from "./MealEntity";
-import { DecimalTransformer } from "./DecimalTransformer";
+import UserStatusEntity from "./UserStatusEntity";
+import EnrollmentEntity from "./EnrollmentEntity";
 
 @Entity("user")
 export default class UserEntity {
   @PrimaryGeneratedColumn()
   id: number;
-  @Column({default: ''})
-  externalId: string;
-  @Index()
+  @Index({ unique: true })
   @Column()
   userName: string;
-  @Column({default: true})
-  pending: boolean;
   @Column()
   pwd: string;
   @Column()
@@ -41,26 +31,12 @@ export default class UserEntity {
   email: string;
   @Column({ default: "" })
   phone: string;
-  @Column({default: ''})
-  description: string;
-  @Column({ nullable: false, default: Role.PARENT })
-  role: Role;
   @Column({ nullable: true })
   paymentSysUserId: string;
-  @Column({
-    type: "decimal",
-    precision: 5,
-    scale: 2,
-    default: 0.0,
-    transformer: new DecimalTransformer(),
-  })
-  availableCredits: number;
   @Column({ default: "2024-01-01 00:00:00" })
   notificationReviewDate: Date;
   @Column({ default: false })
   resetPwd: boolean;
-  @Column({ nullable: false, default: false })
-  surveyCompleted: boolean;
   @Column({ nullable: true, type: String })
   forgotPwdUri: string | null;
   @Column({ nullable: true })
@@ -76,12 +52,8 @@ export default class UserEntity {
   @OneToMany(() => OrderEntity, (order) => order.user)
   orders: OrderEntity[];
 
-  @ManyToMany(() => StudentEntity, (student) => student.parents)
-  @JoinTable({name: 'user_students'})
-  students: StudentEntity[];  
-
-  @ManyToMany(() => SchoolYearEntity, (schoolYear => schoolYear.parents))
-  schoolYears: SchoolYearEntity[];
+  @OneToMany(() => EnrollmentEntity, (enrollment) => enrollment.user)
+  enrollments: EnrollmentEntity[];
 
   @OneToMany(() => TeacherLunchTimeEntity, (lunchTime) => lunchTime.teacher, {
     cascade: true,
@@ -92,7 +64,10 @@ export default class UserEntity {
     cascade: true,
   })
   studentLunchTimes: StudentLunchTimeEntity[];
-  
-  @ManyToOne(() => SchoolEntity, (school) => school.users)
-  school: SchoolEntity;
+
+  @OneToMany(
+    () => UserStatusEntity,
+    (registration) => registration.user,
+  )
+  userStatuses: UserStatusEntity[];
 }

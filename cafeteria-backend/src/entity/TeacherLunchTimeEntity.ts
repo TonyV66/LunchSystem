@@ -13,6 +13,8 @@ export default class TeacherLunchTimeEntity {
   time: string;
   @Column({ default: "" })
   grades: string;
+  @Column({ default: "" })
+  blockedDates: string;
 
   @ManyToOne(
     () => SchoolYearEntity,

@@ -11,7 +11,7 @@ interface Empty {}
 SchoolRouter.put<Empty, School, School, Empty>("/ordertimes", async (req, res) => {
   const schoolRepository = AppDataSource.getRepository(SchoolEntity);
 
-  await schoolRepository.update(req.user.school.id, {
+  await schoolRepository.update(req.school.id, {
     orderStartPeriodCount: req.body.orderStartPeriodCount,
     orderStartRelativeTo: req.body.orderStartRelativeTo,
     orderStartTime: req.body.orderStartTime,
@@ -25,7 +25,7 @@ SchoolRouter.put<Empty, School, School, Empty>("/ordertimes", async (req, res) =
 SchoolRouter.put<Empty, School, School, Empty>("/prices", async (req, res) => {
   const schoolRepository = AppDataSource.getRepository(SchoolEntity);
 
-  await schoolRepository.update(req.user.school.id, {
+  await schoolRepository.update(req.school.id, {
     mealPrice: req.body.mealPrice,
     drinkOnlyPrice: req.body.drinkOnlyPrice,
   });
@@ -35,7 +35,7 @@ SchoolRouter.put<Empty, School, School, Empty>("/prices", async (req, res) => {
 SchoolRouter.put<Empty, School, School, Empty>("/emailreports", async (req, res) => {
   const schoolRepository = AppDataSource.getRepository(SchoolEntity);
 
-  await schoolRepository.update(req.user.school.id, {
+  await schoolRepository.update(req.school.id, {
     emailReportStartPeriodCount: req.body.emailReportStartPeriodCount,
     emailReportStartPeriodType: req.body.emailReportStartPeriodType,
     emailReportStartRelativeTo: req.body.emailReportStartRelativeTo,
@@ -46,31 +46,43 @@ SchoolRouter.put<Empty, School, School, Empty>("/emailreports", async (req, res)
 
 SchoolRouter.put<Empty, School | string, School, Empty>("/registration", async (req, res) => {
   const schoolRepository = AppDataSource.getRepository(SchoolEntity);
+  const factsApiKey = req.body.factsApiKey?.trim() ?? "";
 
-  // Check if registration code is already used by another school
-  const existingSchool = await schoolRepository.findOne({
-    where: {
+  if (!factsApiKey) {
+    // Check if registration code is already used by another school
+    const existingSchool = await schoolRepository.findOne({
+      where: {
+        registrationCode: req.body.registrationCode,
+        id: Not(req.school.id)
+      },
+    });
+
+    if (existingSchool) {
+      res.status(400).send("Registration code is already in use by another school.");
+      return;
+    }
+
+    await schoolRepository.update(req.school.id, {
+      factsApiKey: "",
       registrationCode: req.body.registrationCode,
-      id: Not(req.user.school.id)
-    },
-  });
-
-  if (existingSchool) {
-    res.status(400).send("Registration code is already in use by another school.");
-    return;
+      openRegistration: req.body.openRegistration,
+    });
+  } else {
+    await schoolRepository.update(req.school.id, {
+      factsApiKey,
+    });
   }
 
-  await schoolRepository.update(req.user.school.id, {
-    registrationCode: req.body.registrationCode,
-    openRegistration: req.body.openRegistration,
+  res.send({
+    ...req.body,
+    factsApiKey,
   });
-  res.send(req.body);
 });
 
 SchoolRouter.put<Empty, School, School, Empty>("/general", async (req, res) => {
   const schoolRepository = AppDataSource.getRepository(SchoolEntity);
 
-  await schoolRepository.update(req.user.school.id, {
+  await schoolRepository.update(req.school.id, {
     name: req.body.name,
     timezone: req.body.timezone,
   });
@@ -80,7 +92,7 @@ SchoolRouter.put<Empty, School, School, Empty>("/general", async (req, res) => {
 SchoolRouter.put<Empty, School, School, Empty>("/square", async (req, res) => {
   const schoolRepository = AppDataSource.getRepository(SchoolEntity);
 
-  await schoolRepository.update(req.user.school.id, {
+  await schoolRepository.update(req.school.id, {
     squareAppId: req.body.squareAppId,
     squareAppAccessToken: req.body.squareAppAccessToken,
     squareLocationId: req.body.squareLocationId,

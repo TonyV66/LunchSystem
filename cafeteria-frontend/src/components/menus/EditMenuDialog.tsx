@@ -1,15 +1,13 @@
-import React, {
-  KeyboardEvent,
-  ChangeEvent,
-  MutableRefObject,
-  useContext,
-} from "react";
+import React, { ChangeEvent, useContext } from "react";
 import Button from "@mui/material/Button";
 import Dialog from "@mui/material/Dialog";
 import DialogActions from "@mui/material/DialogActions";
 import DialogContent from "@mui/material/DialogContent";
-import Menu, { DailyMenu, PantryItem, PantryItemType } from "../../models/Menu";
+import Menu from "../../models/Menu";
+import PantryItem from "../../models/PantryItem";
+import { PantryItemType } from "../../models/PantryItemType";
 import MenuItemsList from "./MenuItemsList";
+import PantryItemDialog from "./PantryItemDialog";
 import {
   Box,
   Checkbox,
@@ -27,15 +25,10 @@ import {
   Tabs,
   Typography,
 } from "@mui/material";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import MenuPanel from "./MenuPanel";
 import { Search, Add } from "@mui/icons-material";
-import {
-  createMenu,
-  createPantryItem,
-  updateDailyMenu,
-  updateMenu,
-} from "../../api/CafeteriaClient";
+import { createMenu, updateMenu } from "../../api/CafeteriaClient";
 import { AppContext } from "../../AppContextProvider";
 import { AxiosError } from "axios";
 
@@ -45,12 +38,12 @@ interface DialogProps {
   onCancel: () => void;
 }
 
-const canShowDessertsAsSides = (menu: Menu) => {
+const canShowDessertsAsSides = (menu: Menu, pantryItems: PantryItem[]) => {
   const numDesserts = menu.items.filter(
-    (item) => item.type === PantryItemType.DESSERT
+    (item) => pantryItems.find((pantryItem) => pantryItem.id === item.pantryItemId)?.type === PantryItemType.DESSERT
   ).length;
   const numSides = menu.items.filter(
-    (item) => item.type === PantryItemType.SIDE
+    (item) => pantryItems.find((pantryItem) => pantryItem.id === item.pantryItemId)?.type === PantryItemType.SIDE
   ).length;
 
   return (!numSides && numDesserts) ||
@@ -62,13 +55,13 @@ const canShowDessertsAsSides = (menu: Menu) => {
 
 const EditMenuDialog: React.FC<DialogProps> = ({ menu, onOk, onCancel }) => {
   const { school, setSnackbarErrorMsg } = useContext(AppContext);
-  const newItemRef: MutableRefObject<HTMLInputElement | undefined> =
-    React.useRef();
 
   const { pantryItems, setPantryItems } = useContext(AppContext);
 
   const [selectedTab, setSelectedTab] = useState(PantryItemType.ENTREE);
   const [isDirty, setIsDirty] = useState(false);
+  const [showPantryItemDialog, setShowPantryItemDialog] = useState(false);
+  const [viewArchive, setViewArchive] = useState(false);
   const [price, setPrice] = useState(
     menu?.price.toFixed(2) ?? school.mealPrice.toFixed(2)
   );
@@ -76,16 +69,15 @@ const EditMenuDialog: React.FC<DialogProps> = ({ menu, onOk, onCancel }) => {
     menu?.drinkOnlyPrice.toFixed(2) ?? school.drinkOnlyPrice.toFixed(2)
   );
 
-  const [updatedMenu, setUpdatedMenu] = useState<Menu | DailyMenu>({
+  const [updatedMenu, setUpdatedMenu] = useState<Menu>({
     id: menu?.id ?? 0,
     showDessertAsSide: menu?.showDessertAsSide || false,
-    name: "",
-    numSidesWithMeal: 0,
+    name: menu?.name ?? "",
+    numSidesWithMeal: menu?.numSidesWithMeal ?? 0,
     items: menu?.items ?? [],
     price: menu?.price ?? school.mealPrice,
     drinkOnlyPrice: menu?.drinkOnlyPrice ?? school.drinkOnlyPrice,
   });
-  const [newMenuItem, setNewMenuItem] = useState("");
 
   const handleSaveMenu = async () => {
     let savedMenu = undefined;
@@ -99,22 +91,6 @@ const EditMenuDialog: React.FC<DialogProps> = ({ menu, onOk, onCancel }) => {
         const axiosError = error as AxiosError;
         setSnackbarErrorMsg(
           "Error creating menu: " +
-          (axiosError.response?.data?.toString() ?? axiosError.response?.statusText ?? "Unknown server error")
-        );
-      }
-    } else if (menu && Object.prototype.hasOwnProperty.call(menu, "date")) {
-      const originalDailyMenu = menu as DailyMenu;
-      try {
-        savedMenu = await updateDailyMenu({
-          ...updatedMenu,
-          date: originalDailyMenu.date,
-          orderStartTime: originalDailyMenu.orderStartTime,
-          orderEndTime: originalDailyMenu.orderEndTime,
-        });
-      } catch (error) {
-        const axiosError = error as AxiosError;
-        setSnackbarErrorMsg(
-          "Error updating menu: " +
           (axiosError.response?.data?.toString() ?? axiosError.response?.statusText ?? "Unknown server error")
         );
       }
@@ -145,10 +121,10 @@ const EditMenuDialog: React.FC<DialogProps> = ({ menu, onOk, onCancel }) => {
     };
 
     if (
-      canShowDessertsAsSides(revisedMeal) !==
-      canShowDessertsAsSides(updatedMenu)
+      canShowDessertsAsSides(revisedMeal, pantryItems) !==
+      canShowDessertsAsSides(updatedMenu, pantryItems)
     ) {
-      revisedMeal.showDessertAsSide = canShowDessertsAsSides(revisedMeal);
+      revisedMeal.showDessertAsSide = canShowDessertsAsSides(revisedMeal, pantryItems);
     }
 
     setIsDirty(true);
@@ -157,19 +133,24 @@ const EditMenuDialog: React.FC<DialogProps> = ({ menu, onOk, onCancel }) => {
 
   const handleTabSelected = (event: React.SyntheticEvent, newValue: number) => {
     setSelectedTab(newValue);
+    setViewArchive(false);
   };
 
-  const handleItemClicked = (item: PantryItem) => {
+  const handleItemClicked = (pantryItem: PantryItem) => {
     if (
       !updatedMenu.items.find(
         (mealItem) =>
-          mealItem.type === item.type &&
-          mealItem.name.toLocaleLowerCase() === item.name.toLocaleLowerCase()
+          mealItem.pantryItemId === pantryItem.id
       )
     ) {
+      const newItem = {
+        id: 0,
+        price: pantryItem.price,
+        pantryItemId: pantryItem.id,
+      };
       setUpdatedMenu({
         ...updatedMenu,
-        items: updatedMenu.items.concat(item),
+        items: [...updatedMenu.items, newItem],
       });
       setIsDirty(true);
     }
@@ -186,18 +167,14 @@ const EditMenuDialog: React.FC<DialogProps> = ({ menu, onOk, onCancel }) => {
   };
 
   const handleMealChanged = (meal: Menu) => {
-    if (canShowDessertsAsSides(updatedMenu) !== canShowDessertsAsSides(meal)) {
+    if (canShowDessertsAsSides(updatedMenu, pantryItems) !== canShowDessertsAsSides(meal, pantryItems)) {
       meal = {
         ...meal,
-        showDessertAsSide: canShowDessertsAsSides(meal),
+        showDessertAsSide: canShowDessertsAsSides(meal, pantryItems),
       };
     }
     setIsDirty(true);
     setUpdatedMenu(meal);
-  };
-
-  const handleNewMenuItemChanged = (event: ChangeEvent<HTMLInputElement>) => {
-    setNewMenuItem(event.target.value);
   };
 
   const handlePriceChanged = (event: ChangeEvent<HTMLInputElement>) => {
@@ -224,33 +201,9 @@ const EditMenuDialog: React.FC<DialogProps> = ({ menu, onOk, onCancel }) => {
     }
   };
 
-  const handleKeyPressed = async (event: KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === "Enter") {
-      if (newMenuItem.length) {
-        handleCreatePantryItem();
-      }
-    }
-  };
-
-  const handleCreatePantryItem = async () => {
-    try {
-      const pantryItem = await createPantryItem({
-        id: 0,
-        name: newMenuItem,
-        type: selectedTab,
-      });
-      setPantryItems(pantryItems.concat(pantryItem));
-      setNewMenuItem("");
-      if (newItemRef.current) {
-        newItemRef.current.focus();
-      }
-    } catch (error) {
-      const axiosError = error as AxiosError;
-      setSnackbarErrorMsg(
-        "Error creating new menu item: " +
-        (axiosError.response?.data?.toString() ?? axiosError.response?.statusText ?? "Unknown server error")
-      );
-    }
+  const handlePantryItemSaved = (pantryItem: PantryItem) => {
+    setPantryItems(pantryItems.concat(pantryItem));
+    setShowPantryItemDialog(false);
   };
 
   const priceFloat = parseFloat(price);
@@ -261,7 +214,16 @@ const EditMenuDialog: React.FC<DialogProps> = ({ menu, onOk, onCancel }) => {
     !isNaN(drinkPriceFloat) &&
     priceFloat >= 0 &&
     drinkPriceFloat >= 0 &&
-    updateMenu.length;
+    updatedMenu.items.length;
+  const hasArchivedItems = pantryItems.some(
+    (item) => item.archived && item.type === selectedTab
+  );
+
+  useEffect(() => {
+    if (!hasArchivedItems) {
+      setViewArchive(false);
+    }
+  }, [hasArchivedItems]);
 
   return (
     <Dialog
@@ -276,8 +238,8 @@ const EditMenuDialog: React.FC<DialogProps> = ({ menu, onOk, onCancel }) => {
         <Box sx={{ minHeight: "250px", maxHeight: "500px" }}>
           <Box
             sx={{
-              columnGap: 1,
-              gap: 2,
+              columnGap: 2,
+              rowGap: 0.5,
               height: "100%",
               display: "grid",
               gridTemplateColumns: "1fr 1fr 1fr 1fr",
@@ -375,32 +337,42 @@ const EditMenuDialog: React.FC<DialogProps> = ({ menu, onOk, onCancel }) => {
                 }
               />
             </FormControl>
-            <FormControl variant="standard">
-              <InputLabel htmlFor="standard-adornment-password">
-                Create
-              </InputLabel>
-              <Input
-                id="new-menu-item-name"
-                inputRef={newItemRef}
-                type="text"
-                value={newMenuItem}
-                onChange={handleNewMenuItemChanged}
-                onKeyUp={handleKeyPressed}
-                endAdornment={
-                  <InputAdornment position="end">
-                    <IconButton
-                      disabled={!newMenuItem.length}
-                      onClick={handleCreatePantryItem}
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "flex-end",
+                justifyContent: "flex-end",
+                gap: 1,
+              }}
+            >
+              {hasArchivedItems && (
+                <FormControlLabel
+                  label={
+                    <Typography variant="subtitle2">View Archive</Typography>
+                  }
+                  control={
+                    <Checkbox
+                      sx={{ p: 0, pr: 1, pl: 1 }}
+                      checked={viewArchive}
+                      onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
+                        setViewArchive(event.target.checked)
+                      }
                       size="small"
-                      color="primary"
-                      aria-label="add a menu item"
-                    >
-                      <Add />
-                    </IconButton>
-                  </InputAdornment>
-                }
-              />
-            </FormControl>
+                    />
+                  }
+                />
+              )}
+              {!viewArchive && (
+                <IconButton
+                  onClick={() => setShowPantryItemDialog(true)}
+                  size="small"
+                  color="primary"
+                  aria-label="add a menu item"
+                >
+                  <Add />
+                </IconButton>
+              )}
+            </Box>
             <Typography
               fontWeight="bold"
               variant="subtitle2"
@@ -419,7 +391,7 @@ const EditMenuDialog: React.FC<DialogProps> = ({ menu, onOk, onCancel }) => {
               control={
                 <Checkbox
                   sx={{ p: 0, pr: 1, pl: 1 }}
-                  disabled={!canShowDessertsAsSides(updatedMenu)}
+                  disabled={!canShowDessertsAsSides(updatedMenu, pantryItems)}
                   checked={updatedMenu.showDessertAsSide}
                   onChange={handleShowDessertWithSidesChange}
                   size="small"
@@ -437,6 +409,7 @@ const EditMenuDialog: React.FC<DialogProps> = ({ menu, onOk, onCancel }) => {
               <MenuItemsList
                 onItemClicked={handleItemClicked}
                 typeOfItem={selectedTab}
+                archived={viewArchive}
               />
             </Paper>
             <Paper
@@ -469,6 +442,12 @@ const EditMenuDialog: React.FC<DialogProps> = ({ menu, onOk, onCancel }) => {
           OK
         </Button>
       </DialogActions>
+      <PantryItemDialog
+        open={showPantryItemDialog}
+        type={selectedTab}
+        onCancel={() => setShowPantryItemDialog(false)}
+        onSaved={handlePantryItemSaved}
+      />
     </Dialog>
   );
 };

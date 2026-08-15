@@ -9,7 +9,7 @@
             "request": "launch",
             "name": "Cafeteria Client",
             "url": "http://localhost:3000",
-           "webRoot": "${workspaceFolder}/cafeteria-client"
+           "webRoot": "${workspaceFolder}/cafeteria-frontend/src"
         },
         {
             "type": "node",

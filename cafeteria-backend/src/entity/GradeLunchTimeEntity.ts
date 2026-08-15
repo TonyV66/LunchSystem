@@ -11,6 +11,8 @@ export default class GradeLunchTimeEntity {
   dayOfWeek: number;
   @Column()
   time: string;
+  @Column({ default: "" })
+  blockedDates: string;
 
   @ManyToOne(
     () => SchoolYearEntity,

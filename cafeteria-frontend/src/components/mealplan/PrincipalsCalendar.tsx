@@ -5,11 +5,12 @@ import {
   Typography,
 } from "@mui/material";import MealCalendar from "./MealCalendar";
 import { AppContext } from "../../AppContextProvider";
+import { DateTimeUtils } from "../../DateTimeUtils";
 
 
 const PrincipalsCalendar: React.FC = () => {
   const { currentSchoolYear } = useContext(AppContext);
-  const today = new Date();
+  const today = DateTimeUtils.getCurrentDate();
   today.setHours(0, 0, 0, 0);
 
   return (

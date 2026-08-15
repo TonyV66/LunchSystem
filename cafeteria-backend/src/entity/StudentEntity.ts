@@ -1,7 +1,7 @@
 import {
   Column,
   Entity,
-  ManyToMany,
+  Index,
   ManyToOne,
   OneToMany,
   PrimaryGeneratedColumn,
@@ -9,7 +9,7 @@ import {
 import MealEntity from "./MealEntity";
 import StudentLunchTimeEntity from "./StudentLunchTimeEntity";
 import SchoolEntity from "./SchoolEntity";
-import UserEntity from "./UserEntity";
+import EnrollmentEntity from "./EnrollmentEntity";
 
 @Entity("student")
 export default class StudentEntity {
@@ -25,6 +25,9 @@ export default class StudentEntity {
   lastName: string;
   @Column()
   birthDate: string;
+  @Index()
+  @Column({ type: "int", nullable: true, default: null })
+  factsId: number | null;
 
   @OneToMany(() => MealEntity, (meal) => meal.student)
   meals: MealEntity[];
@@ -32,8 +35,8 @@ export default class StudentEntity {
   @OneToMany(() => StudentLunchTimeEntity, (lunchTime) => lunchTime.student)
   lunchTimes: StudentLunchTimeEntity[];
 
-  @ManyToMany(() => UserEntity, (user) => user.students)
-  parents: UserEntity[];
+  @OneToMany(() => EnrollmentEntity, (enrollment) => enrollment.student)
+  enrollments: EnrollmentEntity[];
 
   @ManyToOne(() => SchoolEntity, (school) => school.students)
   school: SchoolEntity;

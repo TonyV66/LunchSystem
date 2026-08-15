@@ -10,7 +10,7 @@ import {
 } from "@mui/material";
 import { AppContext } from "../../AppContextProvider";
 import Student from "../../models/Student";
-import MenuItemChip from "./MenuItemChip";
+import PantryItemChip from "./PantryItemChip";
 import { grey } from "@mui/material/colors";
 import Meal from "../../models/Meal";
 import { DateTimeFormat, DateTimeUtils } from "../../DateTimeUtils";
@@ -35,6 +35,8 @@ interface MealsTableProps {
 const OrderedMealDescription: React.FC<{
   meal: Meal;
 }> = ({ meal }) => {
+  const { pantryItems } = useContext(AppContext);
+
   return (
     <Box
       sx={{
@@ -50,16 +52,20 @@ const OrderedMealDescription: React.FC<{
       }}
     >
       {meal.items
-        .sort(
-          (item1, item2) =>
+        .map(
+          (item) =>
+            pantryItems.find(
+              (pantryItem) => pantryItem.id === item.pantryItemId,
+            )!,
+        )
+        .sort((item1, item2) => {
+          return (
             item1.type - item2.type ||
             item1.name.toLowerCase().localeCompare(item2.name.toLowerCase())
-        )
+          );
+        })
         .map((item) => (
-          <MenuItemChip
-            key={item.name + ":" + item.type.toString()}
-            menuItem={item}
-          ></MenuItemChip>
+          <PantryItemChip key={item.id} pantryItem={item}></PantryItemChip>
         ))}
     </Box>
   );
@@ -101,12 +107,20 @@ const StudentMealsTable: React.FC<StudentMealsTableProps> = ({
 
   const meals = orders
     .flatMap((order) => order.meals)
-    .filter((meal) => !meal.cancelled && meal.date === date && meal.studentId === student.id);
+    .filter(
+      (meal) =>
+        !meal.cancelled && meal.date === date && meal.studentId === student.id,
+    );
   if (!meals.length) {
     return <></>;
   }
 
-  return <MealsTable title={student.firstName + " " + student.lastName} meals={meals} />;
+  return (
+    <MealsTable
+      title={student.firstName + " " + student.lastName}
+      meals={meals}
+    />
+  );
 };
 
 const StaffMealsTable: React.FC<StaffMealsTableProps> = ({
@@ -118,7 +132,10 @@ const StaffMealsTable: React.FC<StaffMealsTableProps> = ({
   const meals = orders
     .flatMap((order) => order.meals)
     .filter(
-      (meal) => !meal.cancelled && meal.date === date && meal.staffMemberId === staffMember.id
+      (meal) =>
+        !meal.cancelled &&
+        meal.date === date &&
+        meal.staffMemberId === staffMember.id,
     );
   if (!meals.length) {
     return <></>;
@@ -143,12 +160,11 @@ interface DialogProps {
 }
 
 const DailyMealsDialog: React.FC<DialogProps> = ({ date, onClose, user }) => {
-  const { orders, shoppingCart, scheduledMenus } =
-    useContext(AppContext);
+  const { orders, shoppingCart, scheduledMenus } = useContext(AppContext);
 
   const { students } = useContext(AppContext);
-  const siblings = students.filter(s => s.parents.includes(user.id))
-  
+  const siblings = students.filter((s) => s.parents.includes(user.id));
+
   const hasOrderedMeals = orders
     .flatMap((order) => order.meals)
     .find((meal) => !meal.cancelled && meal.date === date)
@@ -158,7 +174,7 @@ const DailyMealsDialog: React.FC<DialogProps> = ({ date, onClose, user }) => {
   const menu = scheduledMenus.find((menu) => menu.date === date);
 
   const hasMealsInCart = shoppingCart.items.find(
-    (item) => item.dailyMenuId === menu?.id
+    (item) => item.dailyMenuId === menu?.id,
   )
     ? true
     : false;
@@ -195,10 +211,12 @@ const DailyMealsDialog: React.FC<DialogProps> = ({ date, onClose, user }) => {
                   staffMember={user}
                 ></StaffMealsTable>
                 {Array.from(siblings)
-                  .sort((s1, s2) => { 
+                  .sort((s1, s2) => {
                     const s1Name = s1.firstName + " " + s1.lastName;
                     const s2Name = s2.firstName + " " + s2.lastName;
-                    return s1Name.toLowerCase().localeCompare(s2Name.toLowerCase());
+                    return s1Name
+                      .toLowerCase()
+                      .localeCompare(s2Name.toLowerCase());
                   })
                   .map((student) => (
                     <StudentMealsTable

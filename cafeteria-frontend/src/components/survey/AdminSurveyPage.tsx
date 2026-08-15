@@ -161,7 +161,6 @@ const AdminSurveyPage: React.FC = () => {
   const handleConfirmEndSurvey = async () => {
     setShowEndSurveyDialog(false);
     const newSurvey = await endSurvey();
-    // TODO: If the survey has less than 5 questions, add 5 empty questions
     let id =
       newSurvey.questions.map((q) => q.id).reduce((a, b) => Math.max(a, b), 0) +
       1;

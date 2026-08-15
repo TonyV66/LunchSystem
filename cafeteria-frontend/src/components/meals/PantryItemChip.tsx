@@ -1,18 +1,19 @@
 import * as React from "react";
 import { Box, Typography } from "@mui/material";
 import { blue, green, grey, orange, purple } from "@mui/material/colors";
-import { PantryItem, PantryItemType } from "../../models/Menu";
+import { PantryItemType } from "../../models/PantryItemType";
 import { Variant } from "@mui/material/styles/createTypography";
+import PantryItem from "../../models/PantryItem";
 
 interface Props {
-  menuItem: PantryItem;
+  pantryItem: PantryItem;
   qty?: number;
   textVariant?: string;
 }
 
-const MenuItemChip: React.FC<Props> = ({ menuItem, qty, textVariant }) => {
+const PantryItemChip: React.FC<Props> = ({ pantryItem, qty, textVariant }) => {
   let backgroundColor: string = grey[200];
-  switch (menuItem.type) {
+  switch (pantryItem.type) {
     case PantryItemType.ENTREE:
       backgroundColor = qty === 0 ? green[50] : green[100];
       break;
@@ -41,7 +42,7 @@ const MenuItemChip: React.FC<Props> = ({ menuItem, qty, textVariant }) => {
       alignItems={"center"}
     >
       <Typography whiteSpace={"nowrap"} variant={textVariant as Variant ?? "body2"}>
-        {menuItem.name}
+        {pantryItem.name}
       </Typography>
       {qty !== undefined ? (
         <Typography whiteSpace={"nowrap"} variant={textVariant as Variant ?? "body2"} fontWeight="bold">
@@ -54,4 +55,4 @@ const MenuItemChip: React.FC<Props> = ({ menuItem, qty, textVariant }) => {
   );
 };
 
-export default MenuItemChip;
+export default PantryItemChip;

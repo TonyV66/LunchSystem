@@ -383,6 +383,8 @@ const PrintableLunchPeriodReport: React.FC<{
 };
 
 const PrintableMealReport: React.FC<MealReportProps> = ({ meals, title }) => {
+  const { pantryItems } = React.useContext(AppContext);
+
   return (
     <>
       {meals.map((meal, mealIndex) => (
@@ -411,14 +413,20 @@ const PrintableMealReport: React.FC<MealReportProps> = ({ meals, title }) => {
             <Typography variant="body2">
               {[...meal.items]
                 .sort((item1, item2) => {
+                  const pantryItem1 = pantryItems.find(
+                    (pantryItem) => pantryItem.id === item1.pantryItemId,
+                  )!;
+                  const pantryItem2 = pantryItems.find(
+                    (pantryItem) => pantryItem.id === item2.pantryItemId,
+                  )!;
                   return (
-                    item1.type - item2.type ||
-                    item1.name
+                    pantryItem1.type - pantryItem2.type ||
+                    pantryItem1.name
                       .toLowerCase()
-                      .localeCompare(item2.name.toLowerCase())
+                      .localeCompare(pantryItem2.name.toLowerCase())
                   );
                 })
-                .map((item) => item.name)
+                .map((item) => pantryItems.find((pantryItem) => pantryItem.id === item.pantryItemId)!.name)
                 .join(", ")}
             </Typography>
           </td>

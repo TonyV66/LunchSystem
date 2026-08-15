@@ -1,8 +1,13 @@
 import * as React from "react";
 import { createContext, useEffect, useState, useRef, useCallback } from "react";
 import SessionInfo from "./models/SessionInfo";
-import User, { NULL_USER } from "./models/User";
-import Menu, { DailyMenu, PantryItem } from "./models/Menu";
+import SchoolUser, { NULL_SCHOOL_USER } from "./models/SchoolUser";
+import Menu from "./models/Menu";
+import DailyMenu from "./models/DailyMenu";
+import PantryItem from "./models/PantryItem";
+import Ingredient from "./models/Ingredient";
+import UnitOfMeasure from "./models/UnitOfMeasure";
+import CalendarNote from "./models/CalendarNote";
 import {
   Backdrop,
   CircularProgress,
@@ -32,15 +37,18 @@ export interface AppContextType extends SessionInfo {
   setSnackbarErrorMsg: (msg: string | undefined) => void;
   setStatusMsg: (msg: string | undefined) => void;
   setShowGlassPane: (show: boolean) => void;
-  setUser: (user: User) => void;
-  setUsers: (users: User[]) => void;
+  setUser: (user: SchoolUser) => void;
+  setUsers: (users: SchoolUser[]) => void;
   setStudents: (students: Student[]) => void;
   setOrders: (orders: Order[]) => void;
   setMenus: (menus: Menu[]) => void;
   setSchoolYears: (menus: SchoolYear[]) => void;
   setScheduledMenus: (menus: DailyMenu[]) => void;
   setPantryItems: (pantryItems: PantryItem[]) => void;
+  setIngredients: (ingredients: Ingredient[]) => void;
+  setUnitsOfMeasure: (unitsOfMeasure: UnitOfMeasure[]) => void;
   setNotifications: (notifications: Notification[]) => void;
+  setCalendarNotes: (calendarNotes: CalendarNote[]) => void;
   setSchool: (school: School) => void;
   setSurvey: (survey: Survey | null) => void;
 }
@@ -64,20 +72,24 @@ const DEFAULT_SYSTEM_DEFAULTS: School = {
   drinkOnlyPrice: 0.0,
   squareAppId: "",
   squareLocationId: "",
+  factsApiKey: "",
   timezone: "America/New_York",
 };
 
 export const INITIAL_APP_CONTEXT: AppContextType = {
   shoppingCart: { items: [] },
   users: [],
-  user: NULL_USER,
+  user: NULL_SCHOOL_USER,
   schoolYears: [],
   menus: [],
   students: [],
   orders: [],
   scheduledMenus: [],
   pantryItems: [],
+  ingredients: [],
+  unitsOfMeasure: [],
   notifications: [],
+  calendarNotes: [],
   school: DEFAULT_SYSTEM_DEFAULTS,
   currentSchoolYear: NO_SCHOOL_YEAR,
   inactivityTimeout: 30,
@@ -96,7 +108,10 @@ export const INITIAL_APP_CONTEXT: AppContextType = {
   setMenus: () => {},
   setScheduledMenus: () => {},
   setPantryItems: () => {},
+  setIngredients: () => {},
+  setUnitsOfMeasure: () => {},
   setNotifications: () => {},
+  setCalendarNotes: () => {},
   setSchool: () => {},
   setSurvey: () => {},
   survey: null,
@@ -107,6 +122,9 @@ export const AppContext = createContext<AppContextType>(INITIAL_APP_CONTEXT);
 const AppContextProvider: React.FC<React.PropsWithChildren> = (props) => {
   const [shoppingCart, setShoppingCart] = useState<ShoppingCart>({ items: [] });
   const [pantryItems, setPantryItems] = useState<PantryItem[]>([]);
+  const [ingredients, setIngredients] = useState<Ingredient[]>([]);
+  const [unitsOfMeasure, setUnitsOfMeasure] = useState<UnitOfMeasure[]>([]);
+  const [calendarNotes, setCalendarNotes] = useState<CalendarNote[]>([]);
   const [menus, setMenus] = useState<Menu[]>([]);
   const [scheduledMenus, setScheduledMenus] = useState<DailyMenu[]>([]);
   const [schoolYears, setSchoolYears] = useState<SchoolYear[]>([]);
@@ -116,6 +134,7 @@ const AppContextProvider: React.FC<React.PropsWithChildren> = (props) => {
     name: "",
     startDate: "",
     endDate: "",
+    factsId: null,
     isCurrent: false,
     hideSchedule: true,
     lunchTimes: [],
@@ -125,8 +144,8 @@ const AppContextProvider: React.FC<React.PropsWithChildren> = (props) => {
     gradesAssignedByClass: [],
   });
   const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [user, setUser] = useState<User>(NULL_USER);
-  const [users, setUsers] = useState<User[]>([]);
+  const [user, setUser] = useState<SchoolUser>(NULL_SCHOOL_USER);
+  const [users, setUsers] = useState<SchoolUser[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
   const [statusMsg, setStatusMsg] = useState<string | undefined>();
@@ -162,7 +181,7 @@ const AppContextProvider: React.FC<React.PropsWithChildren> = (props) => {
     showLogoutWarningRef.current = false;
     
     // Only set timer if user is logged in
-    if (user.id !== NULL_USER.id) {
+    if (user.id !== NULL_SCHOOL_USER.id) {
       // Set warning timer (29 minutes)
       warningTimerRef.current = setTimeout(() => {
         setShowLogoutWarning(true);
@@ -181,13 +200,15 @@ const AppContextProvider: React.FC<React.PropsWithChildren> = (props) => {
     localStorage.removeItem("jwtToken");
     
     // Reset user state
-    setUser(NULL_USER);
+    setUser(NULL_SCHOOL_USER);
     setUsers([]);
     setStudents([]);
     setOrders([]);
     setMenus([]);
     setScheduledMenus([]);
         setPantryItems([]);
+        setIngredients([]);
+        setUnitsOfMeasure([]);
         setNotifications([]);
         setSchoolYears([]);
         setCurrentSchoolYear(NO_SCHOOL_YEAR);
@@ -330,7 +351,10 @@ const AppContextProvider: React.FC<React.PropsWithChildren> = (props) => {
         setMenus(sessionInfo.menus);
         setScheduledMenus(sessionInfo.scheduledMenus);
         setPantryItems(sessionInfo.pantryItems);
+        setIngredients(sessionInfo.ingredients);
+        setUnitsOfMeasure(sessionInfo.unitsOfMeasure);
         setNotifications(sessionInfo.notifications);
+        setCalendarNotes(sessionInfo.calendarNotes ?? []);
         setSchool(sessionInfo.school);
         setIsInitialized(true);
         setSchoolYears(sessionInfo.schoolYears);
@@ -381,7 +405,10 @@ const AppContextProvider: React.FC<React.PropsWithChildren> = (props) => {
         menus,
         scheduledMenus,
         pantryItems,
+        ingredients,
+        unitsOfMeasure,
         notifications,
+        calendarNotes,
         school: school,
         schoolYears,
         currentSchoolYear,
@@ -394,7 +421,10 @@ const AppContextProvider: React.FC<React.PropsWithChildren> = (props) => {
         setSnackbarErrorMsg,
         setShowGlassPane,
         setPantryItems,
+        setIngredients,
+        setUnitsOfMeasure,
         setNotifications,
+        setCalendarNotes,
         setUsers,
         setStudents,
         setOrders,

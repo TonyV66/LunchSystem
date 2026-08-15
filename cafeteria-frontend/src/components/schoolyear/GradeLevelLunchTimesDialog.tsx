@@ -164,6 +164,10 @@ const GradeLevelLunchTimesDialog: React.FC<DialogProps> = ({
         dayOfWeek: dlt.dayOfWeek,
         times: dlt.times,
         grade: grade,
+        blockedDates:
+          schoolYear.gradeLunchTimes.find(
+            (lt) => lt.dayOfWeek === dlt.dayOfWeek && lt.grade === grade,
+          )?.blockedDates ?? [],
       }));
 
       const updatedSchoolYear = {

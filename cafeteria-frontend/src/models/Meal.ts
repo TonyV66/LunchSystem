@@ -1,9 +1,5 @@
-import { PantryItem } from "./Menu";
+import MealItem from "./MealItem";
 import { RefundType } from "./RefundType";
-
-export interface MealItem extends PantryItem {
-  price: number;
-}
 
 export default interface Meal {
   id: number;

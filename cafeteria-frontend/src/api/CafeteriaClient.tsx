@@ -1,5 +1,10 @@
 import { LoginResponse } from "../components/users/LoginPanel";
-import Menu, { DailyMenu, PantryItem } from "../models/Menu";
+import Menu from "../models/Menu";
+import DailyMenu from "../models/DailyMenu";
+import PantryItem from "../models/PantryItem";
+import Ingredient from "../models/Ingredient";
+import UnitOfMeasure from "../models/UnitOfMeasure";
+import CalendarNote from "../models/CalendarNote";
 import { Order } from "../models/Order";
 import { Notification } from "../models/Notification";
 import SessionInfo from "../models/SessionInfo";
@@ -7,6 +12,7 @@ import axios, { AxiosResponse } from "axios";
 import School from "../models/School";
 import { ShoppingCart } from "../models/ShoppingCart";
 import User from "../models/User";
+import SchoolUser from "../models/SchoolUser";
 import Student from "../models/Student";
 import { StudentLunchTime } from "../models/StudentLunchTime";
 import { CreditCard } from "../models/CreditCard";
@@ -23,7 +29,7 @@ const API_BASE_URL = "/api";
 
 export interface Relations {
   students: Student[];
-  parents: User[];
+  parents: SchoolUser[];
   studentLunchTimes: StudentLunchTime[];
 }
 
@@ -40,10 +46,39 @@ export const fetchSessionInfo = async () => {
   return sessionInfo;
 };
 
-export const getInvitation = async (invitationId: string) => {
-  const response: AxiosResponse<{ user: User | null; students: Student[] }> =
-    await http.get(API_BASE_URL + "/user/invite/" + invitationId);
-  return response.data;
+export interface CreateSchoolYearResponse {
+  schoolYear: SchoolYear;
+  jobId: string | null;
+}
+
+export interface FactsJobStartResponse {
+  jobId: string;
+}
+
+export interface FactsJobStatusResponse {
+  id: string;
+  status: "running" | "complete" | "failed";
+  message: string;
+  schoolYearId?: number;
+}
+
+export const pollFactsJob = async (
+  jobId: string,
+  onProgress: (message: string) => void,
+  intervalMs = 1500,
+): Promise<FactsJobStatusResponse> => {
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    const response: AxiosResponse<FactsJobStatusResponse> = await http.get(
+      `${API_BASE_URL}/schoolyear/jobs/${jobId}`,
+    );
+    const job = response.data;
+    onProgress(job.message);
+    if (job.status !== "running") {
+      return job;
+    }
+    await new Promise((resolve) => setTimeout(resolve, intervalMs));
+  }
 };
 
 export const saveSchoolYearLunchTimes = async (
@@ -112,36 +147,63 @@ export const createInvitation = async (
   lastName: string,
   email: string,
   role: number,
-  sendInvitation: boolean = true
+  userName?: string,
+  pwd?: string
 ) => {
-  const response: AxiosResponse<User> = await http.post(
+  const response: AxiosResponse<SchoolUser> = await http.post(
     API_BASE_URL + "/user/invite",
-    { firstName, lastName, email, role, sendInvitation }
+    { firstName, lastName, email, role, userName, pwd }
   );
   return response.data;
 };
 
-export const register = async (
-  schoolCode: string,
-  username: string,
-  firstName: string,
-  lastName: string,
-  pwd: string,
-  email: string
-) => {
-  const response: AxiosResponse<LoginResponse> = await http.post(
-    API_BASE_URL + "/user/register",
-    { schoolCode, username, firstName, lastName, pwd, email }
+export const registerParent = async (registration: {
+  username: string;
+  schoolRegistrationCode?: string;
+}) => {
+  await http.post(API_BASE_URL + "/register/parent", registration);
+};
+
+export interface InvitationDetails {
+  invitationId: string;
+  userName: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  schoolName: string;
+  needsUserName: boolean;
+}
+
+export const getInvitationDetails = async (invitationId: string) => {
+  const response: AxiosResponse<InvitationDetails> = await http.get(
+    API_BASE_URL + "/register/invitation/" + invitationId
   );
+  return response.data;
+};
+
+export const completeParentRegistration = async (registration: {
+  invitationId: string;
+  userName?: string;
+  firstName: string;
+  lastName: string;
+  pwd: string;
+}) => {
+  await http.post(API_BASE_URL + "/register/parent/complete", registration);
+};
+
+export const verifyAccountForPasswordReset = async (username: string) => {
+  const response: AxiosResponse<{
+    exists: boolean;
+    hasPassword: boolean;
+    allInactive: boolean;
+    allActive: boolean;
+    isFactsRegistrationPending: boolean;
+  }> = await http.post(API_BASE_URL + "/login/pwd/verify", { username });
   return response.data;
 };
 
 export const forgotPassword = async (username: string) => {
   await http.post(API_BASE_URL + "/login/pwd/forgot", { username });
-};
-
-export const forgotUserName = async (email: string) => {
-  await http.post(API_BASE_URL + "/login/forgot/username", { email });
 };
 
 export const changePassword = async (
@@ -171,6 +233,43 @@ export const createPantryItem = async (pantryItem: PantryItem) => {
   return response.data;
 };
 
+export const updatePantryItem = async (pantryItem: PantryItem) => {
+  const response: AxiosResponse<PantryItem> = await http.put(
+    API_BASE_URL + "/pantry",
+    pantryItem
+  );
+  return response.data;
+};
+
+export const createIngredient = async (name: string) => {
+  const response: AxiosResponse<Ingredient> = await http.post(
+    API_BASE_URL + "/ingredient",
+    { name }
+  );
+  return response.data;
+};
+
+export const createUnitOfMeasure = async (name: string) => {
+  const response: AxiosResponse<UnitOfMeasure> = await http.post(
+    API_BASE_URL + "/unit-of-measure",
+    { name }
+  );
+  return response.data;
+};
+
+export const saveCalendarNote = async (calendarNote: CalendarNote) => {
+  const response: AxiosResponse<CalendarNote> = await http.post(
+    API_BASE_URL + "/calendar-note",
+    { date: calendarNote.date, note: calendarNote.note }
+  );
+  return response.data;
+};
+
+export const deleteCalendarNote = async (id: number) => {
+  await http.delete(API_BASE_URL + "/calendar-note/" + id);
+  return;
+};
+
 export const createMenu = async (menu: Menu) => {
   const response: AxiosResponse<Menu> = await http.post(
     API_BASE_URL + "/menu",
@@ -190,11 +289,12 @@ export const checkout = async (
   useCredits: boolean,
   cardId: string,
   shoppingCart: ShoppingCart,
-  saveCard: boolean
+  saveCard: boolean,
+  emailReceipt: boolean,
 ) => {
   const response: AxiosResponse<Order> = await http.post(
     API_BASE_URL + "/order",
-    { cardId, shoppingCart, saveCard, useCredits }
+    { cardId, shoppingCart, saveCard, useCredits, emailReceipt }
   );
   return response.data;
 };
@@ -270,7 +370,7 @@ export const associateStudentWithUser = async (
   const response: AxiosResponse<{
     student: Student;
     lunchTimes: StudentLunchTime[];
-    parents: User[];
+    parents: SchoolUser[];
     orders: Order[];
   }> = await http.put(
     API_BASE_URL + "/student/" + studentId + "/associate/" + userId
@@ -278,8 +378,17 @@ export const associateStudentWithUser = async (
   return response.data;
 };
 
-export const updateUser = async (user: User) => {
-  const response: AxiosResponse<User> = await http.put(
+export interface UpdateUserRequest extends User {
+  role: number;
+  accountStatus: string;
+  availableCredits: number;
+  surveyCompleted: boolean;
+  factsId: number | null;
+}
+
+// TODO: What is this function used for?
+export const updateUser = async (user: UpdateUserRequest) => {
+  const response: AxiosResponse<SchoolUser> = await http.put(
     API_BASE_URL + "/user",
     user
   );
@@ -397,9 +506,18 @@ export const updateDailyMenuAvailability = async (
   return response.data;
 };
 
-export const deletePantryItem = async (id: number) => {
-  await http.delete(API_BASE_URL + "/pantry/" + id);
-  return;
+export const archivePantryItem = async (id: number) => {
+  const response: AxiosResponse<PantryItem> = await http.delete(
+    API_BASE_URL + "/pantry/" + id
+  );
+  return response.data;
+};
+
+export const unarchivePantryItem = async (id: number) => {
+  const response: AxiosResponse<PantryItem> = await http.put(
+    API_BASE_URL + "/pantry/" + id + "/unarchive"
+  );
+  return response.data;
 };
 
 export const deleteNotification = async (id: number) => {
@@ -425,8 +543,29 @@ export const login = async (username: string, pwd: string) => {
   return response.data as LoginResponse;
 };
 
-export const createSchoolYear = async (schoolYear: SchoolYear) => {
-  const response = await http.post(API_BASE_URL + "/schoolyear", schoolYear);
+export const createSchoolYear = async (
+  schoolYear: SchoolYear,
+): Promise<CreateSchoolYearResponse> => {
+  const response: AxiosResponse<CreateSchoolYearResponse> = await http.post(
+    API_BASE_URL + "/schoolyear",
+    schoolYear,
+  );
+  return response.data;
+};
+
+export const fetchFactsSchoolYears = async () => {
+  const response: AxiosResponse<SchoolYear[]> = await http.get(
+    API_BASE_URL + "/schoolyear/facts",
+  );
+  return response.data;
+};
+
+export const synchronizeSchoolYear = async (
+  schoolYearId: number,
+): Promise<FactsJobStartResponse> => {
+  const response: AxiosResponse<FactsJobStartResponse> = await http.post(
+    `${API_BASE_URL}/schoolyear/${schoolYearId}/synchronize`,
+  );
   return response.data;
 };
 
@@ -478,38 +617,20 @@ export const getStudentsForUser = async (
 };
 
 export interface UserImportResult {
-  importedUsersCount: number;
-  skippedUsersCount: number;
-  importedStudentsCount: number;
-  skippedStudentsCount: number;
+  createdUsersCount: number;
+  updatedUsersCount: number;
+  createdStudentsCount: number;
+  updatedStudentsCount: number;
+  enrollmentLinksCount: number;
+  rowErrors: Array<{ row: number; message: string }>;
 }
 
-export const uploadUserCsv = async (file: File): Promise<UserImportResult> => {
+export const importUsersCsv = async (file: File): Promise<UserImportResult> => {
   const formData = new FormData();
   formData.append("file", file);
 
   const response: AxiosResponse<UserImportResult> = await http.post(
-    `${API_BASE_URL}/user/import-students`,
-    formData,
-    {
-      headers: {
-        "Content-Type": "multipart/form-data",
-      },
-    }
-  );
-  return response.data;
-};
-
-export interface TeacherImportResult {
-  importedUsersCount: number;
-  skippedUsersCount: number;
-}
-
-export const importTeachers = async (
-  formData: FormData
-): Promise<User[]> => {
-  const response: AxiosResponse<User[]> = await http.post(
-    `${API_BASE_URL}/user/import-teachers`,
+    `${API_BASE_URL}/user/import-csv`,
     formData,
     {
       headers: {

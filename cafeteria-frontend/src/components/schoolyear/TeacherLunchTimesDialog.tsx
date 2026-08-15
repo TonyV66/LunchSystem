@@ -18,11 +18,11 @@ import TimesList from "./TimesList";
 import GradesList from "./GradesList";
 import { DayOfWeek } from "../../models/DayOfWeek";
 import { GradeLevel } from "../../models/GradeLevel";
-import User from "../../models/User";
+import SchoolUser from "../../models/SchoolUser";
 
 interface DialogProps {
   schoolYear: SchoolYear;
-  teacher: User;
+  teacher: SchoolUser;
   onClose: () => void;
 }
 
@@ -191,11 +191,18 @@ const TeacherLunchTimesDialog: React.FC<DialogProps> = ({
       // Update teacher name if it changed
       if (teacherName !== teacher.name) {
         const updatedTeacher = { ...teacher, name: teacherName };
-        await updateUser(updatedTeacher);
-        
+        const savedUser = await updateUser({
+          ...updatedTeacher,
+          role: teacher.role,
+          accountStatus: teacher.accountStatus,
+          availableCredits: teacher.availableCredits,
+          surveyCompleted: teacher.surveyCompleted,
+          factsId: teacher.factsId,
+        });
+
         // Update users in context
         setUsers(
-          users.map((u) => (u.id === teacher.id ? updatedTeacher : u))
+          users.map((u) => (u.id === savedUser.id ? savedUser : u))
         );
       }
 
@@ -205,30 +212,60 @@ const TeacherLunchTimesDialog: React.FC<DialogProps> = ({
           times: selectedMondayTimes,
           teacherId: teacher.id,
           grades: selectedMondayGrades,
+          blockedDates:
+            schoolYear.teacherLunchTimes.find(
+              (lt) =>
+                lt.dayOfWeek === DayOfWeek.MONDAY &&
+                lt.teacherId === teacher.id,
+            )?.blockedDates ?? [],
         },
         {
           dayOfWeek: DayOfWeek.TUESDAY,
           times: selectedTuesdayTimes,
           teacherId: teacher.id,
           grades: selectedTuesdayGrades,
+          blockedDates:
+            schoolYear.teacherLunchTimes.find(
+              (lt) =>
+                lt.dayOfWeek === DayOfWeek.TUESDAY &&
+                lt.teacherId === teacher.id,
+            )?.blockedDates ?? [],
         },
         {
           dayOfWeek: DayOfWeek.WEDNESDAY,
           times: selectedWednesdayTimes,
           teacherId: teacher.id,
           grades: selectedWednesdayGrades,
+          blockedDates:
+            schoolYear.teacherLunchTimes.find(
+              (lt) =>
+                lt.dayOfWeek === DayOfWeek.WEDNESDAY &&
+                lt.teacherId === teacher.id,
+            )?.blockedDates ?? [],
         },
         {
           dayOfWeek: DayOfWeek.THURSDAY,
           times: selectedThursdayTimes,
           teacherId: teacher.id,
           grades: selectedThursdayGrades,
+          blockedDates:
+            schoolYear.teacherLunchTimes.find(
+              (lt) =>
+                lt.dayOfWeek === DayOfWeek.THURSDAY &&
+                lt.teacherId === teacher.id,
+            )?.blockedDates ?? [],
         },
         {
           dayOfWeek: DayOfWeek.FRIDAY,
           times: selectedFridayTimes,
           teacherId: teacher.id,
           grades: selectedFridayGrades,
+          blockedDates:
+            schoolYear.teacherLunchTimes.find(
+              (lt) =>
+                lt.dayOfWeek === DayOfWeek.FRIDAY &&
+                lt.teacherId === teacher.id,
+            )?.blockedDates ?? [],
         },
       ];
 

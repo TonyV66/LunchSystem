@@ -4,4 +4,5 @@ import { GradeLevel } from "./GradeLevel";
 export default interface TeacherLunchTime extends DailyLunchTimes {
   teacherId: number;
   grades: GradeLevel[];
+  blockedDates: string[];
 }

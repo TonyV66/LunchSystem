@@ -18,4 +18,5 @@ export default interface School {
   squareAppId: string;
   squareAppAccessToken: string;
   squareLocationId: string;
+  factsApiKey: string;
 }

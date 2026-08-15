@@ -39,15 +39,19 @@ export class EmailReportService {
         return;
       }
 
-      // Get all teachers for this school who have assigned lunch times
+      // TOFO: Get all teachers for this school who have assigned lunch times. Should I be specifying a school year?
       const userRepository = AppDataSource.getRepository(UserEntity);
       const teachers = await userRepository.find({
         where: { 
-          role: Role.TEACHER,
-          school: { id: school.id }
+          userStatuses: {
+            school: { id: school.id },
+            role: Role.TEACHER,
+          },
         },
         relations: { 
-          school: true,
+          userStatuses: {
+            school: true,
+          },
           lunchTimes: {
             schoolYear: true
           }
@@ -116,7 +120,7 @@ export class EmailReportService {
 
       for (const school of schools) {
         // Check if it's time to send reports in the school's timezone
-        const now = new Date();
+        const now = DateTimeUtils.getCurrentDate();
 
         // Get current time in school's timezone and round to the hour
         const schoolTime = new Date(

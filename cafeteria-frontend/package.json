@@ -17,7 +17,7 @@
     "@types/node": "^16.18.105",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
-    "axios": "^1.13.2",
+    "axios": "^1.18.1",
     "date-fns": "^3.0.6",
     "dayjs": "^1.11.13",
     "decimal.js": "^10.4.3",
@@ -32,6 +32,9 @@
     "web-vitals": "^2.1.4"
   },
   "scripts": {
+    "generate-config": "node scripts/generate-runtime-config.js",
+    "prestart": "node scripts/generate-runtime-config.js",
+    "prebuild": "node scripts/generate-runtime-config.js",
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",

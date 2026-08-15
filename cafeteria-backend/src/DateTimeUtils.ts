@@ -1,3 +1,5 @@
+import "./env";
+
 export enum DateTimeFormat {
   ISO_DATE = 0,
   US_DATE = 1,
@@ -84,6 +86,18 @@ export class DateTimeUtils {
     const firstDayOfWeek = DateTimeUtils.toDate(date);
     firstDayOfWeek.setDate(firstDayOfWeek.getDate() - firstDayOfWeek.getDay());
     return firstDayOfWeek;
+  }
+
+  static getCurrentDate(): Date {
+    const configured = process.env.CURRENT_DATE?.trim();
+    if (configured) {
+      const parsed = new Date(configured);
+      if (!isNaN(parsed.getTime())) {
+        return new Date(parsed.getTime());
+      }
+      console.warn(`Invalid CURRENT_DATE environment variable: "${configured}"`);
+    }
+    return new Date();
   }
 
   static getDateParts(date: Date | string) {

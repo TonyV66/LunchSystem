@@ -1,7 +1,5 @@
 import User from "./models/User";
 
-import { Role } from "./models/User";
-
 import { DateTimeUtils } from "./DateTimeUtils";
 import SchoolYear from "./models/SchoolYear";
 import Student from "./models/Student";
@@ -13,7 +11,7 @@ export const getTeacherLunchtime = (
     date: string,
     schoolYear: SchoolYear
   ) => {
-    if (teacher === undefined || teacher.role !== Role.TEACHER) {
+    if (teacher === undefined) {
       return undefined;
     }
   
@@ -61,6 +59,7 @@ export const getTeacherLunchtime = (
   
   export const getMealsAtTime = (
     orders: Order[],
+    // TODO: What about non-teachers?
     teachers: User[],
     students: Student[],
     schoolYear: SchoolYear,

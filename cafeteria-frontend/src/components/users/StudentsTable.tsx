@@ -12,7 +12,7 @@ import {
   Button,
   Typography,
   Chip,
-  MenuItem,
+  MenuItem as MuiMenuItem,
 } from "@mui/material";
 import { Fastfood, MoreVert } from "@mui/icons-material";
 import { grey, orange } from "@mui/material/colors";
@@ -24,10 +24,11 @@ import {
 } from "@mui/x-data-grid";
 import { AppContext } from "../../AppContextProvider";
 import { getGradeName } from "../../models/GradeLevel";
-import User, { Role } from "../../models/User";
+import User, { Role, AccountStatus } from "../../models/User";
 import Student from "../../models/Student";
 import StudentMealsDialog from "../meals/StudentMealsDialog";
 import EditStudentDialog from "./EditStudentDialog";
+import { DateTimeUtils } from "../../DateTimeUtils";
 
 interface StudentMenuProps {
   anchor: HTMLElement;
@@ -60,12 +61,12 @@ const StudentMenu: React.FC<StudentMenuProps> = ({
         horizontal: "left",
       }}
     >
-      <MenuItem disabled={!onEdit} onClick={onEdit}>
+      <MuiMenuItem disabled={!onEdit} onClick={onEdit}>
         Edit
-      </MenuItem>
-      <MenuItem onClick={onShowMeals} disabled={!currentSchoolYear.id}>
+      </MuiMenuItem>
+      <MuiMenuItem onClick={onShowMeals} disabled={!currentSchoolYear.id}>
         Upcoming Meals
-      </MenuItem>
+      </MuiMenuItem>
     </PulldownMenu>
   );
 };
@@ -311,7 +312,9 @@ const StudentsTable: React.FC<StudentsTableProps> = ({
   };
 
   const classroomStudentIds =
-    user?.role === Role.TEACHER ? getClassroomStudentIds(user!) : [];
+    user && users.find((u) => u.id === user.id)?.role === Role.TEACHER
+      ? getClassroomStudentIds(user)
+      : [];
 
   const filteredStudents = students.filter((student) => {
     if (loggedInUser.role === Role.ADMIN) {
@@ -362,13 +365,13 @@ const StudentsTable: React.FC<StudentsTableProps> = ({
       return false; // Show no students if both are unchecked
     }
 
-    // Check if student has at least one non-pending parent
+    // Check if student has at least one active parent
     const hasNonPendingParent = student.parents.some((parentId) => {
       const parent = users.find((u) => u.id === parentId);
-      return parent && !parent.pending;
+      return parent && parent.accountStatus === AccountStatus.ACTIVE;
     });
 
-    // A registered student has at least one non-pending parent
+    // A registered student has at least one active parent
     // A pending student has all parents pending
     const isRegistered = hasNonPendingParent;
     const isPending = !hasNonPendingParent;
@@ -469,7 +472,7 @@ const StudentsTable: React.FC<StudentsTableProps> = ({
     let teacherName = "";
     if (uniqueTeachers.length > 0) {
       // Get current day of week (0 = Sunday, 1 = Monday, etc.)
-      const today = new Date();
+      const today = DateTimeUtils.getCurrentDate();
       const currentDayOfWeek = today.getDay();
 
       // If it's a weekday and there's a teacher assigned for today, show that teacher

@@ -25,7 +25,15 @@ const StackedCard: React.FC<
   PropsWithChildren<{ title: string; onEdit: () => void }>
 > = ({ title, children, onEdit }) => {
   return (
-    <Stack direction="column">
+    <Stack
+      direction="column"
+      sx={{
+        flex: "1 1 300px",
+        minWidth: 300,
+        maxWidth: 400,
+        overflowX: "hidden",
+      }}
+    >
       <Stack direction="row" justifyContent="space-between" alignItems="center">
         <Typography fontWeight="bold">{title}</Typography>
         <IconButton size="small" color="primary" onClick={onEdit}>
@@ -76,13 +84,21 @@ const SchoolYearSettingsPage: React.FC = () => {
         p={2}
         bgcolor="background.paper"
         sx={{
-          display: "grid",
-          flexDirection: "column",
+          display: "flex",
+          flexWrap: "wrap",
           gap: 2,
           borderRadius: 2,
           border: "1px solid #e0e0e0",
-          gridTemplateColumns: "repeat(3, 1fr)",
-          gridTemplateRows: "repeat(3, auto)",
+          alignContent: "flex-start",
+          "&::after": {
+            content: '""',
+            flex: "999 1 300px",
+            maxWidth: 400,
+            minWidth: 300,
+            height: 0,
+            visibility: "hidden",
+            pointerEvents: "none",
+          },
         }}
       >
         <StackedCard
@@ -104,15 +120,30 @@ const SchoolYearSettingsPage: React.FC = () => {
           onEdit={() => setRegistrationSettingsDialogOpen(true)}
         >
           <Box>
-            <Typography fontWeight="bold">Registration Code:</Typography>
-            <Typography>{school.registrationCode}</Typography>
-          </Box>
-          <Box>
-            <Typography fontWeight="bold">Open Registration:</Typography>
+            <Typography fontWeight="bold">Registration Handler:</Typography>
             <Typography>
-              {school.openRegistration ? "Enabled" : "Disabled"}
+              {school.factsApiKey ? "FACTS" : "Native"}
             </Typography>
           </Box>
+          {school.factsApiKey ? (
+            <Box>
+              <Typography fontWeight="bold">FACTS API Key:</Typography>
+              <Typography>••••••••••••••••</Typography>
+            </Box>
+          ) : (
+            <>
+              <Box>
+                <Typography fontWeight="bold">Registration Code:</Typography>
+                <Typography>{school.registrationCode}</Typography>
+              </Box>
+              <Box>
+                <Typography fontWeight="bold">Open Registration:</Typography>
+                <Typography>
+                  {school.openRegistration ? "Enabled" : "Disabled"}
+                </Typography>
+              </Box>
+            </>
+          )}
         </StackedCard>
 
         <StackedCard

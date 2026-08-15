@@ -2,6 +2,7 @@ import React from "react";
 import { Box } from "@mui/material";
 import Menu from "../../models/Menu";
 import TemplateMenu from "./TemplateMenu";
+import { grey } from "@mui/material/colors";
 
 interface AvailableMenusPanelProps {
   filteredMenus: Menu[];
@@ -23,7 +24,7 @@ const AvailableMenusPanel: React.FC<AvailableMenusPanelProps> = ({
       className="availableMenus"
       sx={{
         overflowY: "auto",
-        backgroundColor: "lightgray",
+        backgroundColor: grey[100],
         pb: 1,
         pl: 4,
         pr: 4,

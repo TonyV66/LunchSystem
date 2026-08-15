@@ -1,4 +1,4 @@
-import { MealItem } from "./Menu";
+import MealItem from "./MealItem";
 import MealEntity from "../entity/MealEntity";
 import { RefundType } from "./RefundType";
 

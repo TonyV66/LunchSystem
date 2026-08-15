@@ -3,6 +3,10 @@ import { Button, Dialog, DialogActions, DialogContent, DialogTitle, TextField } 
 import { changePassword } from "../../api/CafeteriaClient";
 import { AxiosError } from "axios";
 import { AppContext } from "../../AppContextProvider";
+import {
+  meetsPasswordRequirements,
+  PASSWORD_HELPER_TEXT,
+} from "../../utils/PasswordUtils";
 
 interface ChangePasswordDialogProps {
   open: boolean;
@@ -17,6 +21,8 @@ const ChangePasswordDialog: React.FC<ChangePasswordDialogProps> = ({
   const [password, setPassword] = useState<string>("");
   const [confirmationPassword, setConfirmationPassword] = useState<string>("");
   const [oldPassword, setOldPassword] = useState<string>("");
+
+  const passwordValid = meetsPasswordRequirements(password);
 
   const handleChangePassword = async () => {
     try {
@@ -58,10 +64,8 @@ const ChangePasswordDialog: React.FC<ChangePasswordDialogProps> = ({
         <TextField
           required
           fullWidth
-          error={
-            (password.length > 0 && password.length < 6) || /\s/.test(password)
-          }
-          helperText="Minimum of 8 characters. No spaces allowed."
+          error={password.length > 0 && !passwordValid}
+          helperText={PASSWORD_HELPER_TEXT}
           type="Password"
           label="New Password"
           variant="standard"
@@ -79,11 +83,14 @@ const ChangePasswordDialog: React.FC<ChangePasswordDialogProps> = ({
           variant="standard"
           value={confirmationPassword}
           error={
-            password.length &&
-            confirmationPassword.length &&
+            confirmationPassword.length > 0 &&
             password !== confirmationPassword
-              ? true
-              : false
+          }
+          helperText={
+            confirmationPassword.length > 0 &&
+            password !== confirmationPassword
+              ? "Passwords do not match."
+              : undefined
           }
           onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
             setConfirmationPassword(event.target.value)
@@ -98,8 +105,7 @@ const ChangePasswordDialog: React.FC<ChangePasswordDialogProps> = ({
           color="primary"
           disabled={
             !oldPassword.length ||
-            password.length < 6 ||
-            /\s/.test(password) ||
+            !passwordValid ||
             password !== confirmationPassword
           }
           onClick={handleChangePassword}
@@ -111,4 +117,4 @@ const ChangePasswordDialog: React.FC<ChangePasswordDialogProps> = ({
   );
 };
 
-export default ChangePasswordDialog; 
+export default ChangePasswordDialog;

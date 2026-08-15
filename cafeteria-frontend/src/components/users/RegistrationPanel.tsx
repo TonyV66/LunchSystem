@@ -1,204 +1,245 @@
-import React, { useContext, useState } from "react";
+import React, { useContext, useEffect, useState } from "react";
 
 import { Box, Button, Stack, TextField, Typography } from "@mui/material";
-import { register } from "../../api/CafeteriaClient";
+import {
+  completeParentRegistration,
+  getInvitationDetails,
+  InvitationDetails,
+} from "../../api/CafeteriaClient";
 import { AppContext } from "../../AppContextProvider";
 import { AxiosError } from "axios";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
+import { LOGIN_URL } from "../../MainAppPanel";
+import {
+  meetsPasswordRequirements,
+  PASSWORD_HELPER_TEXT,
+} from "../../utils/PasswordUtils";
 
-const RegisrationPanel: React.FC = () => {
-  const {
-    setSnackbarErrorMsg,
-    setSnackbarMsg,
-  } = useContext(AppContext);
-
-  const [userName, setUserName] = useState<string>("");
-  const [email, setEmail] = useState<string>("");
-  const [firstName, setFirstName] = useState<string>("");
-  const [lastName, setLastName] = useState<string>("");
-  const [password, setPassword] = useState<string>("");
-  const [confirmationPassword, setConfirmationPassword] = useState<string>("");
-  const [schoolCode, setSchoolCode] = useState<string>("");
-
+/** Completes a pending registration at /register/:invitationId. */
+const RegistrationPanel: React.FC = () => {
+  const { setSnackbarErrorMsg, setSnackbarMsg } = useContext(AppContext);
+  const { invitationId } = useParams();
   const navigate = useNavigate();
 
-  const handleRegistration = async () => {
-    try {
-      await register(
-        schoolCode,
-        userName,
-        firstName,
-        lastName,
-        password,
-        email
-      );
-      setSnackbarMsg("Registration successful. Please login.");
-      navigate("/");
-    } catch (error) {
-      const axiosError = error as AxiosError;
-      if (axiosError.status === 401) {
+  const [invitation, setInvitation] = useState<InvitationDetails | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [userName, setUserName] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+
+  useEffect(() => {
+    const loadInvitation = async () => {
+      if (!invitationId) {
+        setSnackbarErrorMsg("Invalid registration link.");
+        setLoading(false);
+        return;
+      }
+      try {
+        const details = await getInvitationDetails(invitationId);
+        setInvitation(details);
+        setFirstName(details.firstName);
+        setLastName(details.lastName);
+        if (!details.needsUserName) {
+          setUserName(details.userName);
+        }
+      } catch (error) {
+        const axiosError = error as AxiosError;
         setSnackbarErrorMsg(
           axiosError.response?.data?.toString() ??
-            "Unable to complete registration"
+            axiosError.response?.statusText ??
+            "Unable to load invitation"
         );
-      } else {
-        setSnackbarErrorMsg(
-          "Unable to login: " +
-            (axiosError.response?.data?.toString() ??
-              axiosError.response?.statusText ??
-              "Unknown server error")
-        );
+      } finally {
+        setLoading(false);
       }
+    };
+    void loadInvitation();
+  }, [invitationId, setSnackbarErrorMsg]);
+
+  const passwordValid = meetsPasswordRequirements(password);
+  const passwordsMatch = password.length > 0 && password === confirmPassword;
+  const userNameValid =
+    !invitation?.needsUserName ||
+    (userName.trim().length > 0 &&
+      !userName.includes("@") &&
+      !/^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$/.test(
+        userName.trim()
+      ));
+  const canSubmit =
+    !!invitation &&
+    firstName.trim().length > 0 &&
+    lastName.trim().length > 0 &&
+    userNameValid &&
+    passwordValid &&
+    passwordsMatch;
+
+  const handleCompleteRegistration = async () => {
+    if (!invitationId || !invitation) {
+      return;
+    }
+    try {
+      await completeParentRegistration({
+        invitationId,
+        userName: invitation.needsUserName ? userName.trim() : undefined,
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        pwd: password,
+      });
+      setSnackbarMsg("Registration complete. You can now log in.");
+      navigate(LOGIN_URL);
+    } catch (error) {
+      const axiosError = error as AxiosError;
+      setSnackbarErrorMsg(
+        axiosError.response?.data?.toString() ??
+          axiosError.response?.statusText ??
+          "Unable to complete registration"
+      );
     }
   };
 
+  if (loading) {
+    return (
+      <Stack
+        direction="column"
+        alignItems="center"
+        justifyContent="center"
+        sx={{ height: "100%" }}
+      >
+        <Typography>Loading invitation...</Typography>
+      </Stack>
+    );
+  }
+
+  if (!invitation) {
+    return (
+      <Stack
+        direction="column"
+        alignItems="center"
+        justifyContent="center"
+        gap={2}
+        sx={{ height: "100%" }}
+      >
+        <Typography variant="h6">Invitation unavailable</Typography>
+        <Button variant="contained" onClick={() => navigate(LOGIN_URL)}>
+          Go to Login
+        </Button>
+      </Stack>
+    );
+  }
+
   return (
-        <Stack className="registration-panel" direction="column" alignItems="center" gap={5} sx={{ height: "100%", overflow: "auto" }}>
-          <Stack mt={5} direction="column" alignItems="center">
-            <img
-              src="/logo.jpg"
-              style={{ display: "block", width: "300px", height: "auto" }}
-              alt="logo"
-            />
-            <Typography textAlign="center" variant="h6">
-              Lunch System Registration
-            </Typography>
-          </Stack>
+    <Stack
+      className="registration-panel"
+      direction="column"
+      alignItems="center"
+      gap={5}
+      sx={{ height: "100%", overflow: "auto" }}
+    >
+      <Stack mt={5} direction="column" alignItems="center">
+        <img
+          src="/logo.jpg"
+          style={{ display: "block", width: "300px", height: "auto" }}
+          alt="logo"
+        />
+        <Typography textAlign="center" variant="h6">
+          Complete Registration
+        </Typography>
+        <Typography
+          textAlign="center"
+          variant="body2"
+          color="text.secondary"
+          sx={{ mt: 1, width: "80%", maxWidth: "650px" }}
+        >
+          Finish setting up your account for {invitation.schoolName}.
+        </Typography>
+      </Stack>
 
-          <Stack
-            sx={{ width: "80%", maxWidth: "650px" }}
-            direction="row"
-            flexWrap="wrap"
-            gap={2}
-          >
-            <TextField
-              sx={{ flex: 1, minWidth: "300px" }}
-              required
-              label="School Registration Code"
-              helperText="Provided by your school. Uppercase letters only."
-              variant="standard"
-              value={schoolCode}
-              onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
-                const value = event.target.value.replace(/[^a-zA-Z]/g, '').toUpperCase();
-                setSchoolCode(value);
-              }}
-              slotProps={{
-                input: {
-                  style: { textTransform: 'uppercase' }
-                }
-              }}
-            />
+      <Box
+        sx={{
+          width: "80%",
+          maxWidth: "650px",
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr",
+          gap: 2,
+        }}
+      >
+        <TextField
+          fullWidth
+          required
+          label="Email"
+          variant="standard"
+          value={userName}
+          disabled={true}
+        />
+        <Box></Box>
+        <TextField
+          fullWidth
+          required
+          label="First Name"
+          variant="standard"
+          value={firstName}
+          onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
+            setFirstName(event.target.value)
+          }
+        />
+        <TextField
+          fullWidth
+          required
+          label="Last Name"
+          variant="standard"
+          value={lastName}
+          onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
+            setLastName(event.target.value)
+          }
+        />
+        <TextField
+          fullWidth
+          required
+          type="password"
+          label="Password"
+          variant="standard"
+          value={password}
+          error={password.length > 0 && !passwordValid}
+          helperText={PASSWORD_HELPER_TEXT}
+          onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
+            setPassword(event.target.value)
+          }
+        />
+        <TextField
+          fullWidth
+          required
+          type="password"
+          label="Confirm Password"
+          variant="standard"
+          value={confirmPassword}
+          error={confirmPassword.length > 0 && password !== confirmPassword}
+          helperText={
+            confirmPassword.length > 0 && password !== confirmPassword
+              ? "Passwords do not match."
+              : undefined
+          }
+          onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
+            setConfirmPassword(event.target.value)
+          }
+        />
+      </Box>
 
-            <TextField
-              sx={{ flex: 1, minWidth: "300px" }}
-              label="Email On File With School"
-              variant="standard"
-              helperText="Email used by school to contact you."
-              required
-              value={email}
-              onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
-                setEmail(event.target.value)
-              }
-            />
-
-            <TextField
-              sx={{ flex: 1, minWidth: "300px" }}
-              required
-              label="First Name"
-              variant="standard"
-              value={firstName}
-              onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
-                setFirstName(event.target.value)
-              }
-            />
-            <TextField
-              sx={{ flex: 1, minWidth: "300px" }}
-              required
-              label="Last Name"
-              variant="standard"
-              value={lastName}
-              onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
-                setLastName(event.target.value)
-              }
-            />
-
-            <TextField
-              sx={{ flex: 1, minWidth: "300px" }}
-              required
-              error={
-                (userName.length > 0 && userName.length < 5) ||
-                /\s/.test(userName)
-              }
-              helperText="Minimum of 5 characters. No spaces allowed."
-              label="Username"
-              variant="standard"
-              value={userName}
-              onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
-                setUserName(event.target.value)
-              }
-            />
-
-            <Box sx={{ flex: 1, minWidth: "300px" }}></Box>
-
-            <TextField
-              sx={{ flex: 1, minWidth: "300px" }}
-              error={
-                (password.length > 0 && password.length < 8) ||
-                /\s/.test(password)
-              }
-              required
-              helperText="Minimum of 8 characters. No spaces allowed."
-              type="Password"
-              label="Password"
-              variant="standard"
-              value={password}
-              onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
-                setPassword(event.target.value)
-              }
-            />
-            <TextField
-              sx={{ flex: 1, minWidth: "300px" }}
-              required
-              error={
-                password.length &&
-                confirmationPassword.length &&
-                password !== confirmationPassword
-                  ? true
-                  : false
-              }
-              type="Password"
-              label="Confirm Password"
-              variant="standard"
-              value={confirmationPassword}
-              onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
-                setConfirmationPassword(event.target.value)
-              }
-            />
-          </Stack>
-          <Button
-            variant="contained"
-            color="primary"
-            disabled={
-              !schoolCode.length ||
-              !firstName.length ||
-              !lastName.length ||
-              !email.length ||
-              userName.length < 5 ||
-              /\s/.test(userName) ||
-              password.length < 8 ||
-              /\s/.test(password) ||
-              password !== confirmationPassword
-            }
-            onClick={handleRegistration}
-            sx={{
-              marginTop: "50px",
-              marginBottom: "50px",
-            }}
-          >
-            Create Account
-          </Button>
-        </Stack>
+      <Button
+        variant="contained"
+        color="primary"
+        disabled={!canSubmit}
+        onClick={handleCompleteRegistration}
+        sx={{
+          marginTop: "50px",
+          marginBottom: "50px",
+        }}
+      >
+        Complete Registration
+      </Button>
+    </Stack>
   );
 };
 
-export default RegisrationPanel;
+export default RegistrationPanel;

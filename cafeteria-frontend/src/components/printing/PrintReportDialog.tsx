@@ -8,7 +8,7 @@ import {
   FormControl,
   InputLabel,
   Select,
-  MenuItem,
+  MenuItem as MuiMenuItem,
   Box,
   SelectChangeEvent,
 } from "@mui/material";
@@ -39,8 +39,8 @@ const PrintReportDialog: React.FC<PrintReportDialogProps> = ({
     React.useState<ReportType>(ReportType.DAILY_SUMMARY);
   const [dateRange, setDateRange] = React.useState<Range[]>([
     {
-      startDate: new Date(),
-      endDate: new Date(),
+      startDate: DateTimeUtils.getCurrentDate(),
+      endDate: DateTimeUtils.getCurrentDate(),
       key: "selection",
     },
   ]);
@@ -138,9 +138,9 @@ const PrintReportDialog: React.FC<PrintReportDialogProps> = ({
                 onChange={handleReportTypeChange}
               >
                 {reportTypeOrder.map((reportType) => (
-                  <MenuItem key={reportType} value={reportType}>
+                  <MuiMenuItem key={reportType} value={reportType}>
                     {reportType}
-                  </MenuItem>
+                  </MuiMenuItem>
                 ))}
               </Select>
             </FormControl>

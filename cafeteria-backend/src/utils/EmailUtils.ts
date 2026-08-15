@@ -18,11 +18,11 @@ interface ReportEmail extends OutgoingEmail {
   }>;
 }
 
-const SENDER_EMAIL = "micscafeteria@micscougars.com";
+const SENDER_EMAIL = process.env.SENDER_EMAIL ?? "micscafeteria@micscougars.com";
+const EMAIL_API_KEY = process.env.EMAIL_API_KEY;
+const LUNCH_SYSTEM_BASE_URL = process.env.LUNCH_SYSTEM_BASE_URL;
 const SEND_EMAIL_API_URL = "https://api.smtp2go.com/v3/email/send";
-const EMAIL_API_KEY = "api-5A2E22DD1EFF426C8F8B59EC1A3DE132";
 
-const LUNCH_SYSTEM_BASE_URL = "https://hotlunch.micscougars.com";
 
 const SEND_EMAIL_HTTP_HEADER = {
   "Content-Type": "application/json",
@@ -30,7 +30,12 @@ const SEND_EMAIL_HTTP_HEADER = {
   "X-Smtp2go-Api-Key": EMAIL_API_KEY,
 };
 
-export const sendInvitationEmail = async (toEmail: string, firstName: string, lastName: string, school: SchoolEntity) => {
+export const sendInvitationEmail = async (
+  toEmail: string,
+  school: SchoolEntity,
+  invitationId: string,
+) => {
+  const registrationUrl = `${LUNCH_SYSTEM_BASE_URL}/register/${invitationId}`;
   const invitationEmail: ReportEmail = {
     to: [toEmail],
     sender: SENDER_EMAIL,
@@ -39,15 +44,11 @@ export const sendInvitationEmail = async (toEmail: string, firstName: string, la
       <html>
         <body>
           <h2>Welcome to the School Lunch System</h2>
-          <p>Dear ${firstName} ${lastName},</p>
-          <p>You have been invited to create an account on the ${school.name} lunch system.</p>
-          <p>To get started, please follow these steps:</p>
+          <p>To complete the email verification & registration process, please follow these steps:</p>
           <ol>
-            <li>Go to <a href="https://hotlunch.micscougars.com/register">https://hotlunch.micscougars.com/register</a></li>
-            <li>Use the school registration code: <strong>${school.registrationCode}</strong></li>
-            <li>Use the email address: <strong>${toEmail}</strong></li>
+            <li>Go to <a href="${registrationUrl}">${registrationUrl}</a></li>
+            <li>Set your password</li>
           </ol>
-          <p>Once you complete the registration process, you'll be able to access the lunch system and manage your account.</p>
           <p>If you have any questions, please contact the school administration.</p>
           <p>Best regards,<br>${school.name} Administration</p>
         </body>
@@ -55,18 +56,11 @@ export const sendInvitationEmail = async (toEmail: string, firstName: string, la
     `,
     text_body: `
       Welcome to the School Lunch System
+            
+      To complete the email verification & registration process, please follow these steps:
       
-      Dear ${firstName} ${lastName},
-      
-      You have been invited to create an account on the ${school.name} lunch system.
-      
-      To get started, please follow these steps:
-      
-      1. Go to https://hotlunch.micscougars.com/register
-      2. Use the school registration code: ${school.registrationCode}
-      3. Use the email address: ${toEmail}
-      
-      Once you complete the registration process, you'll be able to access the lunch system and manage your account.
+      1. Go to ${registrationUrl}
+      2. Set your password
       
       If you have any questions, please contact the school administration.
       
@@ -80,6 +74,86 @@ export const sendInvitationEmail = async (toEmail: string, firstName: string, la
     headers: SEND_EMAIL_HTTP_HEADER,
   });
 }
+
+export const sendSchoolAccessGrantedEmail = async (
+  toEmail: string,
+  school: SchoolEntity,
+) => {
+  const accessEmail: ReportEmail = {
+    to: [toEmail],
+    sender: SENDER_EMAIL,
+    subject: `Access Granted to ${school.name} Lunch System`,
+    html_body: `
+      <html>
+        <body>
+          <h2>Welcome to the School Lunch System</h2>
+          <p>Your account has been granted access to the ${school.name} lunch system.</p>
+          <p>You can log in at <a href="${LUNCH_SYSTEM_BASE_URL}/login">${LUNCH_SYSTEM_BASE_URL}/login</a> using your existing credentials.</p>
+          <p>If you have any questions, please contact the school administration.</p>
+          <p>Best regards,<br>${school.name} Administration</p>
+        </body>
+      </html>
+    `,
+    text_body: `
+      Welcome to the School Lunch System
+      
+      Your account has been granted access to the ${school.name} lunch system.
+      
+      You can log in at ${LUNCH_SYSTEM_BASE_URL}/login using your existing credentials.
+      
+      If you have any questions, please contact the school administration.
+      
+      Best regards,
+      ${school.name} Administration
+    `,
+    attachments: []
+  };
+
+  return await axios.post(SEND_EMAIL_API_URL, accessEmail, {
+    headers: SEND_EMAIL_HTTP_HEADER,
+  });
+};
+
+export const sendForgotPasswordEmail = async (toEmail: string, forgotLoginId: string, firstName: string, lastName: string) => {
+  const forgotPasswordEmail: ReportEmail = {
+    to: [toEmail],
+    sender: SENDER_EMAIL,
+    subject: `Lunch System Password Reset Request`,
+    html_body: `
+      <html>
+        <body>
+          <h2>Password Reset Request</h2>
+          <p>Dear ${firstName} ${lastName},</p>
+          <p>To reset your password, please click the link below:</p>
+          <p><a href="${LUNCH_SYSTEM_BASE_URL}/forgot/${forgotLoginId}">Reset Password</a></p>
+          <p>If you did not request this password reset, please ignore this email.</p>
+          <p>This link will expire in 24 hours.</p>
+          <p>Best regards,<br>Lunch System Administrator</p>
+        </body>
+      </html>
+    `,
+    text_body: `
+      Password Reset Request
+
+      Dear ${firstName} ${lastName},
+
+      To reset your password, please visit the following link:
+      ${LUNCH_SYSTEM_BASE_URL}/forgot/${forgotLoginId}
+
+      If you did not request this password reset, please ignore this email.
+
+      This link will expire in 24 hours.
+
+      Best regards,
+      Lunch System Administrator
+    `,
+    attachments: []
+  };
+
+  return await axios.post(SEND_EMAIL_API_URL, forgotPasswordEmail, {
+    headers: SEND_EMAIL_HTTP_HEADER,
+  });
+};
 
 export const sendForgotUserNameEmail = async (toEmail: string, userNames: string[]) => {
   const forgotUsernameEmail: ReportEmail = {
@@ -124,49 +198,91 @@ export const sendForgotUserNameEmail = async (toEmail: string, userNames: string
   });
 }
 
+export interface OrderReceiptMealItem {
+  name: string;
+  price: number;
+}
 
-export const sendForgotPasswordEmail = async (toEmail: string, forgotLoginId: string, firstName: string, lastName: string) => {
-  const forgotPasswordEmail: ReportEmail = {
+export interface OrderReceiptMeal {
+  date: string;
+  orderedFor: string;
+  total: number;
+  items: OrderReceiptMealItem[];
+}
+
+const formatCurrency = (amount: number): string => `$${amount.toFixed(2)}`;
+
+export const sendOrderReceiptEmail = async (
+  toEmail: string,
+  meals: OrderReceiptMeal[],
+  schoolName: string,
+) => {
+  const mealsHtml = meals
+    .map((meal) => {
+      const itemsHtml = meal.items
+        .map(
+          (item) =>
+            `<li>${item.name} — ${formatCurrency(item.price)}</li>`,
+        )
+        .join("");
+      return `
+        <div style="margin-bottom: 1.5em;">
+          <h3 style="margin-bottom: 0.25em;">
+            ${meal.date} — ${meal.orderedFor} — ${formatCurrency(meal.total)}
+          </h3>
+          <ul style="margin-top: 0.25em;">
+            ${itemsHtml}
+          </ul>
+        </div>
+      `;
+    })
+    .join("");
+
+  const mealsText = meals
+    .map((meal) => {
+      const itemsText = meal.items
+        .map((item) => `  - ${item.name}: ${formatCurrency(item.price)}`)
+        .join("\n");
+      return `${meal.date} — ${meal.orderedFor} — ${formatCurrency(meal.total)}\n${itemsText}`;
+    })
+    .join("\n\n");
+
+  const orderTotal = meals.reduce((sum, meal) => sum + meal.total, 0);
+
+  const receiptEmail: ReportEmail = {
     to: [toEmail],
     sender: SENDER_EMAIL,
-    subject: `Lunch System Password Reset Request`,
+    subject: `Lunch Order Receipt - ${schoolName}`,
     html_body: `
       <html>
         <body>
-          <h2>Password Reset Request</h2>
-          <p>Dear ${firstName} ${lastName},</p>
-          <p>To reset your password, please click the link below:</p>
-          <p><a href="${LUNCH_SYSTEM_BASE_URL}/forgot/${forgotLoginId}">Reset Password</a></p>
-          <p>If you did not request this password reset, please ignore this email.</p>
-          <p>This link will expire in 24 hours.</p>
-          <p>Best regards,<br>Lunch System Administrator</p>
+          <h2>Order Receipt</h2>
+          <p>Thank you for your order from ${schoolName}.</p>
+          ${mealsHtml}
+          <p><strong>Order Total: ${formatCurrency(orderTotal)}</strong></p>
+          <p>Best regards,<br>${schoolName} Cafeteria</p>
         </body>
       </html>
     `,
     text_body: `
-      Password Reset Request
-      
-      Dear ${firstName} ${lastName},
-      
-      To reset your password, please visit the following link:
-      ${LUNCH_SYSTEM_BASE_URL}/forgot/${forgotLoginId}
-      
-      If you did not request this password reset, please ignore this email.
-      
-      This link will expire in 24 hours.
-      
-      Best regards,
-      Lunch System Administrator
+Order Receipt
+
+Thank you for your order from ${schoolName}.
+
+${mealsText}
+
+Order Total: ${formatCurrency(orderTotal)}
+
+Best regards,
+${schoolName} Cafeteria
     `,
-    attachments: []
+    attachments: [],
   };
 
-  const result =  await axios.post(SEND_EMAIL_API_URL, forgotPasswordEmail, {
+  return await axios.post(SEND_EMAIL_API_URL, receiptEmail, {
     headers: SEND_EMAIL_HTTP_HEADER,
   });
-  console.log(result);
-  return result;
-}
+};
 
 export const sendClassroomReportEmail = async (
   toEmail: string,
@@ -211,3 +327,4 @@ export const sendClassroomReportEmail = async (
     headers: SEND_EMAIL_HTTP_HEADER,
   });
 }
+

@@ -7,7 +7,10 @@ import {
   Button,
   TextField,
   Stack,
+  IconButton,
+  InputAdornment,
 } from "@mui/material";
+import { Visibility, VisibilityOff } from "@mui/icons-material";
 import { AppContext } from "../../AppContextProvider";
 import { updateSchoolSquare } from "../../api/CafeteriaClient";
 import School from "../../models/School";
@@ -23,8 +26,13 @@ const SquareSettingsDialog: React.FC<SquareSettingsDialogProps> = ({
 }) => {
   const { school, setSchool } = useContext(AppContext);
   const [squareAppId, setSquareAppId] = useState(school.squareAppId);
-  const [squareAppAccessToken, setSquareAppAccessToken] = useState(school.squareAppAccessToken);
-  const [squareLocationId, setSquareLocationId] = useState(school.squareLocationId);
+  const [squareAppAccessToken, setSquareAppAccessToken] = useState(
+    school.squareAppAccessToken,
+  );
+  const [squareLocationId, setSquareLocationId] = useState(
+    school.squareLocationId,
+  );
+  const [showAccessToken, setShowAccessToken] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
   const handleSave = async () => {
@@ -53,6 +61,7 @@ const SquareSettingsDialog: React.FC<SquareSettingsDialogProps> = ({
     setSquareAppId(school.squareAppId);
     setSquareAppAccessToken(school.squareAppAccessToken);
     setSquareLocationId(school.squareLocationId);
+    setShowAccessToken(false);
     onClose();
   };
 
@@ -69,17 +78,37 @@ const SquareSettingsDialog: React.FC<SquareSettingsDialogProps> = ({
             fullWidth
             helperText="Your Square application ID"
           />
-          
+
           <TextField
             label="Square Access Token"
             value={squareAppAccessToken}
             variant="standard"
             onChange={(e) => setSquareAppAccessToken(e.target.value)}
             fullWidth
-            type="password"
+            type={showAccessToken ? "text" : "password"}
             helperText="Your Square access token (will be hidden for security)"
+            slotProps={{
+              input: {
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton
+                      size="small"
+                      aria-label={
+                        showAccessToken
+                          ? "Hide access token"
+                          : "Show access token"
+                      }
+                      onClick={() => setShowAccessToken((show) => !show)}
+                      edge="end"
+                    >
+                      {showAccessToken ? <VisibilityOff /> : <Visibility />}
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              },
+            }}
           />
-          
+
           <TextField
             label="Square Location ID"
             value={squareLocationId}
@@ -94,11 +123,7 @@ const SquareSettingsDialog: React.FC<SquareSettingsDialogProps> = ({
         <Button onClick={handleCancel} disabled={isLoading}>
           Cancel
         </Button>
-        <Button
-          onClick={handleSave}
-          variant="contained"
-          disabled={isLoading}
-        >
+        <Button onClick={handleSave} variant="contained" disabled={isLoading}>
           Save
         </Button>
       </DialogActions>
@@ -106,4 +131,4 @@ const SquareSettingsDialog: React.FC<SquareSettingsDialogProps> = ({
   );
 };
 
-export default SquareSettingsDialog; 
+export default SquareSettingsDialog;

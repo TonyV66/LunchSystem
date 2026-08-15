@@ -8,6 +8,18 @@ export enum Role {
   KITCHEN,
 }
 
+export const isFactsUserRole = (role: Role): boolean =>
+  role === Role.PARENT || role === Role.TEACHER || role === Role.STAFF;
+
+export const isSystemAdminRole = (role: Role): boolean =>
+  !(role === Role.PARENT || role === Role.TEACHER || role === Role.STAFF);
+
+export enum AccountStatus {
+  ACTIVE = "active",
+  INACTIVE = "inactive",
+  PENDING = "pending",
+}
+
 const ROLE_NAMES: string[] = ["System Admin.", "Teacher", "Parent", "Cafeteria", "Staff", "Principal", "Kitchen"];
 
 export const getRoleName = (role: Role) => {
@@ -23,13 +35,8 @@ export const NULL_USER: User = {
   lastName: '',
   email: '',
   phone: '',
-  description: '',
-  role: Role.PARENT,
-  pending: false,
-  availableCredits: 0,
   notificationReviewDate: new Date('2020-01-01 00:00:00').toJSON(),
   resetPwd: false,
-  surveyCompleted: false,
   forgotPwdUri: null,
   forgotPwdDate: null,
 }
@@ -43,13 +50,8 @@ export default interface User {
   lastName: string;
   email: string;
   phone: string;
-  description: string;
-  role: Role;
-  pending: boolean;
-  availableCredits: number;
   notificationReviewDate: string;
   resetPwd: boolean;
-  surveyCompleted: boolean;
   forgotPwdUri: string | null;
   forgotPwdDate: string | null;
 }

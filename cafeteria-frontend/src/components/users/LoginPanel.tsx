@@ -4,6 +4,8 @@ import {
   Alert,
   Box,
   Button,
+  Checkbox,
+  FormControlLabel,
   Link,
   Snackbar,
   TextField,
@@ -13,24 +15,35 @@ import SessionInfo from "../../models/SessionInfo";
 import {
   forgotPassword,
   login,
-  forgotUserName,
+  verifyAccountForPasswordReset,
 } from "../../api/CafeteriaClient";
 import { AppContext } from "../../AppContextProvider";
 import { AxiosError } from "axios";
 import ConfirmDialog from "../ConfirmDialog";
 import { NO_SCHOOL_YEAR } from "../../models/SchoolYear";
-import { REGISTRATION_URL } from "../../MainAppPanel";
-import { useNavigate } from "react-router-dom";
+import RegistrationDialog from "./RegistrationDialog";
 
-enum ForgottenCredential {
-  USERNAME,
-  PWD,
-}
+const REMEMBERED_USERNAME_KEY = "rememberedUserName";
+
+const isValidEmailAddress = (value: string): boolean => {
+  const email = value.trim();
+  return (
+    email.includes("@") && email.includes(".") && !email.includes(" ")
+  );
+};
+
 export const CredentialsPanel: React.FC = () => {
-  const [userName, setUserName] = useState("");
+  const [userName, setUserName] = useState(
+    () => localStorage.getItem(REMEMBERED_USERNAME_KEY) ?? ""
+  );
+  const [rememberMe, setRememberMe] = useState(
+    () => !!localStorage.getItem(REMEMBERED_USERNAME_KEY)
+  );
 
   const {
     setPantryItems,
+    setIngredients,
+    setUnitsOfMeasure,
     setMenus,
     setUser,
     setUsers,
@@ -38,6 +51,7 @@ export const CredentialsPanel: React.FC = () => {
     setOrders,
     setStudents,
     setNotifications,
+    setCalendarNotes,
     setSchool,
     setSchoolYears,
     setSnackbarMsg,
@@ -48,14 +62,104 @@ export const CredentialsPanel: React.FC = () => {
   const [password, setPassword] = useState<string>("");
   const [errorMsg, setErrorMsg] = useState<string>();
   const [forgottenCredential, setForgottenCredential] =
-    useState<ForgottenCredential>();
-  const [email, setEmail] = useState<string>("");
-
-  const navigate = useNavigate();
+    useState(false);
+  const [incompleteRegistration, setIncompleteRegistration] = useState(false);
+  const [showRegistration, setShowRegistration] = useState(false);
+  const [registrationAccount, setRegistrationAccount] = useState<{
+    exists: boolean;
+    isFactsRegistrationPending: boolean;
+  }>();
+  const [registrationNotice, setRegistrationNotice] = useState<{
+    title: string;
+    message: string;
+  }>();
 
   const handleForgotCancelled = () => {
-    setForgottenCredential(undefined);
-    setEmail("");
+    setForgottenCredential(false);
+  };
+
+  const openRegistrationDialog = (account: {
+    exists: boolean;
+    isFactsRegistrationPending: boolean;
+  }) => {
+    setRegistrationAccount({
+      exists: account.exists,
+      isFactsRegistrationPending: account.isFactsRegistrationPending,
+    });
+    setShowRegistration(true);
+  };
+
+  const handleRegisterClicked = async () => {
+    if (!isValidEmailAddress(userName)) {
+      setErrorMsg("Please enter a valid email address.");
+      return;
+    }
+    try {
+      const account = await verifyAccountForPasswordReset(userName);
+      if (!account.exists) {
+        openRegistrationDialog(account);
+        return;
+      }
+      if (account.allInactive) {
+        setRegistrationNotice({
+          title: "Account Inactive",
+          message: "Your account is currently inactive.",
+        });
+        return;
+      }
+      if (account.allActive) {
+        setRegistrationNotice({
+          title: "Already Registered",
+          message:
+            "You are already registered. Please log in with your username and password.",
+        });
+        return;
+      }
+      if (!account.hasPassword) {
+        openRegistrationDialog(account);
+        return;
+      }
+      setRegistrationNotice({
+        title: "Already Registered",
+        message:
+          "You are already registered. Please log in with your username and password.",
+      });
+    } catch (error) {
+      const axiosError = error as AxiosError;
+      setErrorMsg(
+        "Unable to verify account: " +
+          (axiosError.response?.data?.toString() ??
+            axiosError.response?.statusText ??
+            "Unknown server error")
+      );
+    }
+  };
+
+  const handleForgotPasswordClicked = async () => {
+    if (!isValidEmailAddress(userName)) {
+      setErrorMsg("Please enter a valid email address.");
+      return;
+    }
+    try {
+      const account = await verifyAccountForPasswordReset(userName);
+      if (!account.exists) {
+        setErrorMsg("No account exists with that username.");
+        return;
+      }
+      if (!account.hasPassword) {
+        setIncompleteRegistration(true);
+        return;
+      }
+      setForgottenCredential(true);
+    } catch (error) {
+      const axiosError = error as AxiosError;
+      setErrorMsg(
+        "Unable to verify account: " +
+          (axiosError.response?.data?.toString() ??
+            axiosError.response?.statusText ??
+            "Unknown server error")
+      );
+    }
   };
 
   const handleLogin = async () => {
@@ -68,22 +172,41 @@ export const CredentialsPanel: React.FC = () => {
       setMenus(loginResponse.menus);
       setScheduledMenus(loginResponse.scheduledMenus);
       setNotifications(loginResponse.notifications);
+      setCalendarNotes(loginResponse.calendarNotes ?? []);
       setPantryItems(loginResponse.pantryItems);
+      setIngredients(loginResponse.ingredients);
+      setUnitsOfMeasure(loginResponse.unitsOfMeasure);
       setSchool(loginResponse.school);
       setSchoolYears(loginResponse.schoolYears);
       setSurvey(loginResponse.survey);
       setCurrentSchoolYear(loginResponse.schoolYears.find((sy) => sy.isCurrent) ?? NO_SCHOOL_YEAR);
 
-
+      if (rememberMe) {
+        localStorage.setItem(REMEMBERED_USERNAME_KEY, userName);
+      } else {
+        localStorage.removeItem(REMEMBERED_USERNAME_KEY);
+      }
       localStorage.setItem("jwtToken", loginResponse.jwtToken);
     } catch (error) {
       const axiosError = error as AxiosError;
-      if (axiosError.status === 401) {
+      const serverMsg =
+        typeof axiosError.response?.data === "string"
+          ? axiosError.response.data
+          : axiosError.response?.data?.toString();
+      if (serverMsg === "Registration has not been completed.") {
+        setIncompleteRegistration(true);
+      } else if (
+        serverMsg === "Your account is currently inactive." ||
+        serverMsg === "No student enrollments found for the active school year." ||
+        serverMsg === "No active school year found."
+      ) {
+        setErrorMsg(serverMsg);
+      } else if (axiosError.status === 401) {
         setErrorMsg("Invalid username or password");
       } else {
         setErrorMsg(
           "Unable to login: " +
-            (axiosError.response?.data?.toString() ??
+            (serverMsg ??
               axiosError.response?.statusText ??
               "Unknown server error")
         );
@@ -105,9 +228,9 @@ export const CredentialsPanel: React.FC = () => {
     try {
       await forgotPassword(userName);
       setSnackbarMsg("Email has been sent.")
-      setForgottenCredential(undefined);
+      setForgottenCredential(false);
     } catch (error) {
-      setForgottenCredential(undefined);
+      setForgottenCredential(false);
       const axiosError = error as AxiosError;
       setErrorMsg(
         "Unable to send email: " +
@@ -116,24 +239,6 @@ export const CredentialsPanel: React.FC = () => {
             "Unknown server error")
       );
     }
-  };
-
-  const handleSendForgotUsernameEmail = async () => {
-    try {
-      await forgotUserName(email);
-      setSnackbarMsg("Email has been sent.")
-      setForgottenCredential(undefined);
-    } catch (error) {
-      setForgottenCredential(undefined);
-      const axiosError = error as AxiosError;
-      setErrorMsg(
-        "Unable to send email: " +
-          (axiosError.response?.data?.toString() ??
-            axiosError.response?.statusText ??
-            "Unknown server error")
-      );
-    }
-
   };
 
   return (
@@ -149,7 +254,7 @@ export const CredentialsPanel: React.FC = () => {
       <TextField
         fullWidth
         required
-        label="Username"
+        label="Email"
         variant="standard"
         value={userName}
         onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
@@ -168,6 +273,23 @@ export const CredentialsPanel: React.FC = () => {
           setPassword(event.target.value)
         }
       />
+      <FormControlLabel
+        control={
+          <Checkbox
+            checked={rememberMe}
+            size="small"
+            onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
+              const checked = event.target.checked;
+              setRememberMe(checked);
+              if (!checked) {
+                localStorage.removeItem(REMEMBERED_USERNAME_KEY);
+              }
+            }}
+          />
+        }
+        label="Remember Me"
+        sx={{ color: "text.secondary" }}
+      />
 
       <Box
         sx={{
@@ -181,7 +303,7 @@ export const CredentialsPanel: React.FC = () => {
           component="button"
           disabled={!userName.length}
           variant="body2"
-          onClick={() => setForgottenCredential(ForgottenCredential.PWD)}
+          onClick={handleForgotPasswordClicked}
           sx={{
             opacity: !userName.length ? 0.5 : 1,
             cursor: !userName.length ? 'not-allowed' : 'pointer',
@@ -195,15 +317,17 @@ export const CredentialsPanel: React.FC = () => {
         </Link>
         <Link
           component="button"
+          disabled={!userName.length}
           variant="body2"
-          onClick={() => setForgottenCredential(ForgottenCredential.USERNAME)}
-        >
-          Forgot Username
-        </Link>
-        <Link
-          component="button"
-          variant="body2"
-          onClick={() => navigate(REGISTRATION_URL)}
+          onClick={handleRegisterClicked}
+          sx={{
+            opacity: !userName.length ? 0.5 : 1,
+            cursor: !userName.length ? 'not-allowed' : 'pointer',
+            color: !userName.length ? 'text.disabled' : 'primary.main',
+            '&:hover': {
+              textDecoration: !userName.length ? 'none' : 'underline'
+            }
+          }}
         >
           Register
         </Link>
@@ -230,58 +354,7 @@ export const CredentialsPanel: React.FC = () => {
           {errorMsg}
         </Alert>
       </Snackbar>
-      {forgottenCredential === ForgottenCredential.USERNAME ? (
-        <ConfirmDialog
-          open={true}
-          onOk={() => {
-            return;
-          }}
-          onCancel={handleForgotCancelled}
-        >
-          <TextField
-            fullWidth
-            required
-            label="Email Associated With My Account"
-            variant="standard"
-            value={""}
-            onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
-              setEmail(event.target.value)
-            }
-          />
-        </ConfirmDialog>
-      ) : (
-        <></>
-      )}
-      {forgottenCredential === ForgottenCredential.USERNAME ? (
-        <ConfirmDialog
-          open={true}
-          title="Forgot Username"
-          isOkDisabled={!email.length}
-          onOk={handleSendForgotUsernameEmail}
-          onCancel={handleForgotCancelled}
-        >
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-            <Typography>
-              We&apos;ll look up your login information using your email address
-              and email you your username.
-            </Typography>
-
-            <TextField
-              fullWidth
-              required
-              label="Email"
-              variant="standard"
-              value={email}
-              onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
-                setEmail(event.target.value)
-              }
-            />
-          </Box>
-        </ConfirmDialog>
-      ) : (
-        <></>
-      )}
-      {forgottenCredential === ForgottenCredential.PWD ? (
+      {forgottenCredential ? (
         <ConfirmDialog
           open={true}
           title="Forgot Password"
@@ -289,10 +362,54 @@ export const CredentialsPanel: React.FC = () => {
           onCancel={handleForgotCancelled}
         >
           <Typography>
-            We&apos;ll lookup your email address and send instructions on how to
+            We&apos;ll email instructions on how to
             reset your password.
           </Typography>
         </ConfirmDialog>
+      ) : (
+        <></>
+      )}
+      {incompleteRegistration ? (
+        <ConfirmDialog
+          open={true}
+          title="Email Verification Required"
+          hideCancelButton
+          onOk={() => setIncompleteRegistration(false)}
+          onCancel={() => setIncompleteRegistration(false)}
+        >
+          <Typography>
+            The account exists, but email verification has not been completed. Please use the Register link to complete email verification & registration.
+          </Typography>
+        </ConfirmDialog>
+      ) : (
+        <></>
+      )}
+      {registrationNotice ? (
+        <ConfirmDialog
+          open={true}
+          title={registrationNotice.title}
+          hideCancelButton
+          onOk={() => setRegistrationNotice(undefined)}
+          onCancel={() => setRegistrationNotice(undefined)}
+        >
+          <Typography>{registrationNotice.message}</Typography>
+        </ConfirmDialog>
+      ) : (
+        <></>
+      )}
+      {showRegistration && registrationAccount ? (
+        <RegistrationDialog
+          open={true}
+          userName={userName}
+          exists={registrationAccount.exists}
+          isFactsRegistrationPending={
+            registrationAccount.isFactsRegistrationPending
+          }
+          onCancel={() => {
+            setShowRegistration(false);
+            setRegistrationAccount(undefined);
+          }}
+        />
       ) : (
         <></>
       )}

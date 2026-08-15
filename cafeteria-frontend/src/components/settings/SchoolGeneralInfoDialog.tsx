@@ -7,7 +7,7 @@ import {
   Button,
   TextField,
   Stack,
-  MenuItem,
+  MenuItem as MuiMenuItem,
 } from "@mui/material";
 import { AppContext } from "../../AppContextProvider";
 import { updateSchoolGeneral } from "../../api/CafeteriaClient";
@@ -89,9 +89,9 @@ const SchoolGeneralInfoDialog: React.FC<SchoolGeneralDialogProps> = ({
             helperText="The timezone for your school (used for scheduling and reports)"
           >
             {TIMEZONE_OPTIONS.map((option) => (
-              <MenuItem key={option.value} value={option.value}>
+              <MuiMenuItem key={option.value} value={option.value}>
                 {option.label}
-              </MenuItem>
+              </MuiMenuItem>
             ))}
           </TextField>
         </Stack>

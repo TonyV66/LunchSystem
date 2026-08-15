@@ -31,7 +31,7 @@ export const StudentMealsDialog: React.FC<{
 }> = ({ student, onClose }) => {
   const { orders } = useContext(AppContext);
   
-  const today = DateTimeUtils.toString(new Date());
+  const today = DateTimeUtils.toString(DateTimeUtils.getCurrentDate());
   const order: Order = {
     id: 0,
     userId: 0,

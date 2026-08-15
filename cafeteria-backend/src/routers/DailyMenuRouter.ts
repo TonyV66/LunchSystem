@@ -1,8 +1,7 @@
 import express, { Router } from "express";
 import { DeepPartial } from "typeorm";
-import { DailyMenuEntity } from "../entity/MenuEntity";
-import { DailyMenu } from "../models/Menu";
-import { getCurrentSchoolYear } from "./RouterUtils";
+import DailyMenuEntity from "../entity/DailyMenuEntity";
+import DailyMenu from "../models/DailyMenu";
 import { AppDataSource } from "../data-source";
 
 interface UpdateDailyMenuAvailRequest {
@@ -23,7 +22,11 @@ DailyMenuRouter.put<Empty, DailyMenu, DailyMenu, Empty>("/", async (req, res) =>
 
   const menu: DeepPartial<DailyMenuEntity> = {
     ...req.body,
-    items: req.body.items.map((item) => ({ ...item, id: undefined })),
+    items: req.body.items.map((item) => ({
+      id: undefined,
+      price: item.price,
+      pantryItemId: item.pantryItemId,
+    })),
   };
 
   const savedMenu = await dailyMenuRespository.save(menu);
@@ -36,12 +39,16 @@ DailyMenuRouter.post<Empty, DailyMenu, DailyMenu, Empty>("/", async (req, res) =
   dailyMenuRespository.delete({
     date: req.body.date,
   });
-  let schoolYear = getCurrentSchoolYear(req.user.school!);
+  let schoolYear = req.schoolYear;
 
   const menu: DeepPartial<DailyMenuEntity> = {
     ...req.body,
     id: undefined,
-    items: req.body.items.map((item) => ({ ...item, id: undefined })),
+    items: req.body.items.map((item) => ({
+      id: undefined,
+      price: item.price,
+      pantryItemId: item.pantryItemId,
+    })),
     schoolYear: schoolYear,
   };
   const savedMenu = await dailyMenuRespository.save(menu);

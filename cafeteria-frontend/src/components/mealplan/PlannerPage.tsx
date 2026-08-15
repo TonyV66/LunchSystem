@@ -17,11 +17,12 @@ import {
   Search,
 } from "@mui/icons-material";
 import Menu from "../../models/Menu";
-import EditMenuDialog from "../menus/EditMenuDialog";
+import MenuDialog from "../menus/MenuDialog";
 import { deleteMenu } from "../../api/CafeteriaClient";
 import MealCalendar from "./MealCalendar";
 import AvailableMenusPanel from "./AvailableMenusPanel";
 import { AxiosError } from "axios";
+import { grey } from "@mui/material/colors";
 
 
 
@@ -30,7 +31,7 @@ const enum EditType {
   CREATE_MENU,
 }
 const PlannerPage: React.FC = () => {
-  const { menus, setMenus, setSnackbarErrorMsg, currentSchoolYear } =
+  const { menus, setMenus, setSnackbarErrorMsg, currentSchoolYear, pantryItems } =
     useContext(AppContext);
   const [copiedMenu, setCopiedMenu] = useState<Menu | undefined>();
   const [editMenu, setEditMenu] = useState<Menu | undefined>();
@@ -98,7 +99,7 @@ const PlannerPage: React.FC = () => {
     if (search.length) {
       const filtereMenus = menus.filter((menu) =>
         menu.items.find(
-          (item) => item.name.toLowerCase().indexOf(search.toLowerCase()) >= 0
+          (item) => pantryItems.find((pantryItem) => pantryItem.id === item.pantryItemId)!.name.toLowerCase().indexOf(search.toLowerCase()) >= 0
         )
       );
       setFilteredMenus(filtereMenus);
@@ -148,7 +149,7 @@ const PlannerPage: React.FC = () => {
           borderTopWidth: 1,
           borderTopColor: "black",
           borderTopStyle: "solid",
-          backgroundColor: "lightgray",
+          backgroundColor: grey[100],
           display: "flex",
           alignItems: "flex-end",
           gap: 2,
@@ -198,10 +199,10 @@ const PlannerPage: React.FC = () => {
       />
       {(typeOfEdit === EditType.CREATE_MENU ||
         typeOfEdit === EditType.UPDATE_MENU) && (
-        <EditMenuDialog
+        <MenuDialog
           menu={editMenu}
           onCancel={handleCancelEditMenu}
-          onOk={handleMenuSaved}
+          onOk={(savedMenu) => handleMenuSaved(savedMenu as Menu)}
         />
       )}
     </Box>

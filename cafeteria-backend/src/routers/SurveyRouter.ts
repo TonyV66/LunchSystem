@@ -2,10 +2,11 @@ import express, { Router } from "express";
 import { AppDataSource } from "../data-source";
 import SurveyEntity from "../entity/SurveyEntity";
 import QuestionEntity from "../entity/QuestionEntity";
-import UserEntity from "../entity/UserEntity";
 import Survey from "../models/Survey";
 import { Role } from "../models/User";
 import { In } from "typeorm";
+import UserStatusEntity from "../entity/UserStatusEntity";
+import { saveUserStatus } from "../utils/UserStatusUtils";
 
 const SurveyRouter: Router = express.Router();
 interface Empty {}
@@ -31,9 +32,11 @@ SurveyRouter.post<Empty, Survey | string, QuestionRequest[], Empty>("/start", as
 
   const surveyRepository = AppDataSource.getRepository(SurveyEntity);
   const questionRepository = AppDataSource.getRepository(QuestionEntity);
-  const userRepository = AppDataSource.getRepository(UserEntity);
+  const userStatusRepository = AppDataSource.getRepository(
+    UserStatusEntity,
+  );
 
-  const school = req.user.school;
+  const school = req.school;
 
   // Get or create survey for the school
   let survey = await surveyRepository.findOne({
@@ -75,7 +78,7 @@ SurveyRouter.post<Empty, Survey | string, QuestionRequest[], Empty>("/start", as
 
   await questionRepository.save(newQuestions);
 
-  await userRepository.update(
+  await userStatusRepository.update(
     { school: { id: school.id } },
     { surveyCompleted: false }
   );
@@ -94,7 +97,7 @@ SurveyRouter.put<Empty, Survey | string, {}, Empty>(
   "/end",
   async (req, res) => {
     const surveyRepository = AppDataSource.getRepository(SurveyEntity);
-    const school = req.user.school;
+    const school = req.school;
 
     // Find the survey for the school
     const survey = await surveyRepository.findOne({
@@ -125,7 +128,7 @@ SurveyRouter.put<Empty, Survey | string, {}, Empty>(
 
 SurveyRouter.get<Empty, Survey | string, Empty, Empty>("/", async (req, res) => {
   const surveyRepository = AppDataSource.getRepository(SurveyEntity);
-  const school = req.user.school;
+  const school = req.school;
 
   // Find the survey for the school
   const survey = await surveyRepository.findOne({
@@ -152,7 +155,7 @@ SurveyRouter.get<Empty, Survey | string, Empty, Empty>("/", async (req, res) => 
     surveyModel = new Survey(survey);
 
     // If user is not admin, set all star counts to 0
-    if (req.user.role !== Role.ADMIN) {
+    if (req.userStatus.role !== Role.ADMIN) {
       surveyModel.questions.forEach((question) => {
         question.oneStarCount = 0;
         question.twoStarCount = 0;
@@ -171,8 +174,7 @@ SurveyRouter.post<Empty, Empty | string, SubmitSurveyRequest, Empty>(
   async (req, res) => {
     const surveyRepository = AppDataSource.getRepository(SurveyEntity);
     const questionRepository = AppDataSource.getRepository(QuestionEntity);
-    const userRepository = AppDataSource.getRepository(UserEntity);
-    const school = req.user.school;
+    const school = req.school;
     const { ratings, comment } = req.body;
 
     // Find the survey for the school
@@ -257,9 +259,8 @@ SurveyRouter.post<Empty, Empty | string, SubmitSurveyRequest, Empty>(
     }
 
     // Update user's surveyCompleted status
-    await userRepository.update(req.user.id, {
-      surveyCompleted: true,
-    });
+    req.userStatus.surveyCompleted = true;
+    await saveUserStatus(req.userStatus);
 
     res.sendStatus(200);
   }

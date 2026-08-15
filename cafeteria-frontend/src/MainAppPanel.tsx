@@ -4,7 +4,7 @@ import {
   Divider,
   Typography,
   Menu,
-  MenuItem,
+  MenuItem as MuiMenuItem,
   ListItemIcon,
   ListItemText,
   Tooltip,
@@ -35,7 +35,8 @@ import {
   Print,
   Poll,
 } from "@mui/icons-material";
-import User, { NULL_USER, Role } from "./models/User";
+import { Role } from "./models/User";
+import { NULL_SCHOOL_USER } from "./models/SchoolUser";
 import { grey, red } from "@mui/material/colors";
 import { DateTimeUtils } from "./DateTimeUtils";
 import ChangePasswordDialog from "./components/settings/ChangePasswordDialog";
@@ -43,8 +44,6 @@ import PrintReportDialog from "./components/printing/PrintReportDialog";
 
 const ALT_COLOR = "#ffffff";
 
-export const REGISTRATION_URL = "/register";
-export const INVITE_URL = "/invite";
 export const ACCOUNT_URL = "/account";
 export const USERS_URL = "/users";
 export const YEARS_URL = "/years";
@@ -133,18 +132,18 @@ const LogoutButton: React.FC<LogoutButtonProps> = ({ onLogout }) => {
         }}
       >
         <ListSubheader sx={{ lineHeight: 1.5 }}>{user.userName}</ListSubheader>
-        <MenuItem onClick={handleChangePassword}>
+        <MuiMenuItem onClick={handleChangePassword}>
           <ListItemIcon>
             <Lock fontSize="small" />
           </ListItemIcon>
           <ListItemText>Change Password</ListItemText>
-        </MenuItem>
-        <MenuItem onClick={handleLogout}>
+        </MuiMenuItem>
+        <MuiMenuItem onClick={handleLogout}>
           <ListItemIcon>
             <Logout fontSize="small" />
           </ListItemIcon>
           <ListItemText>Logout</ListItemText>
-        </MenuItem>
+        </MuiMenuItem>
       </Menu>
       <ChangePasswordDialog
         open={changePasswordDialogOpen}
@@ -434,12 +433,12 @@ const getSidebarSelection = (path: string) => {
   }
 };
 
-const getDefaultUsersUrl = (user: User) => {
-  if (user.role === Role.ADMIN || user.role === Role.PRINCIPAL) {
+const getDefaultUsersUrl = (role: Role) => {
+  if (role === Role.ADMIN || role === Role.PRINCIPAL) {
     return USERS_URL;
-  } else if (user.role === Role.TEACHER) {
+  } else if (role === Role.TEACHER) {
     return CLASSROOM_URL;
-  } else if (user.role === Role.CAFETERIA) {
+  } else if (role === Role.CAFETERIA) {
     return STUDENTS_URL;
   }
   return FAMILY_URL;
@@ -495,7 +494,7 @@ const AdminSidebar: React.FC<SidebarProps> = ({ onLogout }) => {
         <PrintMealReportsButton onClick={handlePrintClick} />
         <UsersButton
           role={Role.ADMIN}
-          onClick={() => navigate(getDefaultUsersUrl(user))}
+          onClick={() => navigate(getDefaultUsersUrl(user.role))}
           isSelected={selection === SidebarSelection.USERS}
         />
         <NotificationsButton
@@ -513,15 +512,6 @@ const AdminSidebar: React.FC<SidebarProps> = ({ onLogout }) => {
         <SettingsButton
           onClick={() => navigate(ACCOUNT_URL)}
           isSelected={selection === SidebarSelection.ACCOUNT}
-        />
-        <Divider sx={{ borderColor: "white", width: "100%" }} />
-        <OrderedMealsSidebarButton
-          onClick={() => navigate(MEALS_URL)}
-          isSelected={selection === SidebarSelection.MEALS}
-        />
-        <ShoppingCartButton
-          onClick={() => navigate(CART_URL)}
-          isSelected={selection === SidebarSelection.CART}
         />
         <Divider sx={{ borderColor: "white", width: "100%" }} />
         <LogoutButton onLogout={onLogout} />
@@ -585,21 +575,12 @@ const PrincipalSidebar: React.FC<SidebarProps> = ({ onLogout }) => {
         <PrintMealReportsButton onClick={handlePrintClick} />
         <UsersButton
           role={Role.PRINCIPAL}
-          onClick={() => navigate(getDefaultUsersUrl(user))}
+          onClick={() => navigate(getDefaultUsersUrl(user.role))}
           isSelected={selection === SidebarSelection.USERS}
         />
         <NotificationsButton
           onClick={() => navigate(NOTIFICATIONS_URL)}
           isSelected={selection === SidebarSelection.NOTIFICATIONS}
-        />
-        <Divider sx={{ borderColor: "white", width: "100%" }} />
-        <OrderedMealsSidebarButton
-          onClick={() => navigate(MEALS_URL)}
-          isSelected={selection === SidebarSelection.MEALS}
-        />
-        <ShoppingCartButton
-          onClick={() => navigate(CART_URL)}
-          isSelected={selection === SidebarSelection.CART}
         />
         <Divider sx={{ borderColor: "white", width: "100%" }} />
         <LogoutButton onLogout={onLogout} />
@@ -629,7 +610,7 @@ const ParentSidebar: React.FC<SidebarProps> = ({ onLogout }) => {
   }, [location]);
 
   useEffect(() => {
-    const now = new Date();
+    const now = DateTimeUtils.getCurrentDate();
     const nowStr = DateTimeUtils.toString(now);
     const unreadNotifications = notifications.filter((notification) => {
       const isUnread =
@@ -688,7 +669,7 @@ const ParentSidebar: React.FC<SidebarProps> = ({ onLogout }) => {
       />
       <UsersButton
         role={Role.PARENT}
-        onClick={() => navigate(getDefaultUsersUrl(user))}
+        onClick={() => navigate(getDefaultUsersUrl(user.role))}
         isSelected={selection === SidebarSelection.USERS}
       />
       <NotificationsButton
@@ -718,7 +699,7 @@ const CafeteriaSidebar: React.FC<SidebarProps> = ({ onLogout }) => {
   }, [location]);
 
   useEffect(() => {
-    const now = new Date();
+    const now = DateTimeUtils.getCurrentDate();
     const nowStr = DateTimeUtils.toString(now);
     setHasUnreadNotifications(
       selection != SidebarSelection.NOTIFICATIONS &&
@@ -761,26 +742,13 @@ const CafeteriaSidebar: React.FC<SidebarProps> = ({ onLogout }) => {
       />
       <UsersButton
         role={Role.CAFETERIA}
-        onClick={() => navigate(getDefaultUsersUrl(user))}
+        onClick={() => navigate(getDefaultUsersUrl(user.role))}
         isSelected={selection === SidebarSelection.USERS}
       />
       <NotificationsButton
         onClick={() => navigate(NOTIFICATIONS_URL)}
         isSelected={selection === SidebarSelection.NOTIFICATIONS}
         showWarning={hasUnreadNotifications}
-      />
-      <Divider sx={{ borderColor: "white", width: "100%" }} />
-      <OrderedMealsSidebarButton
-        onClick={() => navigate(MEALS_URL)}
-        isSelected={selection === SidebarSelection.MEALS}
-      />
-      <ShoppingCartButton
-        onClick={() => navigate(CART_URL)}
-        isSelected={selection === SidebarSelection.CART}
-      />
-      <OrdersButton
-        onClick={() => navigate(ORDERS_URL)}
-        isSelected={selection === SidebarSelection.ORDERS}
       />
       <Divider sx={{ borderColor: "white", width: "100%" }} />
       <LogoutButton onLogout={onLogout} />
@@ -804,7 +772,7 @@ const TeacherSidebar: React.FC<SidebarProps> = ({ onLogout }) => {
   }, [location]);
 
   useEffect(() => {
-    const now = new Date();
+    const now = DateTimeUtils.getCurrentDate();
     const nowStr = DateTimeUtils.toString(now);
     setHasUnreadNotifications(
       selection != SidebarSelection.NOTIFICATIONS &&
@@ -847,7 +815,7 @@ const TeacherSidebar: React.FC<SidebarProps> = ({ onLogout }) => {
       />
       <UsersButton
         role={Role.TEACHER}
-        onClick={() => navigate(getDefaultUsersUrl(user))}
+        onClick={() => navigate(getDefaultUsersUrl(user.role))}
         isSelected={selection === SidebarSelection.USERS}
       />
       <NotificationsButton
@@ -889,7 +857,7 @@ const Sidebar: React.FC = () => {
 
   const handleLogout = () => {
     localStorage.removeItem("jwtToken");
-    setUser(NULL_USER);
+    setUser(NULL_SCHOOL_USER);
     setUsers([]);
     setMenus([]);
     setMenuItems([]);

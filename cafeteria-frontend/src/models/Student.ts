@@ -5,5 +5,6 @@ export default interface Student {
   lastName: string;
   birthDate: string;
   studentId: string;
+  factsId: number | null;
   parents: number[];
 }

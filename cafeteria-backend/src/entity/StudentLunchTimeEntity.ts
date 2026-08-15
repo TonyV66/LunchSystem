@@ -4,7 +4,6 @@ import {
   ManyToOne,
   PrimaryGeneratedColumn,
 } from "typeorm";
-import { DayOfWeek } from "../models/DayOfWeek";
 import UserEntity from "./UserEntity";
 import SchoolYearEntity from "./SchoolYearEntity";
 import StudentEntity from "./StudentEntity";

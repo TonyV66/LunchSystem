@@ -10,7 +10,7 @@ import {
   Typography,
   TextField,
   Select,
-  MenuItem,
+  MenuItem as MuiMenuItem,
   SelectChangeEvent,
 } from "@mui/material";
 import School from "../../models/School";
@@ -100,12 +100,12 @@ const SaleDate: React.FC<{
           handleTargetDateChanged(event.target.value)
         }
       >
-        <MenuItem value={RelativeDateTarget.DAY_MEAL_IS_SERVED.toString()}>
+        <MuiMenuItem value={RelativeDateTarget.DAY_MEAL_IS_SERVED.toString()}>
           day
-        </MenuItem>
-        <MenuItem value={RelativeDateTarget.WEEK_MEAL_IS_SERVED.toString()}>
+        </MuiMenuItem>
+        <MuiMenuItem value={RelativeDateTarget.WEEK_MEAL_IS_SERVED.toString()}>
           week
-        </MenuItem>
+        </MuiMenuItem>
       </Select>
       <Typography> of meal</Typography>
     </Box>

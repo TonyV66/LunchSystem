@@ -26,7 +26,7 @@ export const UpcomingMealsDialog: React.FC<{
   user: User;
   onClose: () => void;
 }> = ({ user, onClose }) => {
-  const today = DateTimeUtils.toString(new Date());
+  const today = DateTimeUtils.toString(DateTimeUtils.getCurrentDate());
 
 
   return (

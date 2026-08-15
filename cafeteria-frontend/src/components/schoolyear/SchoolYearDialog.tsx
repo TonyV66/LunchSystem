@@ -23,8 +23,8 @@ interface DialogProps {
 }
 
 const getDefaultSchoolYear = (): SchoolYear => {
-  const startDate = new Date();
-  const endDate = new Date();
+  const startDate = DateTimeUtils.getCurrentDate();
+  const endDate = DateTimeUtils.getCurrentDate();
   endDate.setFullYear(startDate.getFullYear() + 1);
   
   return {
@@ -32,6 +32,7 @@ const getDefaultSchoolYear = (): SchoolYear => {
     name: `${startDate.getFullYear()} - ${endDate.getFullYear()}`,
     startDate: DateTimeUtils.toString(startDate),
     endDate: DateTimeUtils.toString(endDate),
+    factsId: null,
     hideSchedule: true,
     studentLunchTimes: [],
     gradeLunchTimes: [],
@@ -57,11 +58,8 @@ const SchoolYearDialog: React.FC<DialogProps> = ({ onClose, schoolYear }) => {
 
   const handleSave = async () => {
     try {
-      const savedSchoolYear = updatedSchoolYear.id
-        ? await updateSchoolYear(updatedSchoolYear)
-        : await createSchoolYear(updatedSchoolYear);
-
       if (updatedSchoolYear.id) {
+        const savedSchoolYear = await updateSchoolYear(updatedSchoolYear);
         setSchoolYears(
           schoolYears.map((year) =>
             year.id === savedSchoolYear.id ? savedSchoolYear : year
@@ -70,11 +68,14 @@ const SchoolYearDialog: React.FC<DialogProps> = ({ onClose, schoolYear }) => {
         if (currentSchoolYear.id === savedSchoolYear.id) {
           setCurrentSchoolYear(savedSchoolYear);
         }
+        onClose(savedSchoolYear);
       } else {
+        const { schoolYear: savedSchoolYear } =
+          await createSchoolYear(updatedSchoolYear);
         setSchoolYears([...schoolYears, savedSchoolYear]);
         navigate(SCHOOL_YEAR_URL + '/' + savedSchoolYear.id)
+        onClose(savedSchoolYear);
       }
-      onClose(savedSchoolYear);
     } catch (error) {
       if (error instanceof AxiosError) {
         setSnackbarErrorMsg(error.response?.data ?? error.message);

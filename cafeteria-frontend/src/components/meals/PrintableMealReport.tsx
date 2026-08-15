@@ -2,6 +2,7 @@ import * as React from "react";
 import { Box, Typography } from "@mui/material";
 import Meal from "../../models/Meal";
 import { DateTimeFormat, DateTimeUtils } from "../../DateTimeUtils";
+import { AppContext } from "../../AppContextProvider";
 
 export interface CustomerData {
   name: string;
@@ -27,7 +28,7 @@ const PrintableMealReport: React.FC<{ reportData: ReportData }> = ({
         <Typography variant="body2" fontWeight="bold">
           {DateTimeUtils.toString(
             reportData.date,
-            DateTimeFormat.SHORT_DAY_OF_WEEK_DESC
+            DateTimeFormat.SHORT_DAY_OF_WEEK_DESC,
           )}{" "}
           @ {reportData.time}
         </Typography>
@@ -81,6 +82,8 @@ const PrintableMealReport: React.FC<{ reportData: ReportData }> = ({
 };
 
 const MealReportRow: React.FC<CustomerData> = ({ name, meals }) => {
+  const { pantryItems } = React.useContext(AppContext);
+
   return (
     <>
       {meals.map((meal, mealIndex) => (
@@ -104,7 +107,13 @@ const MealReportRow: React.FC<CustomerData> = ({ name, meals }) => {
             }}
           >
             <Typography variant="body2">
-              {[...meal.items]
+              {meal.items
+                .map(
+                  (item) =>
+                    pantryItems.find(
+                      (pantryItem) => pantryItem.id === item.pantryItemId,
+                    )!,
+                )
                 .sort((item1, item2) => {
                   return (
                     item1.type - item2.type ||

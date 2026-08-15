@@ -3,12 +3,18 @@ import { Button, Paper, TextField } from "@mui/material";
 import { changePassword } from "../../api/CafeteriaClient";
 import { AxiosError } from "axios";
 import { AppContext } from "../../AppContextProvider";
+import {
+  meetsPasswordRequirements,
+  PASSWORD_HELPER_TEXT,
+} from "../../utils/PasswordUtils";
 
 const ChangePasswordPanel: React.FC = () => {
   const {setSnackbarErrorMsg, setSnackbarMsg} = useContext(AppContext);
   const [password, setPassword] = useState<string>("");
   const [confirmationPassword, setConfirmationPassword] = useState<string>("");
   const [oldPassword, setOldPassword] = useState<string>("");
+
+  const passwordValid = meetsPasswordRequirements(password);
 
   const handleChangePassword = async () => {
     try {
@@ -39,10 +45,8 @@ const ChangePasswordPanel: React.FC = () => {
       <TextField
         required
         fullWidth
-        error={
-          (password.length > 0 && password.length < 6) || /\s/.test(password)
-        }
-        helperText="Minimum of 8 characters. No spaces allowed."
+        error={password.length > 0 && !passwordValid}
+        helperText={PASSWORD_HELPER_TEXT}
         type="Password"
         label="New Password"
         variant="standard"
@@ -59,11 +63,14 @@ const ChangePasswordPanel: React.FC = () => {
         variant="standard"
         value={confirmationPassword}
         error={
-          password.length &&
-          confirmationPassword.length &&
+          confirmationPassword.length > 0 &&
           password !== confirmationPassword
-            ? true
-            : false
+        }
+        helperText={
+          confirmationPassword.length > 0 &&
+          password !== confirmationPassword
+            ? "Passwords do not match."
+            : undefined
         }
         onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
           setConfirmationPassword(event.target.value)
@@ -74,8 +81,7 @@ const ChangePasswordPanel: React.FC = () => {
         color="primary"
         disabled={
           !oldPassword.length ||
-          password.length < 6 ||
-          /\s/.test(password) ||
+          !passwordValid ||
           password !== confirmationPassword
         }
         onClick={handleChangePassword}

@@ -76,6 +76,7 @@ const EditStudentDialog: React.FC<DialogProps> = ({ onClose, student }) => {
             birthDate: studentBirthDate
               ? DateTimeUtils.toString(studentBirthDate.toDate())
               : "",
+            factsId: null,
             parents: [],
           };
       const studentToSave: StudentWithLunchTimes = {

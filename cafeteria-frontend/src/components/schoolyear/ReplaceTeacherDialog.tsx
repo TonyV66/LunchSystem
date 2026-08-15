@@ -7,7 +7,7 @@ import {
   DialogTitle,
   FormControl,
   InputLabel,
-  MenuItem,
+  MenuItem as MuiMenuItem,
   Select,
   SelectChangeEvent,
   Typography,
@@ -129,11 +129,11 @@ const ReplaceTeacherDialog: React.FC<DialogProps> = ({
             }
           >
             {availableTeachers.map((teacher) => (
-              <MenuItem key={teacher.id} value={teacher.id.toString()}>
+              <MuiMenuItem key={teacher.id} value={teacher.id.toString()}>
                 {teacher.name.length > 0
                   ? teacher.name
                   : teacher.firstName + " " + teacher.lastName}
-              </MenuItem>
+              </MuiMenuItem>
             ))}
           </Select>
         </FormControl>

@@ -1,8 +1,8 @@
 import { Column, Entity, Index, ManyToOne, OneToMany, PrimaryGeneratedColumn } from "typeorm";
-import { MealItemEntity } from "./MenuEntity";
+import MealItemEntity from "./MealItemEntity";
 import StudentEntity from "./StudentEntity";
 import { OrderEntity } from "./OrderEntity";
-import Meal from "../models/Meal";
+
 import UserEntity from "./UserEntity";
 import { RefundType } from "../models/RefundType";
 

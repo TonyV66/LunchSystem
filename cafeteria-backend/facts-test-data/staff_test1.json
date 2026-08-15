@@ -1,0 +1,10 @@
+[
+  {
+    "staffId": 3001,
+    "active": true
+  },
+  {
+    "staffId": 3002,
+    "active": false
+  }
+]

@@ -1,25 +1,30 @@
 import React from "react";
 import { Box, Chip, Typography } from "@mui/material";
-import Menu, { PantryItem, PantryItemType } from "../../models/Menu";
+import Menu from "../../models/Menu";
+import MenuItem from "../../models/MenuItem";
+import { PantryItemType } from "../../models/PantryItemType";
 import { blue, green, orange, purple } from "@mui/material/colors";
+import { AppContext } from "../../AppContextProvider";
+import PantryItem from "../../models/PantryItem";
 
-interface MenuItemsSelectorProps {
+interface MenuItemsGroupProps {
   menu: Menu;
   menuItemTypes: PantryItemType[];
-  onItemDeleted?: (item: PantryItem) => void;
+  onItemDeleted?: (item: MenuItem) => void;
   disabled?: boolean;
 }
 
-const MenuItemsGroup: React.FC<MenuItemsSelectorProps> = ({
+const MenuItemsGroup: React.FC<MenuItemsGroupProps> = ({
   menu,
   menuItemTypes,
   onItemDeleted,
   disabled
 }) => {
+  const { pantryItems } = React.useContext(AppContext);
   const numRequiredSelections = menuItemTypes.includes(PantryItemType.SIDE)
     ? menu.numSidesWithMeal
     : 1;
-  const menuItems = menu.items
+  const menuItems = menu.items.map((item) => pantryItems.find((pantryItem) => pantryItem.id === item.pantryItemId)!)
     .filter((item) => menuItemTypes.includes(item.type))
     .sort((m1, m2) => {
       const typeIndex1 = menuItemTypes.indexOf(m1.type);
@@ -48,7 +53,7 @@ const MenuItemsGroup: React.FC<MenuItemsSelectorProps> = ({
         <Chip
           key={item.id}
           disabled={disabled}
-          onDelete={() => onItemDeleted(item)}
+          onDelete={() => onItemDeleted(menu.items.find((menuItem) => menuItem.pantryItemId === item.id)!)}
           label={item.name}
           size="small"
           sx={{ backgroundColor: backgroundColor }}
@@ -119,12 +124,12 @@ interface MenuPanelProps {
   onMenuChanged?: (menu: Menu) => void;
 }
 
-const canShowDessertsAsSides = (menu: Menu) => {
+const canShowDessertsAsSides = (menu: Menu, pantryItems: PantryItem[]) => {
   const numDesserts = menu.items.filter(
-    (item) => item.type === PantryItemType.DESSERT
+    (item) => pantryItems.find((pantryItem) => pantryItem.id === item.pantryItemId)?.type === PantryItemType.DESSERT
   ).length;
   const numSides = menu.items.filter(
-    (item) => item.type === PantryItemType.SIDE
+    (item) => pantryItems.find((pantryItem) => pantryItem.id === item.pantryItemId)?.type === PantryItemType.SIDE
   ).length;
 
   return (!numSides && numDesserts) ||
@@ -135,7 +140,8 @@ const canShowDessertsAsSides = (menu: Menu) => {
 };
 
 const MenuPanel: React.FC<MenuPanelProps> = ({ menu, onMenuChanged, disabled }) => {
-  const handleMealItemDeleted = (menuItem: PantryItem) => {
+  const { pantryItems } = React.useContext(AppContext);
+  const handleMealItemDeleted = (menuItem: MenuItem) => {
     onMenuChanged!({
       ...menu,
       items: menu.items.filter((item) => item !== menuItem),
@@ -143,7 +149,7 @@ const MenuPanel: React.FC<MenuPanelProps> = ({ menu, onMenuChanged, disabled }) 
   };
 
   const showDessertAsSide =
-    menu.showDessertAsSide && canShowDessertsAsSides(menu);
+    menu.showDessertAsSide && canShowDessertsAsSides(menu, pantryItems);
   return (
     <Box
       sx={{

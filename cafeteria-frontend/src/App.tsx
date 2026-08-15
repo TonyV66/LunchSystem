@@ -31,7 +31,6 @@ import ChangeForgottenPwdPanel from "./components/users/ChangeForgottenPwdPanel"
 import PageNotFound from "./components/PageNotFound";
 import SchoolYearsPage from "./components/schoolyear/SchoolYearsPage";
 import SchoolYearTabsPanel from "./components/schoolyear/SchoolYearTabsPanel";
-import UserImportTest from "./components/users/UserImportTest";
 import FamilyPage from "./components/users/FamilyPage";
 import ClassroomStudentsPage from "./components/users/ClassroomStudentsPage";
 import SchoolSettingsPage from "./components/settings/SchoolSettingsPage";
@@ -50,7 +49,7 @@ const AppWrapper: React.FC<React.PropsWithChildren> = ({ children }) => {
         borderColor: "grey.500",
         maxWidth: !matchRoutes(
           [{ path: KITCHEN_URL + "/:date?" }],
-          location.pathname
+          location.pathname,
         )
           ? "1200px"
           : "100%",
@@ -85,13 +84,13 @@ const App: React.FC = () => {
       break;
   }
 
-  const getCommonRoutes = () => {
+  const getUserRoutes = () => {
     return (
       <>
-        <Route path="calendar" element={user.role === Role.ADMIN ? <PlannerPage></PlannerPage> : user.role === Role.PRINCIPAL ? <PrincipalsCalendar></PrincipalsCalendar> : <CalendarPage></CalendarPage>} />
+        <Route path="calendar" element={<CalendarPage></CalendarPage>} />
         <Route
           path="orders"
-          element={<OrderHistoryPage purchaser={user.role === Role.ADMIN || user.role === Role.PRINCIPAL ? undefined : user}></OrderHistoryPage>}
+          element={<OrderHistoryPage purchaser={user}></OrderHistoryPage>}
         />
         <Route path="meals" element={<OrderedMealsPage></OrderedMealsPage>} />
         <Route path="cart" element={<ShoppingCartPage></ShoppingCartPage>} />
@@ -108,21 +107,38 @@ const App: React.FC = () => {
   const getPrincipalRoutes = () => {
     return (
       <>
+        <Route
+          path="calendar"
+          element={<PrincipalsCalendar></PrincipalsCalendar>}
+        />
+        <Route path="orders" element={<OrderHistoryPage></OrderHistoryPage>} />
         <Route path="users" element={<UsersPage></UsersPage>} />
         <Route path="students" element={<StudentsPage></StudentsPage>} />
+        <Route path="notifications" element={<NotificationsPage />} />
       </>
     );
   };
   const getCafeteriaRoutes = () => {
     return (
       <>
+        <Route path="calendar" element={<CalendarPage></CalendarPage>} />
         <Route path="students" element={<StudentsPage></StudentsPage>} />
+        <Route path="notifications" element={<NotificationsPage />} />
       </>
     );
   };
   const getTeacherRoutes = () => {
     return (
       <>
+        <Route path="calendar" element={<CalendarPage></CalendarPage>} />
+        <Route
+          path="orders"
+          element={<OrderHistoryPage purchaser={user}></OrderHistoryPage>}
+        />
+        <Route path="meals" element={<OrderedMealsPage></OrderedMealsPage>} />
+        <Route path="cart" element={<ShoppingCartPage></ShoppingCartPage>} />
+        <Route path="family" element={<FamilyPage></FamilyPage>} />
+        <Route path="notifications" element={<NotificationsPage />} />
         <Route path="students" element={<StudentsPage></StudentsPage>} />
         <Route
           path="classroom"
@@ -134,6 +150,9 @@ const App: React.FC = () => {
   const getAdminRoutes = () => {
     return (
       <>
+        <Route path="calendar" element={<PlannerPage></PlannerPage>} />
+        <Route path="orders" element={<OrderHistoryPage></OrderHistoryPage>} />
+        <Route path="notifications" element={<NotificationsPage />} />
         <Route path="users" element={<UsersPage></UsersPage>} />
         <Route path="students" element={<StudentsPage></StudentsPage>} />
         <Route path="account" element={<SchoolSettingsPage />} />
@@ -141,7 +160,6 @@ const App: React.FC = () => {
         <Route path="year/:yearId" element={<SchoolYearTabsPanel />} />
         <Route path="year/:yearId/teachers" element={<SchoolYearTabsPanel />} />
         <Route path="year/:yearId/grades" element={<SchoolYearTabsPanel />} />
-        <Route path="import-test" element={<UserImportTest />} />
         <Route path="survey" element={<AdminSurveyPage />} />
       </>
     );
@@ -151,9 +169,15 @@ const App: React.FC = () => {
     if (user.id) {
       return (
         <>
-          <Route path="/noregister" element={<Navigate to={defaultUrl} replace />} />
+          <Route
+            path="/noregister"
+            element={<Navigate to={defaultUrl} replace />}
+          />
 
-          <Route path="/register" element={<Navigate to={defaultUrl} replace />} />
+          <Route
+            path="/register/:invitationId"
+            element={<Navigate to={defaultUrl} replace />}
+          />
           <Route path="/login" element={<Navigate to={defaultUrl} replace />} />
           <Route
             path="/forgot/:forgottenLoginId"
@@ -186,7 +210,7 @@ const App: React.FC = () => {
             </Stack>
           }
         />
-        <Route path="/register" element={<RegistrationPanel />} />
+        <Route path="/register/:invitationId" element={<RegistrationPanel />} />
         <Route path="/login" element={<LoginPanel />} />
         <Route
           path="/forgot/:forgottenLoginId"
@@ -204,7 +228,8 @@ const App: React.FC = () => {
         <Routes>
           {getPublicRoutes()}
           <Route path="/" element={<MainAppPanel />}>
-            {user.role !== Role.KITCHEN && getCommonRoutes()}
+            {(user.role === Role.PARENT || user.role === Role.STAFF) &&
+              getUserRoutes()}
             {user.role === Role.ADMIN && getAdminRoutes()}
             {user.role === Role.PRINCIPAL && getPrincipalRoutes()}
             {user.role === Role.CAFETERIA && getCafeteriaRoutes()}

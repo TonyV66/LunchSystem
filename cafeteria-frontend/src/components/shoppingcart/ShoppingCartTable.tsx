@@ -1,22 +1,26 @@
 import React, { useContext, useEffect, useState } from "react";
 import { AppContext } from "../../AppContextProvider";
 import { DateTimeUtils } from "../../DateTimeUtils";
-import { DailyMenu, PantryItem, PantryItemType } from "../../models/Menu";
+import DailyMenu from "../../models/DailyMenu";
+import { PantryItemType } from "../../models/PantryItemType";
 import OrderedMealsTable from "../meals/OrderedMealsTable";
 import Meal from "../../models/Meal";
 import { ShoppingCart } from "../../models/ShoppingCart";
 import { Order } from "../../models/Order";
 import User from "../../models/User";
 import { RefundType } from "../../models/RefundType";
+import PantryItem from "../../models/PantryItem";
+import DailyMenuItem from "../../models/DailyMenuItem";
 
 const buildOrder = (
+  pantryItems: PantryItem[],
   shoppingCart: ShoppingCart,
   dailyMenus: DailyMenu[],
   user: User
 ): Order => {
   return {
     id: 0,
-    date: DateTimeUtils.toString(new Date()),
+    date: DateTimeUtils.toString(DateTimeUtils.getCurrentDate()),
     taxes: 0,
     processingFee: 0,
     otherFees: 0,
@@ -27,13 +31,13 @@ const buildOrder = (
         (sm) => sm.id === shoppingCartItem.dailyMenuId
       )!;
 
-      let entrees: PantryItem[] = [];
-      let sides: PantryItem[] = [];
-      let desserts: PantryItem[] = [];
+      let entrees: DailyMenuItem[] = [];
+      let sides: DailyMenuItem[] = [];
+      let desserts: DailyMenuItem[] = [];
 
       if (!shoppingCartItem.isDrinkOnly) {
         entrees = dailyMenu.items.filter(
-          (item) => item.type === PantryItemType.ENTREE
+          (item) => pantryItems.find((pantryItem) => pantryItem.id === item.pantryItemId)?.type === PantryItemType.ENTREE
         )
         if (entrees.length > 1) {
           entrees = entrees.filter((entree) =>
@@ -42,7 +46,7 @@ const buildOrder = (
         }
 
         sides = dailyMenu.items.filter(
-          (item) => item.type === PantryItemType.SIDE
+          (item) => pantryItems.find((pantryItem) => pantryItem.id === item.pantryItemId)?.type === PantryItemType.SIDE
         );
         if (
           sides.length > 1 &&
@@ -55,7 +59,7 @@ const buildOrder = (
         }
 
         desserts = dailyMenu.items.filter(
-          (item) => item.type === PantryItemType.DESSERT
+          (item) => pantryItems.find((pantryItem) => pantryItem.id === item.pantryItemId)?.type === PantryItemType.DESSERT
         );
         if (desserts.length > 1) {
           desserts = desserts.filter((dessert) =>
@@ -66,7 +70,7 @@ const buildOrder = (
 
 
       let drinks = dailyMenu.items.filter(
-        (item) => item.type === PantryItemType.DRINK
+        (item) => pantryItems.find((pantryItem) => pantryItem.id === item.pantryItemId)?.type === PantryItemType.DRINK
       );
       if (drinks.length > 1) {
         drinks = drinks.filter((drink) =>
@@ -86,7 +90,10 @@ const buildOrder = (
           .concat(sides)
           .concat(desserts)
           .concat(drinks)
-          .map((pantryItem) => {
+          .map((menuItem) => {
+            const pantryItem = pantryItems.find(
+              (item) => item.id === menuItem.pantryItemId
+            )!;
             let price = 0;
             if (
               shoppingCartItem.isDrinkOnly &&
@@ -100,7 +107,8 @@ const buildOrder = (
               price = dailyMenu.price;
             }
             return {
-              ...pantryItem,
+              id: menuItem.id,
+              pantryItemId: menuItem.pantryItemId,
               price,
             };
           }),
@@ -124,9 +132,9 @@ const ShoppingCartTable: React.FC<ShoppingCartTableProps> = ({
   editable,
   hideTitlebar,
 }) => {
-  const { user, shoppingCart, scheduledMenus, setShoppingCart} =
+  const { user, shoppingCart, scheduledMenus, setShoppingCart, pantryItems } =
     useContext(AppContext);
-  const [order, setOrder] = useState(buildOrder(shoppingCart, scheduledMenus, user));
+  const [order, setOrder] = useState(buildOrder(pantryItems, shoppingCart, scheduledMenus, user));
 
   const handleDeleteMeal = (meal: Meal) => {
     const updatedShoppingCartItems = [...shoppingCart.items];
@@ -139,7 +147,7 @@ const ShoppingCartTable: React.FC<ShoppingCartTableProps> = ({
   };
 
   useEffect(
-    () => setOrder(buildOrder(shoppingCart, scheduledMenus, user)),
+    () => setOrder(buildOrder(pantryItems, shoppingCart, scheduledMenus, user)),
     [shoppingCart, scheduledMenus]
   );
 

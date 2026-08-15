@@ -11,25 +11,26 @@ import { AppContext } from "../../AppContextProvider";
 import User, { Role } from "../../models/User";
 import { DateTimeUtils } from "../../DateTimeUtils";
 import { grey } from "@mui/material/colors";
-import { PantryItem, DailyMenu } from "../../models/Menu";
+import DailyMenu from "../../models/DailyMenu";
 import { Order } from "../../models/Order";
 import Student from "../../models/Student";
 import SchoolYear from "../../models/SchoolYear";
-import MenuItemChip from "../meals/MenuItemChip";
+import PantryItemChip from "../meals/PantryItemChip";
 import HourlyMealReport from "./HourlyMealReport";
 import { ExpandMore } from "@mui/icons-material";
 import { getMealsAtTime, getMealsWithIrregularTimes } from "../../ReportUtils";
+import PantryItem from "../../models/PantryItem";
 
 interface TimeRowProps {
   time: string;
-  menuItems: PantryItem[];
+  pantryItems: PantryItem[];
   teachers: User[];
   date: string;
   large?: boolean;
 }
 
 interface TotalRowProps {
-  menuItems: PantryItem[];
+  pantryItems: PantryItem[];
   teachers: User[];
   date: string;
   large?: boolean;
@@ -41,53 +42,35 @@ interface AltCafeteriaReportProps {
 }
 
 // Reuse these utility functions from CafeteriaReport
-const getMenuItems = (
+const getPantryItems = (
+  allPantryItems: PantryItem[],
   orders: Order[],
   scheduledMenus: DailyMenu[],
-  date: string
+  date: string,
 ): PantryItem[] => {
-  const orderedItems: PantryItem[] = [];
-
-  orders
+  const scheduledMenu = scheduledMenus.find((menu) => menu.date === date);
+  const pantryItemIds = orders
     .flatMap((order) => order.meals)
     .filter((meal) => !meal.cancelled && meal.date === date)
     .flatMap((meal) => meal.items)
-    .forEach((orderedItem) => {
-      const matchingItem = orderedItems.find(
-        (item) =>
-          item.name.toLowerCase() === orderedItem.name.toLowerCase() &&
-          item.type === orderedItem.type
-      );
-      if (!matchingItem) {
-        orderedItems.push(orderedItem);
-      }
-    });
+    .map((mealItem) => mealItem.pantryItemId);
+  pantryItemIds.push(
+    ...(scheduledMenu?.items.map((item) => item.pantryItemId) ?? []),
+  );
 
-  const scheduledMenu = scheduledMenus.find((menu) => menu.date === date);
-  const servedItems: PantryItem[] = scheduledMenu?.items ?? [];
-
-  servedItems.forEach((orderedItem) => {
-    const matchingItem = orderedItems.find(
-      (item) =>
-        item.name.toLowerCase() === orderedItem.name.toLowerCase() &&
-        item.type === orderedItem.type
-    );
-    if (!matchingItem) {
-      orderedItems.push(orderedItem);
-    }
-  });
-
-  return orderedItems;
+  return allPantryItems.filter((pantryItem) =>
+    pantryItemIds.includes(pantryItem.id),
+  );
 };
 
 const getOrderedQty = (
   orders: Order[],
-  menuItem: PantryItem,
+  pantryItem: PantryItem,
   teachers: User[],
   students: Student[],
   schoolYear: SchoolYear,
   date: string,
-  time: string
+  time: string,
 ): number => {
   const meals = getMealsAtTime(
     orders,
@@ -95,15 +78,11 @@ const getOrderedQty = (
     students,
     schoolYear,
     date,
-    time
+    time,
   );
   return meals
     .flatMap((meal) => meal.items)
-    .filter(
-      (orderedItem) =>
-        menuItem.name.toLowerCase() === orderedItem.name.toLowerCase() &&
-        menuItem.type === orderedItem.type
-    ).length;
+    .filter((mealItem) => pantryItem.id === mealItem.pantryItemId).length;
 };
 
 const TableCell: React.FC<React.PropsWithChildren> = ({ children }) => {
@@ -126,14 +105,14 @@ const TableCell: React.FC<React.PropsWithChildren> = ({ children }) => {
 
 const TimeRow: React.FC<TimeRowProps> = ({
   time,
-  menuItems,
+  pantryItems,
   teachers,
   date,
   large,
 }) => {
   const { currentSchoolYear, orders, students } = React.useContext(AppContext);
 
-  const itemsWithQuantities = menuItems.map((item) => ({
+  const itemsWithQuantities = pantryItems.map((item) => ({
     item,
     quantity: getOrderedQty(
       orders,
@@ -142,7 +121,7 @@ const TimeRow: React.FC<TimeRowProps> = ({
       students,
       currentSchoolYear,
       date,
-      time
+      time,
     ),
   }));
 
@@ -162,8 +141,9 @@ const TimeRow: React.FC<TimeRowProps> = ({
                 opacity: quantity === 0 ? 0.5 : 1,
               }}
             >
-              <MenuItemChip
-                menuItem={item}
+              <PantryItemChip
+                key={item.id}
+                pantryItem={item}
                 textVariant={large ? "h4" : "body2"}
                 qty={quantity}
               />
@@ -175,20 +155,16 @@ const TimeRow: React.FC<TimeRowProps> = ({
   );
 };
 
-const TotalRow: React.FC<TotalRowProps> = ({ menuItems, date, large }) => {
+const TotalRow: React.FC<TotalRowProps> = ({ pantryItems, date, large }) => {
   const { orders } = React.useContext(AppContext);
 
-  const itemsWithQuantities = menuItems.map((item) => ({
-    item,
+  const itemsWithQuantities = pantryItems.map((pantryItem) => ({
+    item: pantryItem,
     quantity: orders
       .flatMap((order) => order.meals)
       .filter((meal) => !meal.cancelled && meal.date === date)
       .flatMap((meal) => meal.items)
-      .filter(
-        (orderedItem) =>
-          item.name.toLowerCase() === orderedItem.name.toLowerCase() &&
-          item.type === orderedItem.type
-      ).length,
+      .filter((mealItem) => pantryItem.id === mealItem.pantryItemId).length,
   }));
 
   return (
@@ -205,8 +181,8 @@ const TotalRow: React.FC<TotalRowProps> = ({ menuItems, date, large }) => {
                 opacity: quantity === 0 ? 0.5 : 1,
               }}
             >
-              <MenuItemChip
-                menuItem={item}
+              <PantryItemChip
+                pantryItem={item}
                 textVariant={large ? "h4" : "body2"}
                 qty={quantity}
               />
@@ -219,35 +195,31 @@ const TotalRow: React.FC<TotalRowProps> = ({ menuItems, date, large }) => {
 };
 
 interface OtherRowProps {
-  menuItems: PantryItem[];
+  pantryItems: PantryItem[];
   teachers: User[];
   date: string;
   large?: boolean;
 }
 
 const OtherRow: React.FC<OtherRowProps> = ({
-  menuItems,
+  pantryItems,
   teachers,
   date,
   large,
 }) => {
   const { students, currentSchoolYear, orders } = React.useContext(AppContext);
 
-  const itemsWithQuantities = menuItems.map((item) => ({
-    item,
+  const itemsWithQuantities = pantryItems.map((pantryItem) => ({
+    item: pantryItem,
     quantity: getMealsWithIrregularTimes(
       orders,
       teachers,
       students,
       currentSchoolYear,
-      date
+      date,
     )
       .flatMap((meal) => meal.items)
-      .filter(
-        (orderedItem) =>
-          item.name.toLowerCase() === orderedItem.name.toLowerCase() &&
-          item.type === orderedItem.type
-      ).length,
+      .filter((mealItem) => pantryItem.id === mealItem.pantryItemId).length,
   }));
 
   return (
@@ -264,8 +236,9 @@ const OtherRow: React.FC<OtherRowProps> = ({
                 opacity: quantity === 0 ? 0.5 : 1,
               }}
             >
-              <MenuItemChip
-                menuItem={item}
+              <PantryItemChip
+                key={item.id}
+                pantryItem={item}
                 textVariant={large ? "h4" : "body2"}
                 qty={quantity}
               />
@@ -279,7 +252,7 @@ const OtherRow: React.FC<OtherRowProps> = ({
 
 interface DailyOrderedItemsAccordionProps {
   date: string;
-  menuItems: PantryItem[];
+  pantryItems: PantryItem[];
   teachers: User[];
   mealTimes: string[];
   large?: boolean;
@@ -287,7 +260,7 @@ interface DailyOrderedItemsAccordionProps {
 
 const DailyOrderedItemsAccordion: React.FC<DailyOrderedItemsAccordionProps> = ({
   date,
-  menuItems,
+  pantryItems,
   teachers,
   mealTimes,
   large,
@@ -334,20 +307,20 @@ const DailyOrderedItemsAccordion: React.FC<DailyOrderedItemsAccordionProps> = ({
                 large={large}
                 key={time}
                 time={time}
-                menuItems={menuItems}
+                pantryItems={pantryItems}
                 teachers={teachers}
                 date={date}
               />
             ))}
             <OtherRow
               large={large}
-              menuItems={menuItems}
+              pantryItems={pantryItems}
               teachers={teachers}
               date={date}
             />
             <TotalRow
               large={large}
-              menuItems={menuItems}
+              pantryItems={pantryItems}
               teachers={teachers}
               date={date}
             />
@@ -358,21 +331,30 @@ const DailyOrderedItemsAccordion: React.FC<DailyOrderedItemsAccordionProps> = ({
   );
 };
 
-const CafeteriaReport: React.FC<AltCafeteriaReportProps> = ({ date, large }) => {
-  const { scheduledMenus, users, orders, currentSchoolYear } =
+const CafeteriaReport: React.FC<AltCafeteriaReportProps> = ({
+  date,
+  large,
+}) => {
+  const { scheduledMenus, users, orders, currentSchoolYear, pantryItems } =
     React.useContext(AppContext);
 
   const dayOfWeek = DateTimeUtils.toDate(date).getDay();
   const dailyTimes = currentSchoolYear.lunchTimes.find(
-    (lt) => lt.dayOfWeek === dayOfWeek
+    (lt) => lt.dayOfWeek === dayOfWeek,
   );
   const mealTimes = dailyTimes?.times.sort() ?? [];
 
-  const menuItems = getMenuItems(orders, scheduledMenus, date).sort(
-    (item1, item2) =>
+  const menuItems = getPantryItems(
+    pantryItems,
+    orders,
+    scheduledMenus,
+    date,
+  ).sort((item1, item2) => {
+    return (
       item1.type - item2.type ||
       item1.name.toLowerCase().localeCompare(item2.name.toLowerCase())
-  );
+    );
+  });
 
   const teachers = users.filter((user) => user.role === Role.TEACHER);
 
@@ -380,7 +362,7 @@ const CafeteriaReport: React.FC<AltCafeteriaReportProps> = ({ date, large }) => 
     <Box p={2}>
       <DailyOrderedItemsAccordion
         date={date}
-        menuItems={menuItems}
+        pantryItems={menuItems}
         teachers={teachers}
         mealTimes={mealTimes}
         large={large}

@@ -43,10 +43,7 @@ const TeacherSelector: React.FC<TeacherSelectorProps> = ({
       GradeLevel.UNKNOWN;
 
     const gradeLevelTeachers = users
-      .filter(
-        (u) =>
-          u.role === Role.TEACHER
-      )
+      .filter((u) => u.role === Role.TEACHER)
       .filter(
         (u) => {
           const teacherLunchTimes = schoolYear.teacherLunchTimes.filter(

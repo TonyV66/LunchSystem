@@ -20,6 +20,7 @@ export default class School {
   squareAppId: string;
   squareAppAccessToken: string;
   squareLocationId: string;
+  factsApiKey: string;
 
   constructor(entity: SchoolEntity) {
     this.name = entity.name;
@@ -41,5 +42,6 @@ export default class School {
     this.squareAppId = entity.squareAppId;
     this.squareAppAccessToken = entity.squareAppAccessToken;
     this.squareLocationId = entity.squareLocationId;
+    this.factsApiKey = entity.factsApiKey;
   }
 }

@@ -34,6 +34,7 @@ interface DialogProps {
   dayOfWeek: DayOfWeek;
 }
 
+// TODO: figure out the getRelations call to determine if the student already exists.
 const NewFamilyMemberDialog: React.FC<DialogProps> = ({
   onClose,
   onCreateStudent,
@@ -62,6 +63,7 @@ const NewFamilyMemberDialog: React.FC<DialogProps> = ({
         lastName: studentLastName,
         birthDate: "",
         studentId: "",
+        factsId: null,
         parents: [],
       };
 

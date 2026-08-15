@@ -17,6 +17,7 @@ export default interface SchoolYear {
   isCurrent: boolean;
   startDate: string;
   endDate: string;
+  factsId: number | null;
   lunchTimes: DailyLunchTimes[]
   teacherLunchTimes: TeacherLunchTime[];
   gradeLunchTimes: GradeLunchTime[]
@@ -26,7 +27,7 @@ export default interface SchoolYear {
   hideSchedule: boolean;
 }
 
-const startOfMonth = new Date();
+const startOfMonth = DateTimeUtils.getCurrentDate();
 startOfMonth.setDate(1);
 startOfMonth.setHours(0, 0, 0, 0);
 
@@ -43,6 +44,7 @@ export const NO_SCHOOL_YEAR: SchoolYear = {
   isCurrent: true,
   startDate: DateTimeUtils.toString(startOfMonth),
   endDate: DateTimeUtils.toString(endOfMonth),
+  factsId: null,
   lunchTimes: [],
   teacherLunchTimes: [],
   gradeLunchTimes: [],

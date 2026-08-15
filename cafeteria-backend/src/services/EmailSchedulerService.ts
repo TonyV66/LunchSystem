@@ -12,6 +12,11 @@ export class EmailSchedulerService {
    * The EmailReportService will check if it's time to send reports based on school configuration
    */
   static async startScheduler(): Promise<void> {
+    if (process.env.DISABLE_SCHEDULED_EMAILS === "true") {
+      console.log("Email scheduler disabled via DISABLE_SCHEDULED_EMAILS");
+      return;
+    }
+
     if (this.cronJob) {
       console.log("Email scheduler is already running");
       return;

@@ -111,6 +111,7 @@ const AdminNewStudentDialog: React.FC<DialogProps> = ({ parent, onClose }) => {
       lastName: studentLastName,
       birthDate: "",
       studentId: "",
+      factsId: null,
       parents: [],
       lunchTimes: studentLunchTimes,
     };

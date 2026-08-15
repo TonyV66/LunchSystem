@@ -127,7 +127,7 @@ const NotificationsPage: React.FC = () => {
   const [showNotificationDialog, setShowNotificationDialog] = useState(false);
   const [notificationToEdit, setNotificationToEdit] = useState<Notification>();
 
-  const today = DateTimeUtils.toString(new Date());
+  const today = DateTimeUtils.toString(DateTimeUtils.getCurrentDate());
 
   const handleEditNotification = (notification: Notification) => {
     setNotificationToEdit(notification);

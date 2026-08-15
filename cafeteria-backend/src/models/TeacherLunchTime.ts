@@ -5,6 +5,7 @@ import { GradeLevel } from "./GradeLevel";
 export default class TeacherLunchTime extends DailyLunchTimes {
   teacherId: number;
   grades: GradeLevel[];
+  blockedDates: string[];
 
   constructor(entity: TeacherLunchTimeEntity) {
     super();
@@ -12,5 +13,8 @@ export default class TeacherLunchTime extends DailyLunchTimes {
     this.times = entity.time ? entity.time.split("|") : [];
     this.teacherId = entity.teacher?.id ?? 0;
     this.grades = entity.grades ? entity.grades.split("|") as GradeLevel[] : [];
+    this.blockedDates = entity.blockedDates
+      ? entity.blockedDates.split("|")
+      : [];
   }
 }

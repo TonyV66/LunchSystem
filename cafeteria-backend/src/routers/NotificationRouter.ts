@@ -4,6 +4,7 @@ import UserEntity from "../entity/UserEntity";
 import { DeepPartial } from "typeorm";
 import { Notification } from "../models/Notification";
 import NotificationEntity from "../entity/NotificationEntity";
+import { DateTimeUtils } from "../DateTimeUtils";
 
 const NotificationRouter: Router = express.Router();
 interface Empty {}
@@ -22,7 +23,7 @@ NotificationRouter.put<Empty, Notification, Notification, Empty>(
       },
     });
     if (user) {
-      user.notificationReviewDate = new Date();
+      user.notificationReviewDate = DateTimeUtils.getCurrentDate();
       await userRepository.save(user);
     }
     res.send();
@@ -38,8 +39,8 @@ NotificationRouter.post<Empty, Notification, Notification, Empty>(
     const item: DeepPartial<NotificationEntity> = {
       ...req.body,
       id: undefined,
-      creationDate: new Date(),
-      school: req.user.school,
+      creationDate: DateTimeUtils.getCurrentDate(),
+      school: req.school,
     };
     const newItem = notificationRepository.create(item);
     const savedItem = await notificationRepository.save(

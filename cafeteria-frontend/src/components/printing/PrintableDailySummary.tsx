@@ -3,26 +3,27 @@ import { Box, Typography } from "@mui/material";
 import { AppContext } from "../../AppContextProvider";
 import User, { Role } from "../../models/User";
 import { DateTimeFormat, DateTimeUtils } from "../../DateTimeUtils";
-import { DailyMenu, PantryItem } from "../../models/Menu";
+import DailyMenu from "../../models/DailyMenu";
 import { Order } from "../../models/Order";
 import Student from "../../models/Student";
 import SchoolYear from "../../models/SchoolYear";
 import { getMealsAtTime, getMealsWithIrregularTimes } from "../../ReportUtils";
+import PantryItem from "../../models/PantryItem";
 
 interface TimeRowProps {
   time: string;
-  menuItems: PantryItem[];
+  pantryItems: PantryItem[];
   teachers: User[];
   date: string;
 }
 
 interface TotalRowProps {
-  menuItems: PantryItem[];
+  pantryItems: PantryItem[];
   date: string;
 }
 
 interface OtherRowProps {
-  menuItems: PantryItem[];
+  pantryItems: PantryItem[];
   teachers: User[];
   date: string;
 }
@@ -32,48 +33,26 @@ interface DailyOrderedItemsAccordionProps {
 }
 
 // Reuse these utility functions from CafeteriaReport
-const getMenuItems = (
+const getPantryItems = (
+  allPantryItems: PantryItem[],
   orders: Order[],
   scheduledMenus: DailyMenu[],
   date: string
 ): PantryItem[] => {
-  const orderedItems: PantryItem[] = [];
-
-  orders
+  const scheduledMenu = scheduledMenus.find((menu) => menu.date === date);
+  const pantryItemIds = orders
     .flatMap((order) => order.meals)
     .filter((meal) => !meal.cancelled && meal.date === date)
     .flatMap((meal) => meal.items)
-    .forEach((orderedItem) => {
-      const matchingItem = orderedItems.find(
-        (item) =>
-          item.name.toLowerCase() === orderedItem.name.toLowerCase() &&
-          item.type === orderedItem.type
-      );
-      if (!matchingItem) {
-        orderedItems.push(orderedItem);
-      }
-    });
+    .map((mealItem) => mealItem.pantryItemId);
+  pantryItemIds.push(...scheduledMenu?.items.map((item) => item.pantryItemId) ?? []);
 
-  const scheduledMenu = scheduledMenus.find((menu) => menu.date === date);
-  const servedItems: PantryItem[] = scheduledMenu?.items ?? [];
-
-  servedItems.forEach((orderedItem) => {
-    const matchingItem = orderedItems.find(
-      (item) =>
-        item.name.toLowerCase() === orderedItem.name.toLowerCase() &&
-        item.type === orderedItem.type
-    );
-    if (!matchingItem) {
-      orderedItems.push(orderedItem);
-    }
-  });
-
-  return orderedItems;
+  return allPantryItems.filter((pantryItem) => pantryItemIds.includes(pantryItem.id));
 };
 
 const getOrderedQty = (
   orders: Order[],
-  menuItem: PantryItem,
+  pantryItem: PantryItem,
   teachers: User[],
   students: Student[],
   schoolYear: SchoolYear,
@@ -91,15 +70,14 @@ const getOrderedQty = (
   return meals
     .flatMap((meal) => meal.items)
     .filter(
-      (orderedItem) =>
-        menuItem.name.toLowerCase() === orderedItem.name.toLowerCase() &&
-        menuItem.type === orderedItem.type
+      (mealItem) =>
+        pantryItem.id === mealItem.pantryItemId
     ).length;
 };
 
 const TimeRow: React.FC<TimeRowProps> = ({
   time,
-  menuItems,
+  pantryItems: menuItems,
   teachers,
   date,
 }) => {
@@ -148,19 +126,18 @@ const TimeRow: React.FC<TimeRowProps> = ({
   );
 };
 
-const TotalRow: React.FC<TotalRowProps> = ({ menuItems, date }) => {
+const TotalRow: React.FC<TotalRowProps> = ({ pantryItems, date }) => {
   const { orders } = React.useContext(AppContext);
 
-  const itemsWithQuantities = menuItems.map((item) => ({
+  const itemsWithQuantities = pantryItems.map((item) => ({
     item,
     quantity: orders
       .flatMap((order) => order.meals)
       .filter((meal) => !meal.cancelled && meal.date === date)
       .flatMap((meal) => meal.items)
       .filter(
-        (orderedItem) =>
-          item.name.toLowerCase() === orderedItem.name.toLowerCase() &&
-          item.type === orderedItem.type
+        (mealItem) =>
+          item.id === mealItem.pantryItemId
       ).length,
   }));
 
@@ -193,13 +170,13 @@ const TotalRow: React.FC<TotalRowProps> = ({ menuItems, date }) => {
 };
 
 const OtherRow: React.FC<OtherRowProps> = ({
-  menuItems,
+  pantryItems,
   teachers,
   date,
 }) => {
   const { students, currentSchoolYear, orders } = React.useContext(AppContext);
 
-  const itemsWithQuantities = menuItems.map((item) => ({
+  const itemsWithQuantities = pantryItems.map((item) => ({
     item,
     quantity: getMealsWithIrregularTimes(
       orders,
@@ -210,9 +187,8 @@ const OtherRow: React.FC<OtherRowProps> = ({
     )
       .flatMap((meal) => meal.items)
       .filter(
-        (orderedItem) =>
-          item.name.toLowerCase() === orderedItem.name.toLowerCase() &&
-          item.type === orderedItem.type
+        (mealItem) =>
+          item.id === mealItem.pantryItemId
       ).length,
   }));
 
@@ -247,7 +223,7 @@ const OtherRow: React.FC<OtherRowProps> = ({
 const PrintableDailySummary: React.FC<DailyOrderedItemsAccordionProps> = ({
   date,
 }) => {
-  const {currentSchoolYear, orders, scheduledMenus, users} = React.useContext(AppContext);
+  const {currentSchoolYear, orders, scheduledMenus, users, pantryItems: allPantryItems} = React.useContext(AppContext);
 
   const dayOfWeek = DateTimeUtils.toDate(date).getDay();
   const dailyTimes = currentSchoolYear.lunchTimes.find(
@@ -255,7 +231,7 @@ const PrintableDailySummary: React.FC<DailyOrderedItemsAccordionProps> = ({
   );
   const mealTimes = dailyTimes?.times.sort() ?? [];
 
-  const menuItems = getMenuItems(orders, scheduledMenus, date).sort(
+  const pantryItems = getPantryItems(allPantryItems, orders, scheduledMenus, date).sort(
     (item1, item2) =>
       item1.type - item2.type ||
       item1.name.toLowerCase().localeCompare(item2.name.toLowerCase())
@@ -311,18 +287,18 @@ const PrintableDailySummary: React.FC<DailyOrderedItemsAccordionProps> = ({
             <TimeRow
               key={time}
               time={time}
-              menuItems={menuItems}
+              pantryItems={pantryItems}
               teachers={teachers}
               date={date}
             />
           ))}
           <OtherRow
-            menuItems={menuItems}
+            pantryItems={pantryItems}
             teachers={teachers}
             date={date}
           />
           <TotalRow
-            menuItems={menuItems}
+            pantryItems={pantryItems}
             date={date}
           />
         </tbody>

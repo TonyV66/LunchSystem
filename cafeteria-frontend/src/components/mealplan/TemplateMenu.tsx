@@ -3,7 +3,7 @@ import {
   Box,
   IconButton,
   Menu as PulldownMenu,
-  MenuItem,
+  MenuItem as MuiMenuItem,
   Paper,
   Typography,
 } from "@mui/material";
@@ -131,12 +131,12 @@ const TemplateMenu: React.FC<TemplateMenuProps> = ({
             horizontal: "left",
           }}
         >
-          <MenuItem onClick={handleEditClicked}>
+          <MuiMenuItem onClick={handleEditClicked}>
             <Edit color="primary" />
-          </MenuItem>
-          <MenuItem onClick={handleDeleteClicked}>
+          </MuiMenuItem>
+          <MuiMenuItem onClick={handleDeleteClicked}>
             <Delete color="primary" />
-          </MenuItem>
+          </MuiMenuItem>
         </PulldownMenu>
       )}
     </>

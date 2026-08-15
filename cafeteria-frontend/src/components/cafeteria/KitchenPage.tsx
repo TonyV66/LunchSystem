@@ -8,7 +8,7 @@ import {
   ListItemText,
   ListSubheader,
   Menu,
-  MenuItem,
+  MenuItem as MuiMenuItem,
   Stack,
   Tooltip,
   Typography,
@@ -30,7 +30,7 @@ import { AppContext } from "../../AppContextProvider";
 import { KITCHEN_URL, LOGIN_URL } from "../../MainAppPanel";
 import ChangePasswordDialog from "../settings/ChangePasswordDialog";
 import { Lock } from "@mui/icons-material";
-import { NULL_USER } from "../../models/User";
+import { NULL_SCHOOL_USER } from "../../models/SchoolUser";
 const KitchenPage: React.FC = () => {
   const { date } = useParams();
   const reportRef = React.useRef<HTMLDivElement>(null);
@@ -62,7 +62,7 @@ const KitchenPage: React.FC = () => {
   const handleLogout = () => {
     handleClose();
     localStorage.removeItem("jwtToken");
-    setUser(NULL_USER);
+    setUser(NULL_SCHOOL_USER);
     setUsers([]);
     setMenus([]);
     setMenuItems([]);
@@ -81,7 +81,7 @@ const KitchenPage: React.FC = () => {
   const scheduledDates = scheduledMenus.map((menu) => menu.date).sort();
 
   // Find current date index
-  const currentDate = date || DateTimeUtils.toString(new Date());
+  const currentDate = date || DateTimeUtils.toString(DateTimeUtils.getCurrentDate());
   const currentIndex = scheduledDates.findIndex((date) => date >= currentDate);
 
   if (!date && currentIndex >= 0) {
@@ -178,14 +178,14 @@ const KitchenPage: React.FC = () => {
       <Divider />
       <Box sx={{ flexGrow: 1, overflow: "auto" }}>
         <CafeteriaReport
-          date={date || DateTimeUtils.toString(new Date())}
+          date={date || DateTimeUtils.toString(DateTimeUtils.getCurrentDate())}
           large={true}
         />
       </Box>
       <Box display="none">
         <Box ref={reportRef}>
           <PrintableCafeteriaReport
-            date={date || DateTimeUtils.toString(new Date())}
+            date={date || DateTimeUtils.toString(DateTimeUtils.getCurrentDate())}
           />
         </Box>
       </Box>
@@ -203,18 +203,18 @@ const KitchenPage: React.FC = () => {
         }}
       >
         <ListSubheader sx={{ lineHeight: 1.5 }}>{user.userName}</ListSubheader>
-        <MenuItem onClick={handleChangePassword}>
+        <MuiMenuItem onClick={handleChangePassword}>
           <ListItemIcon>
             <Lock fontSize="small" />
           </ListItemIcon>
           <ListItemText>Change Password</ListItemText>
-        </MenuItem>
-        <MenuItem onClick={handleLogout}>
+        </MuiMenuItem>
+        <MuiMenuItem onClick={handleLogout}>
           <ListItemIcon>
             <Logout fontSize="small" />
           </ListItemIcon>
           <ListItemText>Logout</ListItemText>
-        </MenuItem>
+        </MuiMenuItem>
       </Menu>
     </Stack>
   );

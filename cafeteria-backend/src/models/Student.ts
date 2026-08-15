@@ -7,6 +7,7 @@ export default class Student {
   firstName: string;
   lastName: string;
   birthDate: string;
+  factsId: number | null;
   parents: number[];
 
   constructor(entity: StudentEntity) {
@@ -16,6 +17,14 @@ export default class Student {
     this.firstName = entity.firstName;
     this.lastName = entity.lastName;
     this.birthDate = entity.birthDate;
-    this.parents = entity.parents?.map(parent => parent.id) ?? [];
+    this.factsId = entity.factsId;
+    this.parents = Array.from(
+      new Set(
+        entity.enrollments
+          ?.filter((enrollment) => enrollment.active)
+          ?.map((enrollment) => enrollment.user?.id)
+          .filter((id): id is number => typeof id === "number") ?? [],
+      ),
+    );
   }
 }

@@ -13,7 +13,7 @@ import {
   Typography,
   Switch,
   Menu,
-  MenuItem,
+  MenuItem as MuiMenuItem,
   ListItemIcon,
   ListItemText,
 } from "@mui/material";
@@ -392,18 +392,18 @@ const TeacherLunchTimesTable: React.FC<TeacherLunchTimesTableProps> = ({
           horizontal: "right",
         }}
       >
-        <MenuItem onClick={handleEditMenuItemClick}>
+        <MuiMenuItem onClick={handleEditMenuItemClick}>
           <ListItemIcon>
             <EditIcon fontSize="small" />
           </ListItemIcon>
           <ListItemText>Edit Classroom Schedule</ListItemText>
-        </MenuItem>
-        <MenuItem onClick={handleReplaceMenuItemClick}>
+        </MuiMenuItem>
+        <MuiMenuItem onClick={handleReplaceMenuItemClick}>
           <ListItemIcon>
             <SwapHorizIcon fontSize="small" />
           </ListItemIcon>
           <ListItemText>Replace Classroom Teacher</ListItemText>
-        </MenuItem>
+        </MuiMenuItem>
       </Menu>
     </Stack>
   );
