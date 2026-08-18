@@ -91,21 +91,6 @@ export const ensureEnrollment = async (
 ): Promise<EnrollmentEntity> => {
   const enrollmentRepository = AppDataSource.getRepository(EnrollmentEntity);
 
-  let schoolId: number | undefined = (schoolYear as SchoolYearEntity).school
-    ?.id;
-  if (!schoolId) {
-    const yearEntity = await AppDataSource.getRepository(
-      SchoolYearEntity,
-    ).findOne({
-      where: { id: schoolYear.id },
-      relations: { school: true },
-    });
-    schoolId = yearEntity?.school?.id;
-  }
-  if (schoolId) {
-    await deactivateEnrollmentsAtOtherDistrictSchools(student.id, schoolId);
-  }
-
   const existing = await enrollmentRepository.findOne({
     where: {
       user: { id: user.id },

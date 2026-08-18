@@ -1,5 +1,4 @@
 import axios from "axios";
-import { randomUUID } from "crypto";
 import fs from "fs/promises";
 import path from "path";
 import { DeepPartial, In } from "typeorm";
@@ -845,37 +844,125 @@ const ensureFactsTeachersAndStaff = async (
   }
 };
 
-const getStudentRelationships = async (
-  school: SchoolEntity,
-  students: FactsPerson[],
-): Promise<FactsRelationship[]> => {
-  const requestedStudentIds = new Set(
-    students.map((student) => student.personId),
-  );
-  const studentsByParentId = new Map<number, Set<number>>();
+const factsEnrollmentPairKey = (
+  parentFactsId: number,
+  studentFactsId: number,
+): string => `${parentFactsId}:${studentFactsId}`;
 
-  const relationships = await fetchRelationships(school, {
-    studentIds: students.map((student) => student.personId),
-  });
+const getEnrolledStudentFactsIds = async (
+  school: SchoolEntity,
+): Promise<number[]> => {
+  const enrolledStudents = await fetchCurrentlyEnrolledStudents(school);
+  return [
+    ...new Set(
+      enrolledStudents
+        .map((student) => student.studentId)
+        .filter((studentId): studentId is number => studentId != null),
+    ),
+  ];
+};
+
+const getCustodialParentStudentPairs = async (
+  school: SchoolEntity,
+  studentIds: number[],
+): Promise<Array<{ parentID: number; studentID: number }>> => {
+  if (studentIds.length === 0) {
+    return [];
+  }
+
+  const requestedStudentIds = new Set(studentIds);
+  const relationships = await fetchRelationships(school, { studentIds });
+  const pairs: Array<{ parentID: number; studentID: number }> = [];
+  const seen = new Set<string>();
 
   for (const parentStudent of relationships) {
     if (
       !parentStudent.custody ||
       parentStudent.parentID == null ||
+      parentStudent.studentID == null ||
       !requestedStudentIds.has(parentStudent.studentID)
     ) {
       continue;
     }
-
-    let childIds = studentsByParentId.get(parentStudent.parentID);
-    if (!childIds) {
-      childIds = new Set();
-      studentsByParentId.set(parentStudent.parentID, childIds);
+    const key = factsEnrollmentPairKey(
+      parentStudent.parentID,
+      parentStudent.studentID,
+    );
+    if (seen.has(key)) {
+      continue;
     }
-    childIds.add(parentStudent.studentID);
+    seen.add(key);
+    pairs.push({
+      parentID: parentStudent.parentID,
+      studentID: parentStudent.studentID,
+    });
   }
 
-  const parents = await fetchPeople(school, [...studentsByParentId.keys()]);
+  return pairs;
+};
+
+const getParentFactsIdForSchool = (
+  enrollment: EnrollmentEntity,
+  schoolId: number,
+): number | null => {
+  const status = enrollment.user?.userStatuses?.find(
+    (userStatus) =>
+      userStatus.school?.id === schoolId &&
+      isFactsUserRole(userStatus.role) &&
+      userStatus.factsId != null,
+  );
+  return status?.factsId ?? null;
+};
+
+const loadActiveEnrollmentsForSchoolYear = async (
+  schoolYearId: number,
+): Promise<EnrollmentEntity[]> => {
+  return AppDataSource.getRepository(EnrollmentEntity).find({
+    where: {
+      schoolYearId,
+      active: true,
+    },
+    relations: {
+      student: true,
+      user: {
+        userStatuses: {
+          school: true,
+        },
+      },
+    },
+  });
+};
+
+const getActiveEnrollmentFactsPairKeys = (
+  enrollments: EnrollmentEntity[],
+  schoolId: number,
+): Set<string> => {
+  const pairKeys = new Set<string>();
+  for (const enrollment of enrollments) {
+    const studentFactsId = enrollment.student?.factsId;
+    const parentFactsId = getParentFactsIdForSchool(enrollment, schoolId);
+    if (studentFactsId == null || parentFactsId == null) {
+      continue;
+    }
+    pairKeys.add(factsEnrollmentPairKey(parentFactsId, studentFactsId));
+  }
+  return pairKeys;
+};
+
+const buildFactsRelationships = (
+  pairs: Array<{ parentID: number; studentID: number }>,
+  parents: FactsPerson[],
+  students: FactsPerson[],
+): FactsRelationship[] => {
+  const studentsByParentId = new Map<number, Set<number>>();
+  for (const pair of pairs) {
+    let childIds = studentsByParentId.get(pair.parentID);
+    if (!childIds) {
+      childIds = new Set();
+      studentsByParentId.set(pair.parentID, childIds);
+    }
+    childIds.add(pair.studentID);
+  }
 
   return parents.map((parent) => {
     const childIds = studentsByParentId.get(parent.personId);
@@ -921,159 +1008,10 @@ const getStaffMembers = async (
   return await fetchPeople(school, staffIds);
 };
 
-const getEnrolledStudents = async (
-  school: SchoolEntity,
-): Promise<FactsPerson[]> => {
-  const enrolledStudents = await fetchCurrentlyEnrolledStudents(school);
-  const studentIds = [
-    ...new Set(
-      enrolledStudents
-        .map((student) => student.studentId)
-        .filter((studentId): studentId is number => studentId != null),
-    ),
-  ];
-
-  return await fetchPeople(school, studentIds);
-};
-
 export class FactsService {
   static async getSchoolYears(school: SchoolEntity): Promise<SchoolYear[]> {
     const schoolYears = await fetchSchoolYears(school);
     return schoolYears.map(mapFactsSchoolYear);
-  }
-
-  static async updateEnrolledChildren(
-    school: SchoolEntity,
-    parentFactId: number,
-    factsYearId: number,
-  ) {
-    const schoolYear = await AppDataSource.getRepository(
-      SchoolYearEntity,
-    ).findOne({
-      where: { school: { id: school.id }, factsId: factsYearId },
-    });
-    if (!schoolYear) {
-      return;
-    }
-
-    const userRepository = AppDataSource.getRepository(UserEntity);
-    const studentRepository = AppDataSource.getRepository(StudentEntity);
-    const enrollmentRepository = AppDataSource.getRepository(EnrollmentEntity);
-
-    const parentUser = await userRepository.findOne({
-      where: {
-        userStatuses: {
-          school: { id: school.id },
-          factsId: parentFactId,
-          role: In([Role.PARENT, Role.TEACHER, Role.STAFF]),
-        },
-      },
-      relations: {
-        userStatuses: {
-          school: true,
-        },
-      },
-    });
-    if (!parentUser) {
-      return;
-    }
-
-    const relationships = await fetchRelationships(school, {
-      parentId: parentFactId,
-    });
-    const custodialChildIds = new Set(
-      relationships
-        .filter(
-          (parentStudent) =>
-            parentStudent.custody &&
-            parentStudent.studentID != null &&
-            parentStudent.parentID === parentFactId,
-        )
-        .map((parentStudent) => parentStudent.studentID),
-    );
-
-    const enrolledChildIds: number[] = [];
-    if (custodialChildIds.size > 0) {
-      const currentlyEnrolled = await fetchCurrentlyEnrolledStudents(school);
-      const enrolledSet = new Set<number>();
-      for (const student of currentlyEnrolled) {
-        if (
-          student.studentId != null &&
-          custodialChildIds.has(student.studentId)
-        ) {
-          enrolledSet.add(student.studentId);
-        }
-      }
-      enrolledChildIds.push(...enrolledSet);
-    }
-
-    // Soft-deactivate existing links, then reactivate/create from FACTS.
-    await enrollmentRepository.update(
-      {
-        user: { id: parentUser.id },
-        schoolYear: { id: schoolYear.id },
-      },
-      { active: false },
-    );
-
-    if (enrolledChildIds.length === 0) {
-      return;
-    }
-
-    const factsStudents = await fetchPeople(school, enrolledChildIds);
-
-    const existingStudentEntities = await findExistingStudentsByFactsIds(
-      school,
-      enrolledChildIds,
-    );
-
-    const studentsByFactsId = new Map<number, StudentEntity>();
-    for (const factsStudent of factsStudents) {
-      const studentEntity = await upsertFactsStudent(
-        school,
-        pickExistingStudentForFactsId(
-          existingStudentEntities,
-          factsStudent.personId,
-          school.id,
-        ),
-        factsStudent,
-      );
-      studentsByFactsId.set(factsStudent.personId, studentEntity);
-    }
-
-    const parentStudentLinks: Array<{
-      userId: number;
-      studentId: number;
-      schoolYearId: number;
-      active: boolean;
-    }> = [];
-    const seenLinks = new Set<string>();
-
-    for (const childId of enrolledChildIds) {
-      const student = studentsByFactsId.get(childId);
-      if (!student) {
-        continue;
-      }
-      const linkKey = `${parentUser.id}:${student.id}`;
-      if (seenLinks.has(linkKey)) {
-        continue;
-      }
-      seenLinks.add(linkKey);
-      parentStudentLinks.push({
-        userId: parentUser.id,
-        studentId: student.id,
-        schoolYearId: schoolYear.id,
-        active: true,
-      });
-    }
-
-    if (parentStudentLinks.length > 0) {
-      await upsertEnrollmentLinks(parentStudentLinks);
-      await deactivateEnrollmentsAtOtherDistrictSchoolsForStudents(
-        parentStudentLinks.map((link) => link.studentId),
-        school.id,
-      );
-    }
   }
 
   static async captureSchoolYearTestData(
@@ -1194,12 +1132,55 @@ export class FactsService {
     const factsYearId = schoolYear.factsId;
 
     reportProgress(onProgress, "Fetching enrolled students from FACTS…");
-    const enrolledStudents = await getEnrolledStudents(school);
+    const enrolledStudentIds = await getEnrolledStudentFactsIds(school);
+
     reportProgress(onProgress, "Fetching parent relationships from FACTS…");
-    const factsRelationships = await getStudentRelationships(
+    const custodialPairs = await getCustodialParentStudentPairs(
       school,
-      enrolledStudents,
+      enrolledStudentIds,
     );
+
+    const activeEnrollments = await loadActiveEnrollmentsForSchoolYear(
+      schoolYear.id,
+    );
+    const existingActivePairKeys = getActiveEnrollmentFactsPairKeys(
+      activeEnrollments,
+      school.id,
+    );
+    const remainingPairs = custodialPairs.filter(
+      (pair) =>
+        !existingActivePairKeys.has(
+          factsEnrollmentPairKey(pair.parentID, pair.studentID),
+        ),
+    );
+
+    const remainingParentIds = [
+      ...new Set(remainingPairs.map((pair) => pair.parentID)),
+    ];
+    const remainingStudentIds = [
+      ...new Set(remainingPairs.map((pair) => pair.studentID)),
+    ];
+
+    reportProgress(
+      onProgress,
+      remainingParentIds.length || remainingStudentIds.length
+        ? "Fetching new parents and students from FACTS…"
+        : "No new parent/student relationships to fetch…",
+    );
+    const remainingParents =
+      remainingParentIds.length > 0
+        ? await fetchPeople(school, remainingParentIds)
+        : [];
+    const remainingStudents =
+      remainingStudentIds.length > 0
+        ? await fetchPeople(school, remainingStudentIds)
+        : [];
+    const factsRelationships = buildFactsRelationships(
+      remainingPairs,
+      remainingParents,
+      remainingStudents,
+    );
+
     reportProgress(onProgress, "Fetching staff and teachers from FACTS…");
     const staffMembers = await getStaffMembers(school);
     const teachers = await getTeachers(school, factsYearId, staffMembers);
@@ -1254,10 +1235,6 @@ export class FactsService {
     );
 
     reportProgress(onProgress, "Updating students and enrollments…");
-    await AppDataSource.getRepository(EnrollmentEntity).update(
-      { schoolYear: { id: schoolYear.id } },
-      { active: false },
-    );
 
     const factsStudentsById = new Map<number, FactsPerson>();
     for (const relationship of factsRelationships) {
@@ -1361,10 +1338,6 @@ export class FactsService {
 
     if (parentStudentLinks.length > 0) {
       await upsertEnrollmentLinks(parentStudentLinks);
-      await deactivateEnrollmentsAtOtherDistrictSchoolsForStudents(
-        parentStudentLinks.map((link) => link.studentId),
-        school.id,
-      );
     }
 
     reportProgress(onProgress, "Synchronization complete.");

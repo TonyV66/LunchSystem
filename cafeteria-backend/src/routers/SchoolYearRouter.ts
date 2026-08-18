@@ -249,14 +249,6 @@ SchoolYearRouter.post<{}, CreateSchoolYearResponse | string, SchoolYear, {}>(
               return;
             }
 
-            // const importError = await FactsService.captureSchoolYearTestData(
-            //   school,
-            //   schoolYear,
-            //   999,
-            //   5,
-            //   (message) => updateFactsJobMessage(job.id, message),
-            // );
-
             await AppDataSource.getRepository(SurveyEntity).update(
               { school: { id: school.id } },
               { active: false },
@@ -790,6 +782,14 @@ SchoolYearRouter.post<
             failFactsJob(job.id, "School year not found during synchronization.");
             return;
           }
+
+          // const syncError = await FactsService.captureSchoolYearTestData(
+          //   school,
+          //   schoolYear,
+          //   999,
+          //   6,
+          //   (message) => updateFactsJobMessage(job.id, message),
+          // );
 
           const syncError = await FactsService.synchronizeSchoolYear(
             school,
