@@ -12,11 +12,12 @@ import {
   PaymentForm,
 } from "react-square-web-payments-sdk";
 import School from "../../models/School";
-import User from "../../models/User";
+import SchoolUser from "../../models/SchoolUser";
+import { Role } from "../../models/User";
 
 interface CardCheckoutFormProps {
   school: School;
-  user: User;
+  user: SchoolUser;
   selectedCard: string;
   total: number;
   saveCard: boolean;
@@ -40,6 +41,7 @@ const CardCheckoutForm: React.FC<CardCheckoutFormProps> = ({
 }) => {
   const enteringNewCard = isNewCardEntry(selectedCard);
   const canSaveCard =
+    user.role !== Role.ADMIN &&
     selectedCard === "creditcard" &&
     !!user.firstName?.length &&
     !!user.lastName?.length &&

@@ -11,6 +11,7 @@ export interface ShoppingCart {
 export interface ShoppingCartItem {
   time?: string;
   studentId?: number;
+  staffMemberId?: number;
   dailyMenuId: number;
   isDrinkOnly: boolean;
   selectedMenuItemIds: number[];

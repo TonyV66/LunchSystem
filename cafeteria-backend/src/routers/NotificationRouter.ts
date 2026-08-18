@@ -5,6 +5,8 @@ import { DeepPartial } from "typeorm";
 import { Notification } from "../models/Notification";
 import NotificationEntity from "../entity/NotificationEntity";
 import { DateTimeUtils } from "../DateTimeUtils";
+import { Role } from "../models/User";
+import { authorizeUserWithRole } from "./RouterUtils";
 
 const NotificationRouter: Router = express.Router();
 interface Empty {}
@@ -52,6 +54,7 @@ NotificationRouter.post<Empty, Notification, Notification, Empty>(
 
 NotificationRouter.delete<EntityId, Empty, Empty, Empty>(
   "/:id",
+  authorizeUserWithRole(Role.ADMIN),
   async (req, res) => {
     const notificationRepository =
       AppDataSource.getRepository(NotificationEntity);

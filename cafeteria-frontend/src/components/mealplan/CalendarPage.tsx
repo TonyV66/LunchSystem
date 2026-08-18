@@ -50,7 +50,19 @@ const CalendarPage: React.FC = () => {
             </Typography>
             <MealStatusLegend></MealStatusLegend>
           </Box>
-          <Box>
+          <Box
+            sx={{
+              display: "flex",
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 2,
+            }}
+          >
+            {user.availableCredits > 0 && (
+              <Typography variant="body2" color="text.secondary">
+                Available Credits: ${user.availableCredits.toFixed(2)}
+              </Typography>
+            )}
             <Button
               onClick={() => navigate(CART_URL)}
               disabled={checkoutDisabled}

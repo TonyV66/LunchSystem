@@ -10,13 +10,17 @@ import { OrderEntity } from "../entity/OrderEntity";
 import { PantryItemType } from "../models/PantryItemType";
 import { Order } from "../models/Order";
 import { ShoppingCart, ShoppingCartItem } from "../models/ShoppingCart";
-import { Role } from "../models/User";
+import { AccountStatus, isFactsUserRole, Role } from "../models/User";
 import MealEntity from "../entity/MealEntity";
 import PantryItemEntity from "../entity/PantryItemEntity";
+import StudentEntity from "../entity/StudentEntity";
+import EnrollmentEntity from "../entity/EnrollmentEntity";
 import UserEntity from "../entity/UserEntity";
+import UserStatusEntity from "../entity/UserStatusEntity";
 import { RefundType } from "../models/RefundType";
 import { saveUserStatus } from "../utils/UserStatusUtils";
 import { sendOrderReceiptEmail } from "../utils/EmailUtils";
+import { authorizeUserWithRole } from "./RouterUtils";
 
 interface CheckoutRequest {
   isGiftCard: boolean;
@@ -110,14 +114,186 @@ const buildMealItems = (
     });
 };
 
+const isSavedCreditCardId = (cardId: string | undefined): boolean =>
+  typeof cardId === "string" && cardId.startsWith("ccof:");
+
+const getStudentIdsFromCart = (items: ShoppingCartItem[]): number[] => [
+  ...new Set(
+    items
+      .map((item) => item.studentId)
+      .filter((id): id is number => typeof id === "number" && id > 0),
+  ),
+];
+
+const getStaffMemberIdsFromCart = (items: ShoppingCartItem[]): number[] => [
+  ...new Set(
+    items
+      .map((item) => item.staffMemberId)
+      .filter((id): id is number => typeof id === "number" && id > 0),
+  ),
+];
+
+const isTeacherOrStaffRole = (role: Role): boolean =>
+  role === Role.TEACHER || role === Role.STAFF;
+
+/**
+ * Ensures each cart item is for a student at this school, the purchaser when
+ * they have a parent/teacher/staff role, or a teacher/staff member when the
+ * purchaser is an admin. Non-admins may only order for students they are
+ * enrolled with.
+ */
+const validateCheckoutDiners = async (
+  items: ShoppingCartItem[],
+  purchaser: { id: number; role: Role },
+  schoolId: number,
+  schoolYearId: number,
+): Promise<string | undefined> => {
+  if (items.some((item) => item.studentId && item.staffMemberId)) {
+    return "Meals cannot be ordered for this person";
+  }
+
+  const staffItems = items.filter((item) => !item.studentId);
+  if (staffItems.length > 0) {
+    if (purchaser.role === Role.ADMIN) {
+      const staffMemberIds = getStaffMemberIdsFromCart(staffItems);
+      if (
+        staffMemberIds.length === 0 ||
+        staffItems.some((item) => !item.staffMemberId)
+      ) {
+        return "Meals cannot be ordered for this person";
+      }
+
+      const statuses = await AppDataSource.getRepository(UserStatusEntity).find(
+        {
+          where: {
+            school: { id: schoolId },
+            user: { id: In(staffMemberIds) },
+          },
+          relations: { user: true },
+        },
+      );
+      const statusByUserId = new Map(
+        statuses.map((status) => [status.user.id, status]),
+      );
+
+      for (const staffMemberId of staffMemberIds) {
+        const status = statusByUserId.get(staffMemberId);
+        if (
+          !status ||
+          !isTeacherOrStaffRole(status.role) ||
+          status.accountStatus === AccountStatus.INACTIVE
+        ) {
+          return "Meals cannot be ordered for this person";
+        }
+      }
+    } else if (!isFactsUserRole(purchaser.role)) {
+      return "Meals cannot be ordered for this person";
+    } else if (
+      staffItems.some(
+        (item) => item.staffMemberId && item.staffMemberId !== purchaser.id,
+      )
+    ) {
+      return "Unauthorized to order meals for this person";
+    }
+  }
+
+  const studentIds = getStudentIdsFromCart(items);
+  if (studentIds.length === 0) {
+    return undefined;
+  }
+
+  const students = await AppDataSource.getRepository(StudentEntity).find({
+    where: { id: In(studentIds) },
+    relations: { school: true },
+  });
+  const studentById = new Map(students.map((student) => [student.id, student]));
+
+  for (const studentId of studentIds) {
+    const student = studentById.get(studentId);
+    if (!student || student.school?.id !== schoolId) {
+      return "Student not found";
+    }
+  }
+
+  if (purchaser.role !== Role.ADMIN) {
+    const enrollments = await AppDataSource.getRepository(EnrollmentEntity).find(
+      {
+        where: {
+          userId: purchaser.id,
+          schoolYearId,
+          studentId: In(studentIds),
+          active: true,
+        },
+      },
+    );
+    const enrolledStudentIds = new Set(
+      enrollments.map((enrollment) => enrollment.studentId),
+    );
+    if (studentIds.some((studentId) => !enrolledStudentIds.has(studentId))) {
+      return "Unauthorized to order meals for this student";
+    }
+  }
+
+  return undefined;
+};
+
 const OrderRouter: Router = express.Router();
 interface Empty {}
 
 OrderRouter.post<Empty, Order | string, CheckoutRequest, Empty>(
   "/",
+  authorizeUserWithRole(Role.ADMIN, Role.PARENT, Role.TEACHER, Role.STAFF),
   async (req, res) => {
     if (req.body.cardId === "donate" && req.userStatus.role !== Role.ADMIN) {
       res.status(400).send("Only admins can donate");
+      return;
+    }
+
+    if (req.body.saveCard && req.userStatus.role === Role.ADMIN) {
+      res.status(400).send("Admins cannot save credit cards");
+      return;
+    }
+
+    const cartItems = req.body.shoppingCart?.items ?? [];
+    if (!cartItems.length) {
+      res.status(400).send("Shopping cart is empty");
+      return;
+    }
+
+    const schoolYear = req.schoolYear;
+    if (!schoolYear) {
+      res.status(400).send("No current school year found");
+      return;
+    }
+
+    const dinerError = await validateCheckoutDiners(
+      cartItems,
+      { id: req.user.id, role: req.userStatus.role },
+      req.school.id,
+      schoolYear.id,
+    );
+    if (dinerError) {
+      res
+        .status(dinerError.startsWith("Unauthorized") ? 403 : 400)
+        .send(dinerError);
+      return;
+    }
+
+    const purchasingForSomeone = cartItems.some(
+      (item) =>
+        !!item.studentId ||
+        (!!item.staffMemberId && item.staffMemberId !== req.user.id),
+    );
+    if (
+      req.userStatus.role === Role.ADMIN &&
+      purchasingForSomeone &&
+      isSavedCreditCardId(req.body.cardId)
+    ) {
+      res
+        .status(400)
+        .send(
+          "Saved credit cards cannot be used when purchasing meals for someone else",
+        );
       return;
     }
 
@@ -125,9 +301,7 @@ OrderRouter.post<Empty, Order | string, CheckoutRequest, Empty>(
     const orderRepository = AppDataSource.getRepository(OrderEntity);
     const pantryItemRepository = AppDataSource.getRepository(PantryItemEntity);
 
-    const dailyMenuIds = new Set(
-      req.body.shoppingCart.items.map((item) => item.dailyMenuId)
-    );
+    const dailyMenuIds = new Set(cartItems.map((item) => item.dailyMenuId));
 
     const dailyMenus = await dailyMenuRespository.find({
       where: {
@@ -138,7 +312,6 @@ OrderRouter.post<Empty, Order | string, CheckoutRequest, Empty>(
       },
     });
 
-    const schoolYear = req.schoolYear!;
     const pantryItems = await pantryItemRepository.find({
       where: { school: { id: req.school.id } },
     });
@@ -146,13 +319,17 @@ OrderRouter.post<Empty, Order | string, CheckoutRequest, Empty>(
       pantryItems.map((item) => [item.id, item])
     );
 
-    const meals = req.body.shoppingCart.items.map((shoppingCartItem, index) => {
+    const meals = cartItems.map((shoppingCartItem) => {
       const dailyMenu = dailyMenus.find(
         (sm) => sm.id === shoppingCartItem.dailyMenuId
       )!;
       const diner = shoppingCartItem.studentId
         ? { student: { id: shoppingCartItem.studentId } }
-        : { staffMember: { id: req.user.id } };
+        : {
+            staffMember: {
+              id: shoppingCartItem.staffMemberId ?? req.user.id,
+            },
+          };
       return {
         ...diner,
         date: dailyMenu.date,

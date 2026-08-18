@@ -18,6 +18,7 @@ import {
 } from "@mui/icons-material";
 import Menu from "../../models/Menu";
 import MenuDialog from "../menus/MenuDialog";
+import ConfirmDialog from "../ConfirmDialog";
 import { deleteMenu } from "../../api/CafeteriaClient";
 import MealCalendar from "./MealCalendar";
 import AvailableMenusPanel from "./AvailableMenusPanel";
@@ -35,6 +36,7 @@ const PlannerPage: React.FC = () => {
     useContext(AppContext);
   const [copiedMenu, setCopiedMenu] = useState<Menu | undefined>();
   const [editMenu, setEditMenu] = useState<Menu | undefined>();
+  const [menuToDelete, setMenuToDelete] = useState<Menu | undefined>();
   const [typeOfEdit, setTypeOfEdit] = useState<EditType>();
   const [search, setSearch] = useState("");
   const [filteredMenus, setFilteredMenus] = useState<Menu[]>([]);
@@ -43,13 +45,26 @@ const PlannerPage: React.FC = () => {
     setCopiedMenu(menu);
   };
 
-  const handleDeleteMenu = async (menuToDelete: Menu) => {
+  const handleRequestDeleteMenu = (menu: Menu) => {
+    setMenuToDelete(menu);
+  };
+
+  const handleCancelDeleteMenu = () => {
+    setMenuToDelete(undefined);
+  };
+
+  const handleConfirmDeleteMenu = async () => {
+    if (!menuToDelete) {
+      return;
+    }
+    const menu = menuToDelete;
+    setMenuToDelete(undefined);
     try {
-      await deleteMenu(menuToDelete.id);
-      if (menuToDelete === copiedMenu) {
+      await deleteMenu(menu.id);
+      if (menu === copiedMenu) {
         setCopiedMenu(undefined);
       }
-      setMenus(menus.filter((menu) => menu !== menuToDelete));
+      setMenus(menus.filter((m) => m !== menu));
     } catch (error) {
       const axiosError = error as AxiosError;
       setSnackbarErrorMsg(
@@ -195,7 +210,7 @@ const PlannerPage: React.FC = () => {
         copiedMenu={copiedMenu}
         onCopyMenu={handleCopyMenu}
         onEditMenu={handleEditMenu}
-        onDeleteMenu={handleDeleteMenu}
+        onDeleteMenu={handleRequestDeleteMenu}
       />
       {(typeOfEdit === EditType.CREATE_MENU ||
         typeOfEdit === EditType.UPDATE_MENU) && (
@@ -204,6 +219,21 @@ const PlannerPage: React.FC = () => {
           onCancel={handleCancelEditMenu}
           onOk={(savedMenu) => handleMenuSaved(savedMenu as Menu)}
         />
+      )}
+      {menuToDelete ? (
+        <ConfirmDialog
+          title="Delete Menu"
+          open={true}
+          okLabel="Delete"
+          onOk={handleConfirmDeleteMenu}
+          onCancel={handleCancelDeleteMenu}
+        >
+          <Typography>
+            Are you sure you want to delete this menu?
+          </Typography>
+        </ConfirmDialog>
+      ) : (
+        <></>
       )}
     </Box>
   );

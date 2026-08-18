@@ -25,6 +25,7 @@ import School from "./models/School";
 import { ShoppingCart } from "./models/ShoppingCart";
 import SchoolYear, { NO_SCHOOL_YEAR } from "./models/SchoolYear";
 import { Survey } from "./models/Survey";
+import { Role } from "./models/User";
 
 export interface AppContextType extends SessionInfo {
   shoppingCart: ShoppingCart;
@@ -180,8 +181,8 @@ const AppContextProvider: React.FC<React.PropsWithChildren> = (props) => {
     setShowLogoutWarning(false);
     showLogoutWarningRef.current = false;
     
-    // Only set timer if user is logged in
-    if (user.id !== NULL_SCHOOL_USER.id) {
+    // Kitchen is a kiosk display and should stay logged in
+    if (user.id !== NULL_SCHOOL_USER.id && user.role !== Role.KITCHEN) {
       // Set warning timer (29 minutes)
       warningTimerRef.current = setTimeout(() => {
         setShowLogoutWarning(true);
@@ -193,7 +194,7 @@ const AppContextProvider: React.FC<React.PropsWithChildren> = (props) => {
         }, WARNING_DURATION);
       }, inactivityTimeout * 60 * 1000);
     }
-  }, [user.id, inactivityTimeout]);
+  }, [user.id, user.role, inactivityTimeout]);
 
   const handleAutoLogout = useCallback(() => {
     // Clear the JWT token
@@ -283,10 +284,6 @@ const AppContextProvider: React.FC<React.PropsWithChildren> = (props) => {
     setSnackbarErrorMsg(undefined);
     setSnackbarMsg(undefined);
     setShowGlassPane(true);
-
-    console.log(
-      jwtToken ? "using jwtToken = " + jwtToken : "no jwtToken found"
-    );
 
     if (jwtToken) {
       (config as InternalAxiosRequestConfig).headers.Authorization =

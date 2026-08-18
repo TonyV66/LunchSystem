@@ -39,6 +39,11 @@ import PrincipalsCalendar from "./components/mealplan/PrincipalsCalendar";
 import KitchenPage from "./components/cafeteria/KitchenPage";
 import AdminSurveyPage from "./components/survey/AdminSurveyPage";
 
+// TODO: Credit card and gift card management
+// TODO: For MICS only, no self registration
+// TODO: View reports before printing
+// TODO: Auto facts synchronization
+// TODO: Change new school year flow
 const AppWrapper: React.FC<React.PropsWithChildren> = ({ children }) => {
   const location = useLocation();
   return (
@@ -157,6 +162,7 @@ const App: React.FC = () => {
         <Route path="students" element={<StudentsPage></StudentsPage>} />
         <Route path="account" element={<SchoolSettingsPage />} />
         <Route path="years" element={<SchoolYearsPage />} />
+        <Route path="cart" element={<ShoppingCartPage></ShoppingCartPage>} />
         <Route path="year/:yearId" element={<SchoolYearTabsPanel />} />
         <Route path="year/:yearId/teachers" element={<SchoolYearTabsPanel />} />
         <Route path="year/:yearId/grades" element={<SchoolYearTabsPanel />} />
@@ -184,6 +190,7 @@ const App: React.FC = () => {
             element={<Navigate to={defaultUrl} replace />}
           />
           <Route path="/admin" element={<Navigate to={defaultUrl} replace />} />
+          <Route path="/" element={<Navigate to={defaultUrl} replace />} />
         </>
       );
     }

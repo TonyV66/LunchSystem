@@ -38,6 +38,7 @@ export default class StudentEntity {
   @OneToMany(() => EnrollmentEntity, (enrollment) => enrollment.student)
   enrollments: EnrollmentEntity[];
 
+  // TODO: Drop this relationship. We get it through the EnrollmentEntity.
   @ManyToOne(() => SchoolEntity, (school) => school.students)
   school: SchoolEntity;
 }

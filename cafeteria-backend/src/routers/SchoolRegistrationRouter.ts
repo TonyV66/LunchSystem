@@ -253,7 +253,6 @@ SchoolRegistrationRouter.post<
     await ensureUserStatus(savedUser, school, {
       role: Role.PARENT,
       accountStatus: AccountStatus.PENDING,
-      availableCredits: 0,
       invitationId,
     });
   } else {

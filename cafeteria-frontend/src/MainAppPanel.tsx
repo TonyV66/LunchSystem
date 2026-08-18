@@ -389,8 +389,8 @@ const ShoppingCartButton: React.FC<SidebarButtonProps> = ({
             color: !numItemsInCart
               ? "lightslategrey"
               : isSelected
-              ? primaryColor
-              : ALT_COLOR,
+                ? primaryColor
+                : ALT_COLOR,
           }}
           fontSize="large"
         />
@@ -412,7 +412,7 @@ const getSidebarSelection = (path: string) => {
         { path: CLASSROOM_URL },
         { path: FAMILY_URL },
       ],
-      path
+      path,
     )
   ) {
     return SidebarSelection.USERS;
@@ -492,6 +492,10 @@ const AdminSidebar: React.FC<SidebarProps> = ({ onLogout }) => {
           isSelected={selection === SidebarSelection.ORDERS}
         />
         <PrintMealReportsButton onClick={handlePrintClick} />
+        <ShoppingCartButton
+          onClick={() => navigate(CART_URL)}
+          isSelected={selection === SidebarSelection.CART}
+        />
         <UsersButton
           role={Role.ADMIN}
           onClick={() => navigate(getDefaultUsersUrl(user.role))}
@@ -517,10 +521,12 @@ const AdminSidebar: React.FC<SidebarProps> = ({ onLogout }) => {
         <LogoutButton onLogout={onLogout} />
       </Box>
 
-      <PrintReportDialog
-        open={printDialogOpen}
-        onClose={handlePrintDialogClose}
-      />
+      {printDialogOpen && (
+        <PrintReportDialog
+          open={printDialogOpen}
+          onClose={handlePrintDialogClose}
+        />
+      )}
     </>
   );
 };
@@ -586,10 +592,12 @@ const PrincipalSidebar: React.FC<SidebarProps> = ({ onLogout }) => {
         <LogoutButton onLogout={onLogout} />
       </Box>
 
-      <PrintReportDialog
-        open={printDialogOpen}
-        onClose={handlePrintDialogClose}
-      />
+      {printDialogOpen && (
+        <PrintReportDialog
+          open={printDialogOpen}
+          onClose={handlePrintDialogClose}
+        />
+      )}
     </>
   );
 };
@@ -618,15 +626,12 @@ const ParentSidebar: React.FC<SidebarProps> = ({ onLogout }) => {
           new Date(user.notificationReviewDate).getTime() &&
         notification.startDate <= nowStr &&
         notification.endDate >= nowStr;
-      if (isUnread) {
-        console.log("found unread");
-      }
       return isUnread;
     });
     setHasUnreadNotifications(
       selection != SidebarSelection.NOTIFICATIONS && unreadNotifications.length
         ? true
-        : false
+        : false,
     );
   }, []);
 
@@ -708,10 +713,10 @@ const CafeteriaSidebar: React.FC<SidebarProps> = ({ onLogout }) => {
             new Date(notification.creationDate) >
               new Date(user.notificationReviewDate) &&
             notification.startDate <= nowStr &&
-            notification.endDate >= nowStr
+            notification.endDate >= nowStr,
         ).length
         ? true
-        : false
+        : false,
     );
   }, []);
 
@@ -781,10 +786,10 @@ const TeacherSidebar: React.FC<SidebarProps> = ({ onLogout }) => {
             new Date(notification.creationDate) >
               new Date(user.notificationReviewDate) &&
             notification.startDate <= nowStr &&
-            notification.endDate >= nowStr
+            notification.endDate >= nowStr,
         ).length
         ? true
-        : false
+        : false,
     );
   }, []);
 
@@ -892,11 +897,12 @@ const MainAppPanel: React.FC = () => {
 
   if (matchRoutes([{ path: "/" }, { path: "/admin" }], location.pathname)) {
     switch (user.role) {
+      case Role.KITCHEN:
+        return <Navigate to={KITCHEN_URL} />;
       case Role.ADMIN:
-        return <Navigate to={CALENDAR_URL} />;
       case Role.TEACHER:
-        return <Navigate to={CALENDAR_URL} />;
       case Role.CAFETERIA:
+      case Role.PRINCIPAL:
         return <Navigate to={CALENDAR_URL} />;
       default:
         return <Navigate to={MEALS_URL} />;

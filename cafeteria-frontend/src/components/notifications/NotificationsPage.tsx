@@ -7,6 +7,7 @@ import { Delete, Edit, Grade } from "@mui/icons-material";
 import { DateTimeUtils, DateTimeFormat } from "../../DateTimeUtils";
 import { green } from "@mui/material/colors";
 import EditNotificationDialog from "./EditNotificationDialog";
+import ConfirmDialog from "../ConfirmDialog";
 import {
   deleteNotification,
   updateNotificationReviewDate,
@@ -29,8 +30,6 @@ const NotificationsList: React.FC<{
       } catch (error) {
         return;
       }
-    } else {
-      console.log("Bypassing review update");
     }
   }, [user]);
 
@@ -126,6 +125,8 @@ const NotificationsPage: React.FC = () => {
   const { user, notifications, setNotifications, setSnackbarErrorMsg } = useContext(AppContext);
   const [showNotificationDialog, setShowNotificationDialog] = useState(false);
   const [notificationToEdit, setNotificationToEdit] = useState<Notification>();
+  const [notificationToDelete, setNotificationToDelete] =
+    useState<Notification>();
 
   const today = DateTimeUtils.toString(DateTimeUtils.getCurrentDate());
 
@@ -139,7 +140,20 @@ const NotificationsPage: React.FC = () => {
     setShowNotificationDialog(false);
   };
 
-  const handleDeleteNotification = async (notification: Notification) => {
+  const handleRequestDeleteNotification = (notification: Notification) => {
+    setNotificationToDelete(notification);
+  };
+
+  const handleCancelDeleteNotification = () => {
+    setNotificationToDelete(undefined);
+  };
+
+  const handleConfirmDeleteNotification = async () => {
+    if (!notificationToDelete) {
+      return;
+    }
+    const notification = notificationToDelete;
+    setNotificationToDelete(undefined);
     try {
       await deleteNotification(notification.id);
       setNotifications(
@@ -182,7 +196,7 @@ const NotificationsPage: React.FC = () => {
       </Box>
       {user.role !== Role.ADMIN ? (
         <NotificationsList
-          onDelete={handleDeleteNotification}
+          onDelete={handleRequestDeleteNotification}
           onEdit={handleEditNotification}
           notifications={notifications.filter(
             (notification) =>
@@ -193,7 +207,7 @@ const NotificationsPage: React.FC = () => {
         <>
           <NotificationsList
             title={"Current Notifications"}
-            onDelete={handleDeleteNotification}
+            onDelete={handleRequestDeleteNotification}
             onEdit={handleEditNotification}
             notifications={notifications.filter(
               (notification) =>
@@ -202,7 +216,7 @@ const NotificationsPage: React.FC = () => {
           />
           <NotificationsList
             title={"Upcoming Notifications"}
-            onDelete={handleDeleteNotification}
+            onDelete={handleRequestDeleteNotification}
             onEdit={handleEditNotification}
             notifications={notifications.filter(
               (notification) => notification.startDate > today
@@ -210,7 +224,7 @@ const NotificationsPage: React.FC = () => {
           />
           <NotificationsList
             title={"Expired Notifications"}
-            onDelete={handleDeleteNotification}
+            onDelete={handleRequestDeleteNotification}
             onEdit={handleEditNotification}
             notifications={notifications.filter(
               (notification) => notification.endDate < today
@@ -223,6 +237,21 @@ const NotificationsPage: React.FC = () => {
           notification={notificationToEdit}
           onClose={handleCloseDialog}
         />
+      ) : (
+        <></>
+      )}
+      {notificationToDelete ? (
+        <ConfirmDialog
+          title="Delete Notification"
+          open={true}
+          okLabel="Delete"
+          onOk={handleConfirmDeleteNotification}
+          onCancel={handleCancelDeleteNotification}
+        >
+          <Typography>
+            Are you sure you want to delete this notification?
+          </Typography>
+        </ConfirmDialog>
       ) : (
         <></>
       )}

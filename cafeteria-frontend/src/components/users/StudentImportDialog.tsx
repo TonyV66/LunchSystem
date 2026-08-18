@@ -20,35 +20,36 @@ import {
   IconButton,
 } from "@mui/material";
 import { CloudUpload, Description, HelpOutline } from "@mui/icons-material";
-import { importUsersCsv, UserImportResult } from "../../api/CafeteriaClient";
+import {
+  importStudentsCsv,
+  StudentImportResult,
+} from "../../api/CafeteriaClient";
 import { AxiosError } from "axios";
 
-interface UserImportDialogProps {
+interface StudentImportDialogProps {
   open: boolean;
   onClose: () => void;
   onImportComplete?: () => void;
 }
 
 interface CsvPreviewRow {
-  role: string;
-  email: string;
   firstName: string;
   lastName: string;
-  parent1: string;
-  parent2: string;
+  email: string;
+  altEmail: string;
 }
 
-const REQUIRED_HEADERS = ["email", "firstname", "lastname", "parent1"];
+const REQUIRED_HEADERS = ["firstname", "lastname", "email"];
 
 const normalizeHeader = (header: string): string =>
   header.trim().toLowerCase().replace(/[\s_]+/g, "");
 
-const UserImportHelpDialog: React.FC<{
+const StudentImportHelpDialog: React.FC<{
   open: boolean;
   onClose: () => void;
 }> = ({ open, onClose }) => (
   <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-    <DialogTitle>How CSV Import Works</DialogTitle>
+    <DialogTitle>How Student CSV Import Works</DialogTitle>
     <DialogContent dividers>
       <Stack spacing={2}>
         <Box>
@@ -56,21 +57,19 @@ const UserImportHelpDialog: React.FC<{
             File format
           </Typography>
           <Typography variant="body2">
-            Upload a CSV with a header row. Column order does not matter; columns
-            are matched by name (case-insensitive).
+            Upload a CSV with a header row. Column order does not matter;
+            columns are matched by name (case-insensitive). Each row is one
+            student.
           </Typography>
           <Typography variant="body2" sx={{ mt: 1, fontFamily: "monospace" }}>
-            email,firstname,lastname,parent1
+            firstName,lastName,email
           </Typography>
           <Typography variant="body2" sx={{ mt: 1 }}>
-            Optional columns:{" "}
+            Optional column:{" "}
             <Box component="span" sx={{ fontFamily: "monospace" }}>
-              role
-            </Box>
-            ,{" "}
-            <Box component="span" sx={{ fontFamily: "monospace" }}>
-              parent2
-            </Box>
+              altEmail
+            </Box>{" "}
+            (second parent email)
           </Typography>
         </Box>
 
@@ -81,88 +80,50 @@ const UserImportHelpDialog: React.FC<{
           <Typography variant="body2" component="ul" sx={{ m: 0, pl: 2 }}>
             <li>
               <Box component="span" sx={{ fontFamily: "monospace" }}>
-                firstname
+                firstName
               </Box>{" "}
               and{" "}
               <Box component="span" sx={{ fontFamily: "monospace" }}>
-                lastname
+                lastName
               </Box>{" "}
-              are required on every row
+              (student name)
             </li>
             <li>
-              Adults (parent, staff, teacher) require an{" "}
+              At least one of{" "}
               <Box component="span" sx={{ fontFamily: "monospace" }}>
                 email
-              </Box>
-            </li>
-            <li>
-              Students require at least one parent email in{" "}
-              <Box component="span" sx={{ fontFamily: "monospace" }}>
-                parent1
               </Box>{" "}
               or{" "}
               <Box component="span" sx={{ fontFamily: "monospace" }}>
-                parent2
-              </Box>
+                altEmail
+              </Box>{" "}
+              (parent emails)
             </li>
           </Typography>
         </Box>
 
         <Box>
           <Typography variant="subtitle2" gutterBottom>
-            Roles
+            Example CSV
           </Typography>
-          <Typography variant="body2">
-            Allowed values when{" "}
-            <Box component="span" sx={{ fontFamily: "monospace" }}>
-              role
-            </Box>{" "}
-            is provided: student, parent, staff, or teacher.
-          </Typography>
-          <Typography variant="body2" sx={{ mt: 1 }}>
-            If role is omitted or blank:
-          </Typography>
-          <Typography variant="body2" component="ul" sx={{ m: 0, pl: 2 }}>
-            <li>Row with an email → treated as a parent</li>
-            <li>
-              Row with no email but a parent email → treated as a student
-            </li>
-          </Typography>
-        </Box>
-
-        <Box>
-          <Typography variant="subtitle2" gutterBottom>
-            Parents and students
-          </Typography>
-          <Typography variant="body2" component="ul" sx={{ m: 0, pl: 2 }}>
-            <li>
-              Parent emails on student rows must either appear as their own row
-              in the CSV or already exist in the system
-            </li>
-            <li>A row that has both an email and a parent email is skipped</li>
-            <li>
-              Students are not created unless at least one parent email is
-              specified
-            </li>
-          </Typography>
-        </Box>
-
-        <Box>
-          <Typography variant="subtitle2" gutterBottom>
-            Matching existing records
-          </Typography>
-          <Typography variant="body2" component="ul" sx={{ m: 0, pl: 2 }}>
-            <li>Adults are matched by email (also used as their username)</li>
-            <li>
-              Students are matched by first and last name plus a linked parent
-              email, within the school district when applicable
-            </li>
-            <li>
-              Import updates existing people and adds enrollments for the
-              current school year; it does not remove people or enrollments that
-              are missing from the file
-            </li>
-          </Typography>
+          <Box
+            component="pre"
+            sx={{
+              m: 0,
+              p: 1.5,
+              borderRadius: 1,
+              bgcolor: "grey.100",
+              fontFamily: "monospace",
+              fontSize: "0.8125rem",
+              overflowX: "auto",
+              whiteSpace: "pre",
+            }}
+          >
+            {`firstName,lastName,email,altEmail
+Emma,Smith,parent1@example.com,parent2@example.com
+Liam,Jones,parent3@example.com,
+Olivia,Brown,parent4@example.com,parent5@example.com`}
+          </Box>
         </Box>
       </Stack>
     </DialogContent>
@@ -174,7 +135,7 @@ const UserImportHelpDialog: React.FC<{
   </Dialog>
 );
 
-const UserImportDialog: React.FC<UserImportDialogProps> = ({
+const StudentImportDialog: React.FC<StudentImportDialogProps> = ({
   open,
   onClose,
   onImportComplete,
@@ -183,7 +144,7 @@ const UserImportDialog: React.FC<UserImportDialogProps> = ({
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<UserImportResult | null>(null);
+  const [result, setResult] = useState<StudentImportResult | null>(null);
   const [previewData, setPreviewData] = useState<CsvPreviewRow[]>([]);
   const [showHelp, setShowHelp] = useState(false);
 
@@ -230,19 +191,17 @@ const UserImportDialog: React.FC<UserImportDialogProps> = ({
       );
       if (missing.length > 0) {
         setError(
-          `Missing required columns: ${missing.join(", ")}. Expected: email,firstname,lastname,parent1 (role and parent2 optional)`,
+          `Missing required columns: ${missing.join(", ")}. Expected: firstName,lastName,email (altEmail optional)`,
         );
         setPreviewData([]);
         return;
       }
 
       const indices = {
-        role: headerRow.indexOf("role"),
-        email: headerRow.indexOf("email"),
         firstName: headerRow.indexOf("firstname"),
         lastName: headerRow.indexOf("lastname"),
-        parent1: headerRow.indexOf("parent1"),
-        parent2: headerRow.indexOf("parent2"),
+        email: headerRow.indexOf("email"),
+        altEmail: headerRow.indexOf("altemail"),
       };
 
       const preview: CsvPreviewRow[] = [];
@@ -251,12 +210,11 @@ const UserImportDialog: React.FC<UserImportDialogProps> = ({
           .split(",")
           .map((col) => col.trim().replace(/"/g, ""));
         preview.push({
-          role: indices.role >= 0 ? columns[indices.role] || "" : "",
-          email: columns[indices.email] || "",
           firstName: columns[indices.firstName] || "",
           lastName: columns[indices.lastName] || "",
-          parent1: columns[indices.parent1] || "",
-          parent2: indices.parent2 >= 0 ? columns[indices.parent2] || "" : "",
+          email: columns[indices.email] || "",
+          altEmail:
+            indices.altEmail >= 0 ? columns[indices.altEmail] || "" : "",
         });
       }
       setPreviewData(preview);
@@ -283,7 +241,7 @@ const UserImportDialog: React.FC<UserImportDialogProps> = ({
         });
       }, 200);
 
-      const importResult = await importUsersCsv(selectedFile);
+      const importResult = await importStudentsCsv(selectedFile);
 
       clearInterval(progressInterval);
       setUploadProgress(100);
@@ -322,9 +280,9 @@ const UserImportDialog: React.FC<UserImportDialogProps> = ({
             pr: 1,
           }}
         >
-          Import Users from CSV
+          Import Students from CSV
           <IconButton
-            aria-label="How CSV import works"
+            aria-label="How student CSV import works"
             onClick={() => setShowHelp(true)}
             size="small"
           >
@@ -335,9 +293,9 @@ const UserImportDialog: React.FC<UserImportDialogProps> = ({
           <Stack spacing={3}>
             <Alert severity="info">
               <Typography variant="body2">
-                Select a CSV file to import parents, students, staff, and
-                teachers for the current school year. Use the help button for
-                column requirements and matching rules.
+                Select a CSV file to import students and their parents for the
+                current school year. Use the help button for column
+                requirements and an example file.
               </Typography>
             </Alert>
 
@@ -345,12 +303,12 @@ const UserImportDialog: React.FC<UserImportDialogProps> = ({
               <input
                 accept=".csv"
                 style={{ display: "none" }}
-                id="csv-file-input"
+                id="student-csv-file-input"
                 type="file"
                 onChange={handleFileSelect}
                 disabled={isUploading}
               />
-              <label htmlFor="csv-file-input">
+              <label htmlFor="student-csv-file-input">
                 <Button
                   variant="outlined"
                   component="span"
@@ -380,10 +338,9 @@ const UserImportDialog: React.FC<UserImportDialogProps> = ({
                 severity={result.rowErrors.length > 0 ? "warning" : "success"}
               >
                 <Typography variant="body2">
-                  Created {result.createdUsersCount} users, updated{" "}
-                  {result.updatedUsersCount} users. Created{" "}
-                  {result.createdStudentsCount} students, updated{" "}
-                  {result.updatedStudentsCount} students. Linked{" "}
+                  Created {result.createdUsersCount} parents, created{" "}
+                  {result.createdStudentsCount} students, matched{" "}
+                  {result.matchedStudentsCount} students, linked{" "}
                   {result.enrollmentLinksCount} enrollments.
                 </Typography>
                 {result.rowErrors.length > 0 && (
@@ -419,23 +376,19 @@ const UserImportDialog: React.FC<UserImportDialogProps> = ({
                   <Table size="small">
                     <TableHead>
                       <TableRow>
-                        <TableCell>Role</TableCell>
-                        <TableCell>Email</TableCell>
                         <TableCell>First Name</TableCell>
                         <TableCell>Last Name</TableCell>
-                        <TableCell>Parent1</TableCell>
-                        <TableCell>Parent2</TableCell>
+                        <TableCell>Email</TableCell>
+                        <TableCell>Alt Email</TableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>
                       {previewData.map((row, index) => (
                         <TableRow key={index}>
-                          <TableCell>{row.role}</TableCell>
-                          <TableCell>{row.email}</TableCell>
                           <TableCell>{row.firstName}</TableCell>
                           <TableCell>{row.lastName}</TableCell>
-                          <TableCell>{row.parent1}</TableCell>
-                          <TableCell>{row.parent2}</TableCell>
+                          <TableCell>{row.email}</TableCell>
+                          <TableCell>{row.altEmail}</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -461,7 +414,7 @@ const UserImportDialog: React.FC<UserImportDialogProps> = ({
         </DialogActions>
       </Dialog>
 
-      <UserImportHelpDialog
+      <StudentImportHelpDialog
         open={showHelp}
         onClose={() => setShowHelp(false)}
       />
@@ -469,4 +422,4 @@ const UserImportDialog: React.FC<UserImportDialogProps> = ({
   );
 };
 
-export default UserImportDialog;
+export default StudentImportDialog;

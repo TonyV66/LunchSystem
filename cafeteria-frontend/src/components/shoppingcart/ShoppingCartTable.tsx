@@ -84,7 +84,9 @@ const buildOrder = (
         time: "",
         cancelled: false,
         refundType: RefundType.NONE,
-        staffMemberId: !shoppingCartItem.studentId ? user.id : undefined,
+        staffMemberId: shoppingCartItem.studentId
+          ? undefined
+          : shoppingCartItem.staffMemberId ?? user.id,
         studentId: shoppingCartItem.studentId,
         items: entrees
           .concat(sides)

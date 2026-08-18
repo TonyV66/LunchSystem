@@ -68,7 +68,6 @@ const SchoolYearDailyLunchTimesDialog: React.FC<DialogProps> = ({
   };
 
   const handleTimeChanged = (time: Dayjs | null) => {
-    console.log("time is " + (time === null ? "null" : time.isValid()));
     setNewTime(time);
   };
 

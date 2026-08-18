@@ -315,6 +315,14 @@ export const cancelMeal = async (mealId: number, issueCredits: boolean) => {
   return response.data;
 };
 
+export const fetchOrdersByMealDate = async (date: string) => {
+  const response: AxiosResponse<Order[]> = await http.get(
+    API_BASE_URL + "/meal",
+    { params: { date } },
+  );
+  return response.data;
+};
+
 export interface StudentWithLunchTimes extends Student {
   lunchTimes?: StudentLunchTime[];
 }
@@ -616,27 +624,103 @@ export const getStudentsForUser = async (
   return response.data;
 };
 
-export interface UserImportResult {
+export interface UserChildEnrollment {
+  student: Student;
+  enrolled: boolean;
+}
+
+export const getUserEnrollmentHistory = async (
+  userId: number,
+): Promise<UserChildEnrollment[]> => {
+  const response: AxiosResponse<UserChildEnrollment[]> = await http.get(
+    `${API_BASE_URL}/user/${userId}/enrollments`,
+  );
+  return response.data;
+};
+
+export const updateUserEnrollments = async (
+  userId: number,
+  enrollments: Array<{ studentId: number; enrolled: boolean }>,
+): Promise<UserChildEnrollment[]> => {
+  const response: AxiosResponse<UserChildEnrollment[]> = await http.put(
+    `${API_BASE_URL}/user/${userId}/enrollments`,
+    { enrollments },
+  );
+  return response.data;
+};
+
+export interface StudentParentEnrollment {
+  user: SchoolUser;
+  enrolled: boolean;
+}
+
+export const getStudentEnrollmentHistory = async (
+  studentId: number,
+): Promise<StudentParentEnrollment[]> => {
+  const response: AxiosResponse<StudentParentEnrollment[]> = await http.get(
+    `${API_BASE_URL}/student/${studentId}/enrollments`,
+  );
+  return response.data;
+};
+
+export const updateStudentEnrollments = async (
+  studentId: number,
+  enrollments: Array<{ userId: number; enrolled: boolean }>,
+): Promise<StudentParentEnrollment[]> => {
+  const response: AxiosResponse<StudentParentEnrollment[]> = await http.put(
+    `${API_BASE_URL}/student/${studentId}/enrollments`,
+    { enrollments },
+  );
+  return response.data;
+};
+
+export interface StaffImportResult {
   createdUsersCount: number;
   updatedUsersCount: number;
-  createdStudentsCount: number;
-  updatedStudentsCount: number;
-  enrollmentLinksCount: number;
+  unchangedUsersCount: number;
   rowErrors: Array<{ row: number; message: string }>;
 }
 
-export const importUsersCsv = async (file: File): Promise<UserImportResult> => {
+export const importStaffCsv = async (
+  file: File,
+): Promise<StaffImportResult> => {
   const formData = new FormData();
   formData.append("file", file);
 
-  const response: AxiosResponse<UserImportResult> = await http.post(
-    `${API_BASE_URL}/user/import-csv`,
+  const response: AxiosResponse<StaffImportResult> = await http.post(
+    `${API_BASE_URL}/user/import-staff-csv`,
     formData,
     {
       headers: {
         "Content-Type": "multipart/form-data",
       },
-    }
+    },
+  );
+  return response.data;
+};
+
+export interface StudentImportResult {
+  createdUsersCount: number;
+  createdStudentsCount: number;
+  matchedStudentsCount: number;
+  enrollmentLinksCount: number;
+  rowErrors: Array<{ row: number; message: string }>;
+}
+
+export const importStudentsCsv = async (
+  file: File,
+): Promise<StudentImportResult> => {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const response: AxiosResponse<StudentImportResult> = await http.post(
+    `${API_BASE_URL}/user/import-students-csv`,
+    formData,
+    {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    },
   );
   return response.data;
 };

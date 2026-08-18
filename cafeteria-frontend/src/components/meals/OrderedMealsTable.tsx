@@ -1,5 +1,5 @@
 import React, { useContext } from "react";
-import { Box, IconButton, Typography } from "@mui/material";
+import { Box, IconButton, Tooltip, Typography } from "@mui/material";
 import { AppContext } from "../../AppContextProvider";
 import { Order } from "../../models/Order";
 import Student from "../../models/Student";
@@ -9,7 +9,56 @@ import { DateTimeFormat, DateTimeUtils } from "../../DateTimeUtils";
 import { Delete } from "@mui/icons-material";
 import Meal from "../../models/Meal";
 import User, { Role } from "../../models/User";
+import DailyMenu from "../../models/DailyMenu";
 import CancelMealDialog from "../orders/CancelMealDialog";
+
+type TableColumns = {
+  date?: number;
+  name: number;
+  meal: number;
+  cost?: number;
+  cancel?: number;
+};
+
+const uniqueById = <T extends { id: number }>(items: T[]): T[] =>
+  Array.from(new Map(items.map((item) => [item.id, item])).values());
+
+const getTableColumns = (
+  hideDate?: boolean,
+  hidePrice?: boolean,
+  showCancel?: boolean,
+): { template: string; columns: TableColumns } => {
+  const template: string[] = [];
+  const columns: TableColumns = { name: 1, meal: 2 };
+  let column = 1;
+  if (!hideDate) {
+    columns.date = column++;
+    template.push("auto");
+  }
+  columns.name = column++;
+  template.push("auto");
+  columns.meal = column++;
+  template.push("1fr");
+  if (!hidePrice) {
+    columns.cost = column++;
+    template.push("auto");
+  }
+  if (showCancel) {
+    columns.cancel = column++;
+    template.push("auto");
+  }
+  return { template: template.join(" "), columns };
+};
+
+const isAcceptingOrders = (menu?: DailyMenu) => {
+  if (!menu) {
+    return false;
+  }
+  const now = DateTimeUtils.getCurrentDate();
+  return (
+    new Date(menu.orderStartTime) <= now && new Date(menu.orderEndTime) > now
+  );
+};
 
 interface StudentDailyOrdersProps {
   date: string;
@@ -19,15 +68,21 @@ interface StudentDailyOrdersProps {
   hidePrice?: boolean;
   highlightMealsNotOrderedByMe?: boolean;
   onDelete?: (meal: Meal) => void;
+  showCancelForMeal?: (meal: Meal) => boolean;
+  isCancelDisabled?: (meal: Meal) => boolean;
   hideCancelledMeals?: boolean;
+  columns: TableColumns;
 }
 
 const MealDescription: React.FC<{
   meal: Meal;
   hidePrice?: boolean;
   onDelete?: (meal: Meal) => void;
+  showCancelButton?: boolean;
+  cancelDisabled?: boolean;
   orderedBy?: string;
-}> = ({ meal, onDelete, hidePrice, orderedBy }) => {
+  columns: TableColumns;
+}> = ({ meal, onDelete, hidePrice, orderedBy, showCancelButton, cancelDisabled, columns }) => {
   const { pantryItems } = useContext(AppContext);
 
   const amountPaid = meal.items
@@ -38,6 +93,7 @@ const MealDescription: React.FC<{
     <>
       <Box
         sx={{
+          gridColumn: columns.meal,
           p: 1,
           display: "flex",
           flexWrap: "wrap",
@@ -101,6 +157,7 @@ const MealDescription: React.FC<{
       {!hidePrice ? (
         <Box
           sx={{
+            gridColumn: columns.cost,
             p: 1,
             borderRightWidth: onDelete ? "1px" : "0px",
             borderRightColor: grey[400],
@@ -128,21 +185,39 @@ const MealDescription: React.FC<{
       {onDelete ? (
         <Box
           sx={{
+            gridColumn: columns.cancel,
             p: 1,
             borderBottomWidth: "1px",
             borderBottomColor: grey[400],
             borderBottomStyle: "solid",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
           }}
         >
-          <IconButton
-            onClick={() => onDelete(meal)}
-            disabled={meal.cancelled}
-            size="small"
-            aria-label="delete"
-            color="primary"
-          >
-            <Delete />
-          </IconButton>
+          {showCancelButton !== false ? (
+            <Tooltip
+              title={
+                meal.cancelled
+                  ? "Meal already cancelled"
+                  : cancelDisabled
+                    ? "Cancellations are no longer being accepted"
+                    : "Cancel meal"
+              }
+            >
+              <span>
+                <IconButton
+                  onClick={() => onDelete(meal)}
+                  disabled={meal.cancelled || cancelDisabled}
+                  size="small"
+                  aria-label="cancel meal"
+                  color="primary"
+                >
+                  <Delete />
+                </IconButton>
+              </span>
+            </Tooltip>
+          ) : null}
         </Box>
       ) : (
         <></>
@@ -167,8 +242,11 @@ const DailyOrdersForPerson: React.FC<StudentDailyOrdersProps> = ({
   staffMember,
   hidePrice,
   onDelete,
+  showCancelForMeal,
+  isCancelDisabled,
   highlightMealsNotOrderedByMe,
   hideCancelledMeals,
+  columns,
 }) => {
   const { user, users } = useContext(AppContext);
 
@@ -194,6 +272,10 @@ const DailyOrdersForPerson: React.FC<StudentDailyOrdersProps> = ({
           (staffMember && meal.staffMemberId === staffMember.id)),
     );
 
+  if (!meals.length) {
+    return <></>;
+  }
+
   let title = student ? student.firstName + " " + student.lastName : "Unknown";
   if (staffMember) {
     title = getUserName(staffMember);
@@ -202,6 +284,7 @@ const DailyOrdersForPerson: React.FC<StudentDailyOrdersProps> = ({
     <>
       <Box
         sx={{
+          gridColumn: columns.name,
           gridRow: "span " + meals.length,
           borderBottomWidth: "1px",
           borderBottomColor: grey[400],
@@ -228,7 +311,10 @@ const DailyOrdersForPerson: React.FC<StudentDailyOrdersProps> = ({
           key={meal.id}
           meal={meal}
           onDelete={onDelete}
+          showCancelButton={showCancelForMeal ? showCancelForMeal(meal) : true}
+          cancelDisabled={isCancelDisabled ? isCancelDisabled(meal) : false}
           hidePrice={hidePrice}
+          columns={columns}
         />
       ))}
     </>
@@ -243,8 +329,11 @@ interface DailyOrdersProps {
   students: Student[];
   staffMembers: User[];
   onDelete?: (meal: Meal) => void;
+  showCancelForMeal?: (meal: Meal) => boolean;
+  isCancelDisabled?: (meal: Meal) => boolean;
   highlightMealsNotOrderedByMe?: boolean;
   hideCancelledMeals?: boolean;
+  columns: TableColumns;
 }
 interface Person {
   student?: Student;
@@ -255,12 +344,14 @@ const DailyOrders: React.FC<DailyOrdersProps> = ({
   orders,
   date,
   onDelete,
-  hideDate,
+  showCancelForMeal,
+  isCancelDisabled,
   hidePrice,
   highlightMealsNotOrderedByMe,
   students,
   staffMembers,
   hideCancelledMeals,
+  columns,
 }) => {
   const studentIds = new Set<number>(students.map((student) => student.id));
   const staffMemberIds = new Set<number>(staffMembers.map((user) => user.id));
@@ -275,23 +366,31 @@ const DailyOrders: React.FC<DailyOrdersProps> = ({
           (meal.staffMemberId && staffMemberIds.has(meal.staffMemberId))),
     );
 
-  const studentsWithMeals = students.filter((student) =>
-    meals.some((meal) => meal.studentId === student.id),
-  );
-  const staffMembersWithMeals = staffMembers.filter((user) =>
-    meals.some((meal) => meal.staffMemberId === user.id),
-  );
-
-  const uniquePersons: Person[] = [
-    ...Array.from(studentsWithMeals).map((student) => ({
-      student,
-      staffMember: undefined,
-    })),
-    ...Array.from(staffMembersWithMeals).map((staffMember) => ({
-      student: undefined,
-      staffMember,
-    })),
-  ].sort((a, b) => {
+  const seenPersonKeys = new Set<string>();
+  const uniquePersons: Person[] = [];
+  for (const student of uniqueById(students)) {
+    if (!meals.some((meal) => meal.studentId === student.id)) {
+      continue;
+    }
+    const key = "s" + student.id;
+    if (seenPersonKeys.has(key)) {
+      continue;
+    }
+    seenPersonKeys.add(key);
+    uniquePersons.push({ student });
+  }
+  for (const staffMember of uniqueById(staffMembers)) {
+    if (!meals.some((meal) => meal.staffMemberId === staffMember.id)) {
+      continue;
+    }
+    const key = "m" + staffMember.id;
+    if (seenPersonKeys.has(key)) {
+      continue;
+    }
+    seenPersonKeys.add(key);
+    uniquePersons.push({ staffMember });
+  }
+  uniquePersons.sort((a, b) => {
     const nameA = a.student
       ? a.student.firstName + " " + a.student.lastName
       : a.staffMember?.firstName + " " + a.staffMember?.lastName;
@@ -307,9 +406,10 @@ const DailyOrders: React.FC<DailyOrdersProps> = ({
 
   return (
     <>
-      {!hideDate ? (
+      {columns.date ? (
         <Box
           sx={{
+            gridColumn: columns.date,
             gridRow: "span " + meals.length,
             borderBottomWidth: "1px",
             borderBottomColor: grey[400],
@@ -347,8 +447,11 @@ const DailyOrders: React.FC<DailyOrdersProps> = ({
           staffMember={person.staffMember}
           hidePrice={hidePrice}
           onDelete={onDelete}
+          showCancelForMeal={showCancelForMeal}
+          isCancelDisabled={isCancelDisabled}
           hideCancelledMeals={hideCancelledMeals}
           highlightMealsNotOrderedByMe={highlightMealsNotOrderedByMe}
+          columns={columns}
         ></DailyOrdersForPerson>
       ))}
     </>
@@ -367,6 +470,7 @@ interface OrdersTableProps {
   hideTitlebar?: boolean;
   hideCancelledMeals?: boolean;
   highlightMealsNotOrderedByMe?: boolean;
+  allowPurchaserCancel?: boolean;
 }
 
 const OrderedMealsTable: React.FC<OrdersTableProps> = ({
@@ -381,19 +485,26 @@ const OrderedMealsTable: React.FC<OrdersTableProps> = ({
   hideTitlebar,
   hideCancelledMeals,
   highlightMealsNotOrderedByMe,
+  allowPurchaserCancel,
 }) => {
   const {
     orders: allOrders,
     students: allStudents,
     users,
     user: loggedInUser,
+    scheduledMenus,
   } = useContext(AppContext);
 
   const [mealToCancel, setMealToCancel] = React.useState<Meal | null>(null);
 
   const orders = order ? [order] : allOrders;
-  const students = (student ? [student] : allStudents).filter(
-    (s) => !user || s.parents.includes(user.id),
+  const students = uniqueById(
+    (student ? [student] : allStudents).filter(
+      (s) => !user || s.parents.includes(user.id),
+    ),
+  );
+  const staffMembers = uniqueById(
+    student ? [] : user ? users.filter((u) => u.id === user.id) : users,
   );
   const dates = new Set<string>();
   orders
@@ -404,15 +515,43 @@ const OrderedMealsTable: React.FC<OrdersTableProps> = ({
     .filter((mealDate) => !endDate || mealDate <= endDate)
     .forEach((date) => dates.add(date));
 
-  let gridColumns = (hideDate ? "" : "auto") + " auto 1fr";
-  if (!hidePrice) {
-    gridColumns = gridColumns + " auto";
-  }
-  if (loggedInUser?.role === Role.ADMIN || onDelete) {
-    gridColumns = gridColumns + " auto";
-  }
+  const showCancelColumn =
+    Boolean(onDelete) ||
+    loggedInUser?.role === Role.ADMIN ||
+    Boolean(allowPurchaserCancel);
 
-  const showDeleteButton = loggedInUser?.role === Role.ADMIN || onDelete;
+  const handleMealAction = onDelete ?? (showCancelColumn ? setMealToCancel : undefined);
+
+  const showCancelForMeal = (meal: Meal) => {
+    if (onDelete || loggedInUser?.role === Role.ADMIN) {
+      return true;
+    }
+    if (!allowPurchaserCancel || !loggedInUser) {
+      return false;
+    }
+    const mealOrder = orders.find((o) => o.meals.some((m) => m.id === meal.id));
+    return mealOrder?.userId === loggedInUser.id;
+  };
+
+  const isCancelDisabled = (meal: Meal) => {
+    if (meal.cancelled) {
+      return true;
+    }
+    if (onDelete || loggedInUser?.role === Role.ADMIN) {
+      return false;
+    }
+    const menu = scheduledMenus.find((m) => m.date === meal.date);
+    return !isAcceptingOrders(menu);
+  };
+
+  const { template: gridColumns, columns } = getTableColumns(
+    hideDate,
+    hidePrice,
+    showCancelColumn,
+  );
+  const emptyStateColumns =
+    (hideDate ? 0 : 1) + 2 + (hidePrice ? 0 : 1) + (showCancelColumn ? 1 : 0);
+
   return (
     <>
       <Box
@@ -428,6 +567,7 @@ const OrderedMealsTable: React.FC<OrdersTableProps> = ({
         {!hideDate && !hideTitlebar ? (
           <Box
             sx={{
+              gridColumn: columns.date,
               borderBottomWidth: "1px",
               borderBottomColor: grey[400],
               borderBottomStyle: "solid",
@@ -445,6 +585,7 @@ const OrderedMealsTable: React.FC<OrdersTableProps> = ({
         {!hideTitlebar ? (
           <Box
             sx={{
+              gridColumn: columns.name,
               borderBottomWidth: "1px",
               borderBottomColor: grey[400],
               borderBottomStyle: "solid",
@@ -463,7 +604,8 @@ const OrderedMealsTable: React.FC<OrdersTableProps> = ({
         {!hideTitlebar ? (
           <Box
             sx={{
-              borderRightWidth: showDeleteButton || !hidePrice ? "1px" : "0px",
+              gridColumn: columns.meal,
+              borderRightWidth: showCancelColumn || !hidePrice ? "1px" : "0px",
               borderRightColor: grey[400],
               borderRightStyle: "solid",
               borderBottomWidth: "1px",
@@ -480,7 +622,8 @@ const OrderedMealsTable: React.FC<OrdersTableProps> = ({
         {!hidePrice && !hideTitlebar ? (
           <Box
             sx={{
-              borderRightWidth: showDeleteButton ? "1px" : "0px",
+              gridColumn: columns.cost,
+              borderRightWidth: showCancelColumn ? "1px" : "0px",
               borderRightColor: grey[400],
               borderRightStyle: "solid",
               borderBottomWidth: "1px",
@@ -494,9 +637,10 @@ const OrderedMealsTable: React.FC<OrdersTableProps> = ({
         ) : (
           <></>
         )}
-        {showDeleteButton && !hideTitlebar ? (
+        {showCancelColumn && !hideTitlebar ? (
           <Box
             sx={{
+              gridColumn: columns.cancel,
               borderBottomWidth: "1px",
               borderBottomColor: grey[400],
               borderBottomStyle: "solid",
@@ -513,8 +657,7 @@ const OrderedMealsTable: React.FC<OrdersTableProps> = ({
               borderBottomColor: grey[400],
               borderBottomStyle: "solid",
               p: 1,
-              gridColumn:
-                "1/span " + (loggedInUser?.role === Role.ADMIN ? "5" : "4"),
+              gridColumn: "1/span " + emptyStateColumns,
             }}
           >
             No meals ordered
@@ -526,21 +669,22 @@ const OrderedMealsTable: React.FC<OrdersTableProps> = ({
               <DailyOrders
                 key={date}
                 students={students}
-                staffMembers={!student ? users : []}
+                staffMembers={staffMembers}
                 orders={orders}
                 date={date}
                 hideCancelledMeals={hideCancelledMeals}
-                onDelete={
-                  onDelete || showDeleteButton ? setMealToCancel : undefined
-                }
+                onDelete={handleMealAction}
+                showCancelForMeal={showCancelForMeal}
+                isCancelDisabled={isCancelDisabled}
                 hideDate={hideDate}
                 hidePrice={hidePrice}
                 highlightMealsNotOrderedByMe={highlightMealsNotOrderedByMe}
+                columns={columns}
               ></DailyOrders>
             ))
         )}
       </Box>
-      {mealToCancel && (
+      {mealToCancel && !onDelete && (
         <CancelMealDialog
           onClose={() => {
             setMealToCancel(null);

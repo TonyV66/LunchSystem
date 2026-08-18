@@ -84,11 +84,10 @@ const ChangeForgottenPwdPanel: React.FC = () => {
             <Typography textAlign="center" variant="h6">
               Password Reset
             </Typography>
-        {/* TODO: Set label according to user role. */}
             <TextField
               fullWidth
               required
-              label="Username"
+              label="Email / Username"
               variant="standard"
               value={userName}
               onChange={(event: React.ChangeEvent<HTMLInputElement>) =>

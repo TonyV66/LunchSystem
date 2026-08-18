@@ -11,14 +11,14 @@ import {
 import { AppContext } from "../../AppContextProvider";
 import { useContext, useState } from "react";
 import { Add } from "@mui/icons-material";
-import { AccountStatus, Role } from "../../models/User";
+import { AccountStatus, isFactsUserRole, Role } from "../../models/User";
 import SchoolUser from "../../models/SchoolUser";
 import { USERS_URL } from "../../MainAppPanel";
 import { UserOrderHistoryDialog } from "../orders/UserOrderHistoryDialog";
 import EditUserDialog from "./EditUserDialog";
 import CreateUserDialog from "./CreateUserDialog";
 import UsersTable from "./UsersTable";
-import { SiblingsDialog } from "./SiblingsDialog";
+import ManageChildrenDialog from "./ManageChildrenDialog";
 import PeopleTabs from "./PeopleTabs";
 import { UpcomingMealsDialog } from "../meals/UpcomingMealsDialog";
 import ConfirmDialog from "../ConfirmDialog";
@@ -28,8 +28,10 @@ import { AxiosError } from "axios";
 interface UserMenuProps {
   anchor: HTMLElement;
   isPending: boolean;
+  showManageChildren: boolean;
   onOrderHistory: () => void;
   onShowMeals: () => void;
+  onManageChildren: () => void;
   onEdit: () => void;
   onResendInvite: () => void;
   onClose: () => void;
@@ -38,9 +40,11 @@ interface UserMenuProps {
 const UserMenu: React.FC<UserMenuProps> = ({
   anchor,
   isPending,
+  showManageChildren,
   onEdit,
   onOrderHistory,
   onShowMeals,
+  onManageChildren,
   onResendInvite,
   onClose,
 }) => {
@@ -69,6 +73,9 @@ const UserMenu: React.FC<UserMenuProps> = ({
           <MuiMenuItem onClick={onOrderHistory}>Order History</MuiMenuItem>
           <MuiMenuItem onClick={onShowMeals}>Upcoming Meals</MuiMenuItem>
         </>
+      )}
+      {user.role === Role.ADMIN && showManageChildren && (
+        <MuiMenuItem onClick={onManageChildren}>Manage Children</MuiMenuItem>
       )}
       {user.role === Role.ADMIN && (
         <MuiMenuItem onClick={onEdit}>Edit</MuiMenuItem>
@@ -111,6 +118,11 @@ const UsersPage: React.FC = () => {
 
   const handleEditUser = () => {
     setAction("edit");
+    setPulldownMenuAnchor(null);
+  };
+
+  const handleManageChildren = () => {
+    setAction("children");
     setPulldownMenuAnchor(null);
   };
 
@@ -256,8 +268,10 @@ const UsersPage: React.FC = () => {
         <UserMenu
           anchor={pulldownMenuAnchor!}
           isPending={targetUser.accountStatus === AccountStatus.PENDING}
+          showManageChildren={isFactsUserRole(targetUser.role)}
           onOrderHistory={handleOrderHistory}
           onShowMeals={handleShowMeals}
+          onManageChildren={handleManageChildren}
           onEdit={handleEditUser}
           onResendInvite={handleResendInvite}
           onClose={handleCloseMenu}
@@ -283,7 +297,7 @@ const UsersPage: React.FC = () => {
       )}
 
       {action === "children" && targetUser ? (
-        <SiblingsDialog user={targetUser} onClose={handleActionComplete} />
+        <ManageChildrenDialog user={targetUser} onClose={handleActionComplete} />
       ) : (
         <></>
       )}

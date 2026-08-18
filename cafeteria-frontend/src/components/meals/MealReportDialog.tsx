@@ -568,7 +568,7 @@ const getDailyReportData = (
     date
   );
 
-  // Find staff members who are being served meals but not in classroomTeachers array
+  // Staff with meals, including classroom teachers so they also appear in Staff Lunches
   const staffMeals = mealsBeingServed.filter((meal) => meal.staffMemberId);
   const staffBeingServed = staffMeals
     .map((meal) => users.find((user) => user.id === meal.staffMemberId)!)

@@ -6,13 +6,11 @@ import { DeepPartial, In } from "typeorm";
 import { AppDataSource } from "../data-source";
 import StudentEntity from "../entity/StudentEntity";
 import UserEntity from "../entity/UserEntity";
-import SurveyEntity from "../entity/SurveyEntity";
 import SchoolYear from "../models/SchoolYear";
 import FactsRelationship from "../models/FactsParent";
 import FactsPerson from "../models/FactsPerson";
 import SchoolEntity from "../entity/SchoolEntity";
 import { Role, AccountStatus, isFactsUserRole } from "../models/User";
-import UserStatusEntity from "../entity/UserStatusEntity";
 import { createUserWithStatus, saveUserStatus } from "../utils/UserStatusUtils";
 import EnrollmentEntity from "../entity/EnrollmentEntity";
 import SchoolYearEntity from "../entity/SchoolYearEntity";
@@ -20,6 +18,7 @@ import {
   deactivateEnrollmentsAtOtherDistrictSchoolsForStudents,
   upsertEnrollmentLinks,
 } from "../utils/EnrollmentUtils";
+import { findMatchingStudentByNameAndParents } from "./CsvImportService";
 
 interface FactsSchoolYear {
   yearId: number;
@@ -437,18 +436,7 @@ const fetchSchoolYears = async (
 };
 
 const isEmailAddress = (email: string): boolean => {
-  // TODO: Also check for no whitespace
   return email.includes("@") && email.includes(".") && !email.includes(" ");
-};
-
-const mapUserNameToEmailAddress = (person: FactsPerson): FactsPerson => {
-  if (isEmailAddress(person.username ?? "")) {
-    return { ...person, username: person.username.toLowerCase() };
-  }
-  if (isEmailAddress(person.email ?? "")) {
-    return { ...person, username: person.email!.toLowerCase() };
-  }
-  return person;
 };
 
 const fetchPeople = async (
@@ -674,6 +662,7 @@ const upsertFactsStudent = async (
       student.name;
     // Keep a single student row for the district; point it at the importing school.
     student.school = school;
+    student.factsId = factsStudent.personId;
     return await studentRepository.save(student);
   }
 
@@ -748,18 +737,15 @@ const findMatchingFactsRoleUser = (
   schoolId: number,
   factsPerson: FactsPerson,
 ): UserEntity | undefined => {
-  const factsUsername = factsPerson.username?.trim().toLowerCase() ?? "";
+  const factsEmail = factsPerson.email?.trim().toLowerCase() ?? "";
 
   return schoolFactsRoleUsers.find((user) => {
     const status = user.userStatuses?.find(
-      (userStatus) => userStatus.school?.id === schoolId,
+      (userStatus) =>
+        userStatus.school?.id === schoolId &&
+        isFactsUserRole(userStatus.role),
     );
-    if (
-      !status ||
-      (status.role !== Role.PARENT &&
-        status.role !== Role.TEACHER &&
-        status.role !== Role.STAFF)
-    ) {
+    if (!status) {
       return false;
     }
 
@@ -767,11 +753,13 @@ const findMatchingFactsRoleUser = (
       return true;
     }
 
-    if (status.factsId != null || !factsUsername) {
+    if (status.factsId != null || !factsEmail) {
       return false;
     }
 
-    return user.userName?.toLowerCase() === factsUsername;
+    return (
+      user.userName?.toLowerCase() === factsEmail
+    );
   });
 };
 
@@ -780,10 +768,8 @@ const upsertFactsSchoolUser = async (
   schoolFactsRoleUsers: UserEntity[],
   factsPerson: FactsPerson,
   role: Role,
-  mode: "import" | "sync",
 ): Promise<void> => {
-  const mappedFactsPerson = mapUserNameToEmailAddress(factsPerson);
-  if (!isEmailAddress(mappedFactsPerson.username)) {
+  if (!isEmailAddress(factsPerson.email)) {
     return;
   }
 
@@ -792,17 +778,13 @@ const upsertFactsSchoolUser = async (
   const matchingUser = findMatchingFactsRoleUser(
     schoolFactsRoleUsers,
     school.id,
-    mappedFactsPerson,
+    factsPerson,
   );
 
   if (!matchingUser) {
-    const userName = mappedFactsPerson.username?.trim();
-    if (!userName) {
-      return;
-    }
 
     const existingByUserName = await userRepository.findOne({
-      where: { userName: userName.toLowerCase() },
+      where: { userName: factsPerson.email.toLowerCase() },
     });
     if (existingByUserName) {
       return;
@@ -810,13 +792,11 @@ const upsertFactsSchoolUser = async (
 
     const createdUser = await createUserWithStatus({
       id: undefined,
-      userName: userName.toLowerCase(),
-      firstName: mappedFactsPerson.firstName ?? "",
-      lastName: mappedFactsPerson.lastName ?? "",
-      name: `${mappedFactsPerson.firstName ?? ""} ${mappedFactsPerson.lastName ?? ""}`.trim(),
-      email: mappedFactsPerson.email
-        ? mappedFactsPerson.email.toLowerCase()
-        : "",
+      userName: factsPerson.email.toLowerCase(),
+      firstName: factsPerson.firstName ?? "",
+      lastName: factsPerson.lastName ?? "",
+      name: `${factsPerson.firstName ?? ""} ${factsPerson.lastName ?? ""}`.trim(),
+      email: factsPerson.email.toLowerCase(),
       phone: "",
       pwd: "",
       school,
@@ -835,22 +815,8 @@ const upsertFactsSchoolUser = async (
     return;
   }
 
-  if (mode === "import") {
-    status.factsId = mappedFactsPerson.personId;
-    status.role = role;
-    if (status.accountStatus === AccountStatus.INACTIVE) {
-      status.accountStatus = matchingUser.pwd
-        ? AccountStatus.ACTIVE
-        : AccountStatus.PENDING;
-    }
-    matchingUser.userName = mappedFactsPerson.username;
-    await userRepository.save(matchingUser);
-    await saveUserStatus(status);
-    return;
-  }
-
-  if (status.factsId !== mappedFactsPerson.personId) {
-    status.factsId = mappedFactsPerson.personId;
+  if (status.factsId !== factsPerson.personId) {
+    status.factsId = factsPerson.personId;
     await saveUserStatus(status);
   }
 };
@@ -860,7 +826,6 @@ const ensureFactsTeachersAndStaff = async (
   schoolFactsRoleUsers: UserEntity[],
   teachers: FactsPerson[],
   nonTeacherStaff: FactsPerson[],
-  mode: "import" | "sync",
 ): Promise<void> => {
   for (const teacher of teachers) {
     await upsertFactsSchoolUser(
@@ -868,7 +833,6 @@ const ensureFactsTeachersAndStaff = async (
       schoolFactsRoleUsers,
       teacher,
       Role.TEACHER,
-      mode,
     );
   }
   for (const staffMember of nonTeacherStaff) {
@@ -877,44 +841,7 @@ const ensureFactsTeachersAndStaff = async (
       schoolFactsRoleUsers,
       staffMember,
       Role.STAFF,
-      mode,
     );
-  }
-};
-
-/**
- * Reconcile FACTS-role users missing from this import:
- * - Teachers/staff → demote to parent
- * - Parents → mark inactive
- */
-const deactivateMissingFactsRoleUsers = async (
-  school: SchoolEntity,
-  schoolFactsRoleUsers: UserEntity[],
-  importedPersonIds: Set<number>,
-): Promise<void> => {
-  for (const user of schoolFactsRoleUsers) {
-    const status = user.userStatuses?.find(
-      (userStatus) =>
-        userStatus.school?.id === school.id && isFactsUserRole(userStatus.role),
-    );
-    if (!status) {
-      continue;
-    }
-    if (status.factsId != null && importedPersonIds.has(status.factsId)) {
-      continue;
-    }
-
-    if (status.role === Role.TEACHER || status.role === Role.STAFF) {
-      status.role = Role.PARENT;
-      await saveUserStatus(status);
-      continue;
-    }
-
-    if (status.accountStatus === AccountStatus.INACTIVE) {
-      continue;
-    }
-    status.accountStatus = AccountStatus.INACTIVE;
-    await saveUserStatus(status);
   }
 };
 
@@ -1038,6 +965,7 @@ export class FactsService {
         userStatuses: {
           school: { id: school.id },
           factsId: parentFactId,
+          role: In([Role.PARENT, Role.TEACHER, Role.STAFF]),
         },
       },
       relations: {
@@ -1251,190 +1179,6 @@ export class FactsService {
     return undefined;
   }
 
-  static async importSchoolYear(
-    school: SchoolEntity,
-    schoolYear: SchoolYearEntity,
-    onProgress?: FactsProgressCallback,
-  ): Promise<string | undefined> {
-    const factsApiKey = school?.factsApiKey?.trim();
-    if (!factsApiKey) {
-      return "FACTS API key is not configured for this school.";
-    }
-    if (!schoolYear.factsId) {
-      return "School year is not linked to a FACTS year.";
-    }
-    const factsYearId = schoolYear.factsId;
-
-    reportProgress(onProgress, "Fetching enrolled students from FACTS…");
-    const enrolledStudents = await getEnrolledStudents(school);
-    reportProgress(onProgress, "Fetching parent relationships from FACTS…");
-    const factsRelationships = await getStudentRelationships(
-      school,
-      enrolledStudents,
-    );
-    reportProgress(onProgress, "Fetching staff and teachers from FACTS…");
-    const staffMembers = await getStaffMembers(school);
-    const teachers = await getTeachers(school, factsYearId, staffMembers);
-    const nonTeacherStaff = staffMembers.filter(
-      (staff) =>
-        !teachers.some((teacher) => teacher.personId === staff.personId),
-    );
-
-    const surveyRepository = AppDataSource.getRepository(SurveyEntity);
-    const userRepository = AppDataSource.getRepository(UserEntity);
-    const userStatusRepository = AppDataSource.getRepository(UserStatusEntity);
-
-    await surveyRepository.update(
-      { school: { id: school.id } },
-      { active: false },
-    );
-
-    await userStatusRepository.update(
-      { school: { id: school.id } },
-      { surveyCompleted: false },
-    );
-
-    reportProgress(onProgress, "Updating users…");
-    const schoolFactsRoleUsers = await userRepository.find({
-      where: {
-        userStatuses: {
-          school: { id: school.id },
-          role: In([Role.PARENT, Role.TEACHER, Role.STAFF]),
-        },
-      },
-      relations: {
-        userStatuses: {
-          school: true,
-        },
-      },
-    });
-
-    for (const factsRelationship of factsRelationships) {
-      const role = teachers.some(
-        (teacher) => teacher.personId === factsRelationship.parent.personId,
-      )
-        ? Role.TEACHER
-        : nonTeacherStaff.some(
-              (staff) => staff.personId === factsRelationship.parent.personId,
-            )
-          ? Role.STAFF
-          : Role.PARENT;
-
-      await upsertFactsSchoolUser(
-        school,
-        schoolFactsRoleUsers,
-        factsRelationship.parent,
-        role,
-        "import",
-      );
-    }
-
-    await ensureFactsTeachersAndStaff(
-      school,
-      schoolFactsRoleUsers,
-      teachers,
-      nonTeacherStaff,
-      "import",
-    );
-
-    const importedPersonIds = new Set<number>([
-      ...factsRelationships.map((relationship) => relationship.parent.personId),
-      ...teachers.map((teacher) => teacher.personId),
-      ...nonTeacherStaff.map((staff) => staff.personId),
-    ]);
-    await deactivateMissingFactsRoleUsers(
-      school,
-      schoolFactsRoleUsers,
-      importedPersonIds,
-    );
-
-    reportProgress(onProgress, "Updating students and enrollments…");
-    await AppDataSource.getRepository(EnrollmentEntity).update(
-      { schoolYear: { id: schoolYear.id } },
-      { active: false },
-    );
-
-    const factsStudentsById = new Map<number, FactsPerson>();
-    for (const relationship of factsRelationships) {
-      for (const child of relationship.children) {
-        if (!factsStudentsById.has(child.personId)) {
-          factsStudentsById.set(child.personId, child);
-        }
-      }
-    }
-    const factsStudents = [...factsStudentsById.values()];
-    const factsStudentIds = factsStudents.map((student) => student.personId);
-
-    const existingStudentEntities = await findExistingStudentsByFactsIds(
-      school,
-      factsStudentIds,
-    );
-
-    const studentsByFactsId = new Map<number, StudentEntity>();
-    for (const factsStudent of factsStudents) {
-      const studentEntity = await upsertFactsStudent(
-        school,
-        pickExistingStudentForFactsId(
-          existingStudentEntities,
-          factsStudent.personId,
-          school.id,
-        ),
-        factsStudent,
-      );
-      studentsByFactsId.set(factsStudent.personId, studentEntity);
-    }
-
-    const parentStudentLinks: Array<{
-      userId: number;
-      studentId: number;
-      schoolYearId: number;
-      active: boolean;
-    }> = [];
-    const seenLinks = new Set<string>();
-
-    for (const factsRelationship of factsRelationships) {
-      const parentUser = schoolFactsRoleUsers.find((user) =>
-        user.userStatuses?.some(
-          (status) =>
-            status.school?.id === school.id &&
-            status.factsId === factsRelationship.parent.personId,
-        ),
-      );
-      if (!parentUser) {
-        continue;
-      }
-
-      for (const child of factsRelationship.children) {
-        const student = studentsByFactsId.get(child.personId);
-        if (!student) {
-          continue;
-        }
-        const linkKey = `${parentUser.id}:${student.id}`;
-        if (seenLinks.has(linkKey)) {
-          continue;
-        }
-        seenLinks.add(linkKey);
-        parentStudentLinks.push({
-          userId: parentUser.id,
-          studentId: student.id,
-          schoolYearId: schoolYear.id,
-          active: true,
-        });
-      }
-    }
-
-    if (parentStudentLinks.length > 0) {
-      await upsertEnrollmentLinks(parentStudentLinks);
-      await deactivateEnrollmentsAtOtherDistrictSchoolsForStudents(
-        parentStudentLinks.map((link) => link.studentId),
-        school.id,
-      );
-    }
-
-    reportProgress(onProgress, "Import complete.");
-    return undefined;
-  }
-
   static async synchronizeSchoolYear(
     school: SchoolEntity,
     schoolYear: SchoolYearEntity,
@@ -1465,7 +1209,6 @@ export class FactsService {
     );
 
     const userRepository = AppDataSource.getRepository(UserEntity);
-    const studentRepository = AppDataSource.getRepository(StudentEntity);
 
     reportProgress(onProgress, "Updating users…");
     const schoolFactsRoleUsers = await userRepository.find({
@@ -1500,7 +1243,6 @@ export class FactsService {
         schoolFactsRoleUsers,
         factsParent,
         role,
-        "sync",
       );
     }
 
@@ -1509,7 +1251,6 @@ export class FactsService {
       schoolFactsRoleUsers,
       teachers,
       nonTeacherStaff,
-      "sync",
     );
 
     reportProgress(onProgress, "Updating students and enrollments…");
@@ -1529,6 +1270,21 @@ export class FactsService {
     const factsStudents = [...factsStudentsById.values()];
     const factsStudentIds = factsStudents.map((student) => student.personId);
 
+    const parentEmailsByStudentFactsId = new Map<number, string[]>();
+    for (const relationship of factsRelationships) {
+      const parentEmail = relationship.parent.email?.trim().toLowerCase() ?? "";
+      if (!isEmailAddress(parentEmail)) {
+        continue;
+      }
+      for (const child of relationship.children) {
+        const emails = parentEmailsByStudentFactsId.get(child.personId) ?? [];
+        if (!emails.includes(parentEmail)) {
+          emails.push(parentEmail);
+        }
+        parentEmailsByStudentFactsId.set(child.personId, emails);
+      }
+    }
+
     const existingStudentEntities = await findExistingStudentsByFactsIds(
       school,
       factsStudentIds,
@@ -1536,13 +1292,28 @@ export class FactsService {
 
     const studentsByFactsId = new Map<number, StudentEntity>();
     for (const factsStudent of factsStudents) {
+      let existingStudent = pickExistingStudentForFactsId(
+        existingStudentEntities,
+        factsStudent.personId,
+        school.id,
+      );
+
+      if (!existingStudent) {
+        const parentEmails =
+          parentEmailsByStudentFactsId.get(factsStudent.personId) ?? [];
+        existingStudent =
+          (await findMatchingStudentByNameAndParents(
+            school,
+            factsStudent.firstName,
+            factsStudent.lastName,
+            parentEmails,
+            { requireNullFactsId: true },
+          )) ?? undefined;
+      }
+
       const studentEntity = await upsertFactsStudent(
         school,
-        pickExistingStudentForFactsId(
-          existingStudentEntities,
-          factsStudent.personId,
-          school.id,
-        ),
+        existingStudent,
         factsStudent,
       );
       studentsByFactsId.set(factsStudent.personId, studentEntity);
@@ -1561,6 +1332,7 @@ export class FactsService {
         user.userStatuses?.some(
           (status) =>
             status.school?.id === school.id &&
+            isFactsUserRole(status.role) &&
             status.factsId === factsRelationship.parent.personId,
         ),
       );

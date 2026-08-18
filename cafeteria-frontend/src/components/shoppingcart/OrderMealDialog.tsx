@@ -6,6 +6,11 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  FormControl,
+  FormControlLabel,
+  FormLabel,
+  Radio,
+  RadioGroup,
   Typography,
 } from "@mui/material";
 import { AppContext } from "../../AppContextProvider";
@@ -22,6 +27,7 @@ import SchoolYear from "../../models/SchoolYear";
 import FamilyMemberSelector from "./FamilyMemberSelector";
 import MealDesigner from "./MealDesigner";
 import StudentAutoCompleteSelector from "../users/StudentAutoCompleteSelector";
+import StaffAutoCompleteSelector from "../users/StaffAutoCompleteSelector";
 import {
   associateStudentWithUser,
   createStudent,
@@ -30,8 +36,10 @@ import { StudentLunchTime } from "../../models/StudentLunchTime";
 import StudentLunchtimeDialog from "../users/StudentLunchtimeDialog";
 import StaffLunchtimeDialog from "../users/StaffLunchtimeDialog";
 import DailyMenuItem from "../../models/DailyMenuItem";
+import SchoolUser from "../../models/SchoolUser";
 
 type TypeOfOrder = "meal" | "drink";
+type DinerType = "student" | "staff";
 
 interface DialogProps {
   date: string;
@@ -80,6 +88,9 @@ const OrderMealDialog: React.FC<DialogProps> = ({
 
   const [selectedNonFamilyStudent, setSelectedNonFamilyStudent] =
     useState<Student | null>(null);
+  const [selectedStaffMember, setSelectedStaffMember] =
+    useState<SchoolUser | null>(null);
+  const [dinerType, setDinerType] = useState<DinerType>("student");
 
   const [menu] = useState<DailyMenu>(
     scheduledMenus.find((menu) => menu.date === date)!,
@@ -88,9 +99,19 @@ const OrderMealDialog: React.FC<DialogProps> = ({
   const dayOfWeek = DateTimeUtils.toDate(menu.date).getDay();
 
   const siblings = students.filter((s) => s.parents.includes(user.id));
-  const selectedStudent = user.role === Role.ADMIN
-    ? selectedNonFamilyStudent || undefined
-    : siblings.find((student) => student.id === selectedPersonId);
+  const selectedStudent =
+    user.role === Role.ADMIN
+      ? dinerType === "student"
+        ? selectedNonFamilyStudent || undefined
+        : undefined
+      : siblings.find((student) => student.id === selectedPersonId);
+
+  const hasAssignedStaffLunchTime = (staffMember?: SchoolUser | null) =>
+    !!staffMember &&
+    staffMember.role === Role.TEACHER &&
+    !!currentSchoolYear.teacherLunchTimes.find(
+      (lt) => lt.teacherId === staffMember.id && lt.dayOfWeek === dayOfWeek,
+    );
 
   const handlePersonSelected = (personId: number) => {
     if (personId === -2) {
@@ -119,9 +140,38 @@ const OrderMealDialog: React.FC<DialogProps> = ({
 
   const handleNonFamilyStudentSelected = (student: Student | null) => {
     setSelectedNonFamilyStudent(student);
-    if (student) {
-      setSelectedPersonId(student.id);
+    if (!student) {
+      setSelectedPersonId(0);
+      return;
     }
+    setSelectedPersonId(student.id);
+    const studentLunchTimes = currentSchoolYear.studentLunchTimes.filter(
+      (slt) => slt.studentId === student.id,
+    );
+    if (studentLunchTimes.length === 0) {
+      setShowStudentLunchTimeDialog(true);
+    }
+  };
+
+  const handleStaffMemberSelected = (staffMember: SchoolUser | null) => {
+    setSelectedStaffMember(staffMember);
+    setStaffLunchtime(undefined);
+    if (!staffMember) {
+      setSelectedPersonId(0);
+      return;
+    }
+    setSelectedPersonId(staffMember.id);
+    if (!hasAssignedStaffLunchTime(staffMember)) {
+      setShowStaffLunchtimeDialog(true);
+    }
+  };
+
+  const handleDinerTypeChanged = (nextType: DinerType) => {
+    setDinerType(nextType);
+    setSelectedPersonId(0);
+    setSelectedNonFamilyStudent(null);
+    setSelectedStaffMember(null);
+    setStaffLunchtime(undefined);
   };
 
   const handleTypeOfOrderSelected = (type: TypeOfOrder) => {
@@ -159,26 +209,38 @@ const OrderMealDialog: React.FC<DialogProps> = ({
         )
         .flat();
 
-      const hasMealInCart = shoppingCart.items.find(
-        (item) =>
-          item.dailyMenuId === menu.id &&
-          item.studentId === selectedStudent?.id,
-      )
+      const hasMealInCart = shoppingCart.items.find((item) => {
+        if (item.dailyMenuId !== menu.id) {
+          return false;
+        }
+        if (selectedStudent) {
+          return item.studentId === selectedStudent.id;
+        }
+        if (selectedStaffMember) {
+          return item.staffMemberId === selectedStaffMember.id;
+        }
+        return !item.studentId && !item.staffMemberId;
+      })
         ? true
         : false;
       const isMealOrdered = mealsOrdered.find((sm) =>
         selectedStudent
           ? sm.studentId === selectedStudent.id
-          : sm.staffMemberId === user.id,
+          : selectedStaffMember
+            ? sm.staffMemberId === selectedStaffMember.id
+            : sm.staffMemberId === user.id,
       )
         ? true
         : false;
+      const dinerName = selectedStudent
+        ? selectedStudent.firstName + " " + selectedStudent.lastName
+        : selectedStaffMember
+          ? selectedStaffMember.firstName + " " + selectedStaffMember.lastName
+          : "you";
       if (hasMealInCart) {
         setConfirmDialogMsg(
           "A meal / drink is already in your cart for " +
-            (selectedStudent
-              ? selectedStudent.firstName + " " + selectedStudent.lastName
-              : "you") +
+            dinerName +
             " on " +
             DateTimeUtils.toString(
               menu.date,
@@ -190,9 +252,7 @@ const OrderMealDialog: React.FC<DialogProps> = ({
       } else if (isMealOrdered) {
         setConfirmDialogMsg(
           "A meal / drink has already been ordered for " +
-            (selectedStudent
-              ? selectedStudent.firstName + " " + selectedStudent.lastName
-              : "you") +
+            dinerName +
             " on " +
             DateTimeUtils.toString(
               menu.date,
@@ -208,6 +268,7 @@ const OrderMealDialog: React.FC<DialogProps> = ({
 
     const newCartItem: ShoppingCartItem = {
       studentId: selectedStudent?.id,
+      staffMemberId: selectedStaffMember?.id,
       time: staffLunchtime,
       dailyMenuId: menu.id,
       isDrinkOnly: typeOfOrder === "drink",
@@ -347,6 +408,7 @@ const OrderMealDialog: React.FC<DialogProps> = ({
     setShowStudentLunchTimeDialog(false);
     if (!saved) {
       setSelectedPersonId(0);
+      setSelectedNonFamilyStudent(null);
     }
   };
 
@@ -355,6 +417,7 @@ const OrderMealDialog: React.FC<DialogProps> = ({
     setStaffLunchtime(selectedTime);
     if (!selectedTime) {
       setSelectedPersonId(0);
+      setSelectedStaffMember(null);
     }
   };
 
@@ -508,7 +571,16 @@ const OrderMealDialog: React.FC<DialogProps> = ({
 
   useEffect(() => {
     setIsAddToCartEnabled(false);
-    if (
+    const orderingForStaff =
+      user.role === Role.ADMIN && dinerType === "staff";
+    if (orderingForStaff) {
+      if (
+        !selectedStaffMember ||
+        (!hasAssignedStaffLunchTime(selectedStaffMember) && !staffLunchtime)
+      ) {
+        return;
+      }
+    } else if (
       (selectedPersonId !== MY_ID && selectedPersonId <= 0) ||
       (selectedPersonId !== MY_ID && !studentGradeLevel) ||
       (selectedPersonId !== MY_ID && isTeacherRequired && !assignedTeacher)
@@ -554,6 +626,9 @@ const OrderMealDialog: React.FC<DialogProps> = ({
     selectedPersonId,
     currentSchoolYear,
     typeOfOrder,
+    dinerType,
+    selectedStaffMember,
+    staffLunchtime,
   ]);
 
   return (
@@ -577,11 +652,42 @@ const OrderMealDialog: React.FC<DialogProps> = ({
           }}
         >
           {user.role === Role.ADMIN ? (
-            <StudentAutoCompleteSelector
-              value={selectedNonFamilyStudent}
-              onChange={handleNonFamilyStudentSelected}
-              label="Select Student"
-            />
+            <>
+              <FormControl component="fieldset">
+                <FormLabel component="legend">Order For</FormLabel>
+                <RadioGroup
+                  row
+                  value={dinerType}
+                  onChange={(event) =>
+                    handleDinerTypeChanged(event.target.value as DinerType)
+                  }
+                >
+                  <FormControlLabel
+                    value="student"
+                    control={<Radio />}
+                    label="Student"
+                  />
+                  <FormControlLabel
+                    value="staff"
+                    control={<Radio />}
+                    label="Teacher / Staff"
+                  />
+                </RadioGroup>
+              </FormControl>
+              {dinerType === "student" ? (
+                <StudentAutoCompleteSelector
+                  value={selectedNonFamilyStudent}
+                  onChange={handleNonFamilyStudentSelected}
+                  label="Select Student"
+                />
+              ) : (
+                <StaffAutoCompleteSelector
+                  value={selectedStaffMember}
+                  onChange={handleStaffMemberSelected}
+                  label="Select Teacher / Staff"
+                />
+              )}
+            </>
           ) : (
             <FamilyMemberSelector
               selectedPersonId={selectedPersonId}
@@ -643,9 +749,9 @@ const OrderMealDialog: React.FC<DialogProps> = ({
       ) : (
         <></>
       )}
-      {showStudentLunchTimeDialog ? (
+      {showStudentLunchTimeDialog && selectedStudent ? (
         <StudentLunchtimeDialog
-          student={students.find((s) => s.id === selectedPersonId)!}
+          student={selectedStudent}
           onClose={handleStudentLunchTimeDialogClosed}
         />
       ) : (

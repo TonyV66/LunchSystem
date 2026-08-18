@@ -3,6 +3,8 @@ import {
   Box,
   Fab,
   IconButton,
+  Menu,
+  MenuItem as MuiMenuItem,
   Stack,
   Typography,
 } from "@mui/material";
@@ -14,12 +16,13 @@ import {
 } from "@mui/x-data-grid";
 import { green, grey } from "@mui/material/colors";
 import { AppContext } from "../../AppContextProvider";
-import { Add, CloudUpload, Edit, Sync } from "@mui/icons-material";
+import { Add, CloudUpload, Edit } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
 import { SCHOOL_YEAR_URL } from "../../MainAppPanel";
 import SchoolYearDialog from "./SchoolYearDialog";
 import FactsSchoolYearsDialog from "./FactsSchoolYearsDialog";
-import UserImportDialog from "../users/UserImportDialog";
+import StaffImportDialog from "../users/StaffImportDialog";
+import StudentImportDialog from "../users/StudentImportDialog";
 import ConfirmDialog from "../ConfirmDialog";
 import ProgressDialog from "../ProgressDialog";
 import { synchronizeSchoolYear, pollFactsJob, fetchSessionInfo } from "../../api/CafeteriaClient";
@@ -58,7 +61,11 @@ const SchoolYearsPage: React.FC = () => {
   const [showSchoolYearDialog, setShowSchoolYearDialog] = useState(false);
   const [showFactsSchoolYearsDialog, setShowFactsSchoolYearsDialog] =
     useState(false);
-  const [showUserImportDialog, setShowUserImportDialog] = useState(false);
+  const [showStaffImportDialog, setShowStaffImportDialog] = useState(false);
+  const [showStudentImportDialog, setShowStudentImportDialog] = useState(false);
+  const [importMenuAnchor, setImportMenuAnchor] = useState<null | HTMLElement>(
+    null,
+  );
   const [syncYearId, setSyncYearId] = useState<number | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [showSyncProgress, setShowSyncProgress] = useState(false);
@@ -104,8 +111,16 @@ const SchoolYearsPage: React.FC = () => {
     }
   };
 
-  const handleCloseUserImportDialog = () => {
-    setShowUserImportDialog(false);
+  const handleCloseStaffImportDialog = () => {
+    setShowStaffImportDialog(false);
+  };
+
+  const handleCloseStudentImportDialog = () => {
+    setShowStudentImportDialog(false);
+  };
+
+  const handleCloseImportMenu = () => {
+    setImportMenuAnchor(null);
   };
 
   const handleShowSchoolYear = (yearId: number) => {
@@ -207,7 +222,7 @@ const SchoolYearsPage: React.FC = () => {
     {
       field: "onEditYear",
       headerName: "Actions",
-      width: isFactsSchool ? 140 : 140,
+      width: 100,
       cellClassName: (params) => {
         return params.id === currentSchoolYear.id ? "current-year" : "";
       },
@@ -218,26 +233,14 @@ const SchoolYearsPage: React.FC = () => {
         >,
       ) => (
         <Stack direction="row" justifyContent="flex-end" gap={1}>
-          {!isFactsSchool && params.id === currentSchoolYear.id && (
+          {params.id === currentSchoolYear.id && (
             <IconButton
               color="primary"
               size="small"
-              onClick={() => setShowUserImportDialog(true)}
-              title="Import users from CSV"
+              onClick={(event) => setImportMenuAnchor(event.currentTarget)}
+              title="Import"
             >
               <CloudUpload />
-            </IconButton>
-          )}
-          {isFactsSchool &&
-            Boolean(params.row.factsId) &&
-            params.id === currentSchoolYear.id && (
-            <IconButton
-              color="primary"
-              size="small"
-              onClick={() => setSyncYearId(params.id as number)}
-              title="Synchronize with FACTS"
-            >
-              <Sync />
             </IconButton>
           )}
           <IconButton
@@ -308,30 +311,68 @@ const SchoolYearsPage: React.FC = () => {
       {showFactsSchoolYearsDialog && (
         <FactsSchoolYearsDialog onClose={handleCloseFactsDialog} />
       )}
-      <UserImportDialog
-        open={showUserImportDialog}
-        onClose={handleCloseUserImportDialog}
+      <StaffImportDialog
+        open={showStaffImportDialog}
+        onClose={handleCloseStaffImportDialog}
         onImportComplete={() => {
           void refreshSession();
         }}
       />
+      <StudentImportDialog
+        open={showStudentImportDialog}
+        onClose={handleCloseStudentImportDialog}
+        onImportComplete={() => {
+          void refreshSession();
+        }}
+      />
+      <Menu
+        anchorEl={importMenuAnchor}
+        open={Boolean(importMenuAnchor)}
+        onClose={handleCloseImportMenu}
+      >
+        <MuiMenuItem
+          onClick={() => {
+            setShowStudentImportDialog(true);
+            handleCloseImportMenu();
+          }}
+        >
+          Import Students From CSV
+        </MuiMenuItem>
+        <MuiMenuItem
+          onClick={() => {
+            setShowStaffImportDialog(true);
+            handleCloseImportMenu();
+          }}
+        >
+          Import Staff From CSV
+        </MuiMenuItem>
+        <MuiMenuItem
+          disabled={!isFactsSchool}
+          onClick={() => {
+            setSyncYearId(currentSchoolYear.id);
+            handleCloseImportMenu();
+          }}
+        >
+          Import Students & Staff From FACTS
+        </MuiMenuItem>
+      </Menu>
       {syncYearId != null && (
         <ConfirmDialog
-          title="Synchronize with FACTS"
+          title="Import from FACTS"
           open={true}
-          okLabel="Synchronize"
+          okLabel="Import"
           isOkDisabled={syncing}
           onOk={handleConfirmSynchronize}
           onCancel={() => setSyncYearId(null)}
         >
           <Typography variant="body2">
-            {`Synchronize "${syncYear?.name ?? "this school year"}" with the latest FACTS information? This will update parents, students, teachers, staff, and enrollments from FACTS.`}
+            {`Import students and staff for "${syncYear?.name ?? "this school year"}" from FACTS? This will update parents, students, teachers, staff, and enrollments.`}
           </Typography>
         </ConfirmDialog>
       )}
       <ProgressDialog
         open={showSyncProgress}
-        title="Synchronize with FACTS"
+        title="Import from FACTS"
         message={syncProgressMessage}
         isComplete={syncProgressComplete}
         onOk={handleSyncProgressOk}

@@ -35,14 +35,21 @@ const OrderedMealsPage: React.FC = () => {
           <MenuItemTypesLegend />
         </Box>
         {user.role !== Role.ADMIN ? (
-          <Button
-            size="small"
-            onClick={handleOrder}
-            color="primary"
-            variant="contained"
-          >
-            Order Meals
-          </Button>
+          <Stack direction="row" gap={2} alignItems="center">
+            {user.availableCredits > 0 && (
+              <Typography variant="body2" color="text.secondary">
+                Available Credits: ${user.availableCredits.toFixed(2)}
+              </Typography>
+            )}
+            <Button
+              size="small"
+              onClick={handleOrder}
+              color="primary"
+              variant="contained"
+            >
+              Order Meals
+            </Button>
+          </Stack>
         ) : (
           <></>
         )}
@@ -54,6 +61,7 @@ const OrderedMealsPage: React.FC = () => {
             user={user}
             startDate={DateTimeUtils.toString(DateTimeUtils.getCurrentDate())}
             highlightMealsNotOrderedByMe={true}
+            allowPurchaserCancel={true}
           />
         </Box>
       </Box>

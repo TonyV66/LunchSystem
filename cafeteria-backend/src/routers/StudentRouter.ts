@@ -16,8 +16,12 @@ import { getUserStatus } from "../utils/UserStatusUtils";
 import {
   ensureEnrollment,
   getStudentsForUserInSchoolYear,
+  getUsersWithEnrollmentHistoryForStudentAtSchool,
+  removeEnrollment,
 } from "../utils/EnrollmentUtils";
 import EnrollmentEntity from "../entity/EnrollmentEntity";
+import { authorizeUserWithRole } from "./RouterUtils";
+import { Role, isFactsUserRole } from "../models/User";
 
 const StudentRouter: Router = express.Router();
 interface Empty {}
@@ -504,5 +508,175 @@ StudentRouter.get<
     res.status(500).send("Internal server error" as string);
   }
 });
+
+interface StudentParentEnrollment {
+  user: SchoolUser;
+  enrolled: boolean;
+}
+
+interface UpdateStudentEnrollmentsRequest {
+  enrollments: Array<{ userId: number; enrolled: boolean }>;
+}
+
+const toStudentParentEnrollments = (
+  users: UserEntity[],
+  schoolId: number,
+): StudentParentEnrollment[] => {
+  const byUserId = new Map<number, StudentParentEnrollment>();
+  for (const user of users) {
+    if (byUserId.has(user.id)) {
+      continue;
+    }
+    const status =
+      user.userStatuses?.find(
+        (userStatus) => userStatus.school?.id === schoolId,
+      ) ?? getUserStatus(user);
+    if (!status) {
+      continue;
+    }
+    byUserId.set(user.id, {
+      user: new SchoolUser(user, status),
+      enrolled: (user.enrollments?.length ?? 0) > 0,
+    });
+  }
+
+  return Array.from(byUserId.values()).sort((a, b) =>
+    `${a.user.firstName} ${a.user.lastName}`.localeCompare(
+      `${b.user.firstName} ${b.user.lastName}`,
+    ),
+  );
+};
+
+const requireStudentAtSchool = async (
+  studentId: number,
+  schoolId: number,
+): Promise<StudentEntity | string> => {
+  const student = await AppDataSource.getRepository(StudentEntity).findOne({
+    where: { id: studentId, school: { id: schoolId } },
+  });
+  return student ?? "Student not found.";
+};
+
+StudentRouter.get<
+  { studentId: string },
+  StudentParentEnrollment[] | string,
+  Empty,
+  Empty
+>(
+  "/:studentId/enrollments",
+  authorizeUserWithRole(Role.ADMIN),
+  async (req, res) => {
+    const studentId = parseInt(req.params.studentId);
+    const student = await requireStudentAtSchool(studentId, req.school.id);
+    if (typeof student === "string") {
+      res.status(404).send(student);
+      return;
+    }
+
+    const users = await getUsersWithEnrollmentHistoryForStudentAtSchool(
+      studentId,
+      req.school.id,
+      req.schoolYear?.id,
+    );
+
+    res.send(toStudentParentEnrollments(users, req.school.id));
+  },
+);
+
+StudentRouter.put<
+  { studentId: string },
+  StudentParentEnrollment[] | string,
+  UpdateStudentEnrollmentsRequest,
+  Empty
+>(
+  "/:studentId/enrollments",
+  authorizeUserWithRole(Role.ADMIN),
+  async (req, res) => {
+    const studentId = parseInt(req.params.studentId);
+    const student = await requireStudentAtSchool(studentId, req.school.id);
+    if (typeof student === "string") {
+      res.status(404).send(student);
+      return;
+    }
+
+    const currentSchoolYear = req.schoolYear;
+    if (!currentSchoolYear) {
+      res.status(400).send("No current school year found.");
+      return;
+    }
+
+    if (!Array.isArray(req.body.enrollments)) {
+      res.status(400).send("enrollments is required.");
+      return;
+    }
+
+    const historyUsers = await getUsersWithEnrollmentHistoryForStudentAtSchool(
+      studentId,
+      req.school.id,
+      currentSchoolYear.id,
+    );
+    const usersById = new Map(historyUsers.map((user) => [user.id, user]));
+
+    const unseenUserIds = [
+      ...new Set(
+        req.body.enrollments
+          .map((enrollment) => enrollment.userId)
+          .filter((userId) => !usersById.has(userId)),
+      ),
+    ];
+    if (unseenUserIds.length > 0) {
+      const extraUsers = await AppDataSource.getRepository(UserEntity).find({
+        where: { id: In(unseenUserIds) },
+        relations: {
+          userStatuses: {
+            school: true,
+          },
+        },
+      });
+      for (const user of extraUsers) {
+        const status = user.userStatuses?.find(
+          (userStatus) => userStatus.school?.id === req.school.id,
+        );
+        if (!status || !isFactsUserRole(status.role)) {
+          continue;
+        }
+        usersById.set(user.id, user);
+      }
+    }
+
+    const seenUserIds = new Set<number>();
+    for (const enrollment of req.body.enrollments) {
+      if (seenUserIds.has(enrollment.userId)) {
+        res.status(400).send("Duplicate user in enrollment list.");
+        return;
+      }
+      seenUserIds.add(enrollment.userId);
+
+      const user = usersById.get(enrollment.userId);
+      if (!user) {
+        res
+          .status(400)
+          .send("User is not a parent, teacher, or staff member at this school.");
+        return;
+      }
+
+      const currentlyEnrolled = (user.enrollments?.length ?? 0) > 0;
+
+      if (enrollment.enrolled && !currentlyEnrolled) {
+        await ensureEnrollment(user, student, currentSchoolYear);
+      } else if (!enrollment.enrolled && currentlyEnrolled) {
+        await removeEnrollment(user, student, currentSchoolYear);
+      }
+    }
+
+    const updatedUsers = await getUsersWithEnrollmentHistoryForStudentAtSchool(
+      studentId,
+      req.school.id,
+      currentSchoolYear.id,
+    );
+
+    res.send(toStudentParentEnrollments(updatedUsers, req.school.id));
+  },
+);
 
 export default StudentRouter;

@@ -11,6 +11,7 @@ import {
 import { AppContext } from "../../AppContextProvider";
 import { cancelMeal } from "../../api/CafeteriaClient";
 import Meal from "../../models/Meal";
+import { Role } from "../../models/User";
 
 interface CancelMealDialogProps {
   onClose: () => void;
@@ -29,7 +30,8 @@ const CancelMealDialog: React.FC<CancelMealDialogProps> = ({
     user,
     setUser,
   } = useContext(AppContext);
-  const [issueCredits, setIssueCredits] = React.useState(false);
+  const isAdmin = user.role === Role.ADMIN;
+  const [issueCredits, setIssueCredits] = React.useState(!isAdmin);
 
   const mealValue = meal.items.reduce((total, item) => {
     return total + item.price;
@@ -37,7 +39,7 @@ const CancelMealDialog: React.FC<CancelMealDialogProps> = ({
 
   const handleConfirm = async () => {
     try {
-      const response = await cancelMeal(meal.id, issueCredits);
+      const response = await cancelMeal(meal.id, isAdmin ? issueCredits : true);
       setUser({ ...user, availableCredits: response.availableCredits });
       setOrders(
         orders.map((o) => (o.id === response.order.id ? response.order : o))
@@ -55,7 +57,7 @@ const CancelMealDialog: React.FC<CancelMealDialogProps> = ({
       <DialogTitle>Cancel Meal</DialogTitle>
       <DialogContent>
         <p>Are you sure you want to cancel this meal?</p>
-        {mealValue > 0 && (
+        {isAdmin && mealValue > 0 && (
           <FormControlLabel
             control={
               <Checkbox
@@ -65,6 +67,13 @@ const CancelMealDialog: React.FC<CancelMealDialogProps> = ({
             }
             label={`Apply $${mealValue.toFixed(2)} credit to user's account`}
           />
+        )}
+        {!isAdmin && (
+          <p>
+            You will not be issued a refund. Instead, you will be issued
+            {mealValue > 0 ? ` $${mealValue.toFixed(2)} in` : ""} credits that
+            you can use when purchasing future meals.
+          </p>
         )}
       </DialogContent>
       <DialogActions>

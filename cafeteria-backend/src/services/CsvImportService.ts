@@ -1,28 +1,25 @@
-import { randomUUID } from "crypto";
 import csv from "csv-parser";
+import { randomUUID } from "crypto";
 import { Readable } from "stream";
 import { AppDataSource } from "../data-source";
 import SchoolEntity from "../entity/SchoolEntity";
 import SchoolYearEntity from "../entity/SchoolYearEntity";
 import StudentEntity from "../entity/StudentEntity";
 import UserEntity from "../entity/UserEntity";
-import { AccountStatus, Role } from "../models/User";
+import { AccountStatus, isFactsUserRole, Role } from "../models/User";
 import { ensureEnrollment } from "../utils/EnrollmentUtils";
 import {
   createUserWithStatus,
   ensureUserStatus,
 } from "../utils/UserStatusUtils";
 
-const REQUIRED_HEADERS = [
-  "email",
-  "firstname",
-  "lastname",
-  "parent1",
-] as const;
+const STAFF_REQUIRED_HEADERS = ["email", "firstname", "lastname"] as const;
+const STUDENT_REQUIRED_HEADERS = ["firstname", "lastname", "email"] as const;
+const FACTS_USER_ROLES = [Role.PARENT, Role.TEACHER, Role.STAFF] as const;
 
-const VALID_ROLES = ["student", "parent", "staff", "teacher"] as const;
+const VALID_ROLES = ["staff", "teacher"] as const;
 
-type CsvRole = (typeof VALID_ROLES)[number];
+type StaffCsvRole = (typeof VALID_ROLES)[number];
 
 const ROLE_PRIORITY: Record<number, number> = {
   [Role.PARENT]: 1,
@@ -35,35 +32,43 @@ export type CsvImportRowError = {
   message: string;
 };
 
-export type CsvImportResult = {
+export type StaffCsvImportResult = {
   createdUsersCount: number;
   updatedUsersCount: number;
+  unchangedUsersCount: number;
+  rowErrors: CsvImportRowError[];
+};
+
+export type StudentCsvImportResult = {
+  createdUsersCount: number;
   createdStudentsCount: number;
-  updatedStudentsCount: number;
+  matchedStudentsCount: number;
   enrollmentLinksCount: number;
   rowErrors: CsvImportRowError[];
 };
 
-type ParsedCsvRow = {
+type ParsedStaffCsvRow = {
   rowNumber: number;
-  roleRaw: string;
   email: string;
   firstName: string;
   lastName: string;
-  parent1: string;
-  parent2: string;
+  roleRaw: string;
 };
 
-type ResolvedCsvRow = ParsedCsvRow & {
-  role: CsvRole;
-};
-
-type AdultRecord = {
+type StaffRecord = {
   email: string;
   firstName: string;
   lastName: string;
   role: Role;
   sourceRowNumbers: number[];
+};
+
+type ParsedStudentCsvRow = {
+  rowNumber: number;
+  firstName: string;
+  lastName: string;
+  email: string;
+  altEmail: string;
 };
 
 export class CsvImportValidationError extends Error {
@@ -83,36 +88,35 @@ const normalizeName = (value: string): string => value.trim();
 const looksLikeEmail = (value: string): boolean =>
   /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 
-const isValidRole = (value: string): value is CsvRole =>
+const isValidRole = (value: string): value is StaffCsvRole =>
   (VALID_ROLES as readonly string[]).includes(value);
 
-const csvRoleToRole = (role: CsvRole): Role => {
-  switch (role) {
-    case "teacher":
-      return Role.TEACHER;
-    case "staff":
-      return Role.STAFF;
-    case "parent":
-    default:
-      return Role.PARENT;
-  }
-};
+const csvRoleToRole = (role: StaffCsvRole): Role =>
+  role === "teacher" ? Role.TEACHER : Role.STAFF;
 
 const higherRole = (a: Role, b: Role): Role =>
   (ROLE_PRIORITY[a] ?? 0) >= (ROLE_PRIORITY[b] ?? 0) ? a : b;
 
-const parseCsvBuffer = async (buffer: Buffer): Promise<ParsedCsvRow[]> => {
-  const rows: ParsedCsvRow[] = [];
+const canElevateFrom = (role: Role): boolean =>
+  role === Role.PARENT || role === Role.STAFF;
+
+const parseCsvRows = async <T>(
+  buffer: Buffer,
+  requiredHeaders: readonly string[],
+  expectedHeaderMessage: string,
+  mapRow: (raw: Record<string, string>, rowNumber: number) => T,
+): Promise<T[]> => {
+  const rows: T[] = [];
   let headersValidated = false;
   let rowNumber = 1;
 
   const validateHeaders = (headers: string[]) => {
-    const missing = REQUIRED_HEADERS.filter(
+    const missing = requiredHeaders.filter(
       (required) => !headers.includes(required),
     );
     if (missing.length > 0) {
       throw new CsvImportValidationError(
-        `Missing required columns: ${missing.join(", ")}. Expected header: email,firstname,lastname,parent1 (role and parent2 optional)`,
+        `Missing required columns: ${missing.join(", ")}. Expected header: ${expectedHeaderMessage}`,
       );
     }
     headersValidated = true;
@@ -138,15 +142,7 @@ const parseCsvBuffer = async (buffer: Buffer): Promise<ParsedCsvRow[]> => {
             validateHeaders(Object.keys(raw));
           }
           rowNumber += 1;
-          rows.push({
-            rowNumber,
-            roleRaw: (raw.role ?? "").trim().toLowerCase(),
-            email: normalizeEmail(raw.email ?? ""),
-            firstName: normalizeName(raw.firstname ?? ""),
-            lastName: normalizeName(raw.lastname ?? ""),
-            parent1: normalizeEmail(raw.parent1 ?? ""),
-            parent2: normalizeEmail(raw.parent2 ?? ""),
-          });
+          rows.push(mapRow(raw, rowNumber));
         } catch (error) {
           reject(error);
         }
@@ -158,90 +154,120 @@ const parseCsvBuffer = async (buffer: Buffer): Promise<ParsedCsvRow[]> => {
   return rows;
 };
 
-/**
- * Resolve role and validate a row.
- * - role omitted/empty + email → parent
- * - role omitted/empty + no email + parent email → student
- * - both email and parent email → skip
- * - students require at least one parent email
- */
-const resolveRow = (
-  row: ParsedCsvRow,
-): { row: ResolvedCsvRow } | { error: string } | { skip: string } => {
-  const hasEmail = Boolean(row.email);
-  const hasParent = Boolean(row.parent1 || row.parent2);
-
-  if (hasEmail && hasParent) {
-    return {
-      skip: "Skipped: row has both an email and a parent email",
-    };
+const resolveStaffRow = (
+  row: ParsedStaffCsvRow,
+): { record: Omit<StaffRecord, "sourceRowNumbers"> } | { error: string } => {
+  if (!row.email) {
+    return { error: "email is required" };
   }
-
+  if (!looksLikeEmail(row.email)) {
+    return { error: `Invalid email "${row.email}"` };
+  }
   if (!row.firstName || !row.lastName) {
-    return { error: "firstname and lastname are required" };
+    return { error: "firstName and lastName are required" };
   }
 
-  let role: CsvRole;
+  let role: Role = Role.STAFF;
   if (row.roleRaw) {
     if (!isValidRole(row.roleRaw)) {
       return {
-        error: `Invalid role "${row.roleRaw}". Must be student, parent, staff, or teacher`,
+        error: `Invalid role "${row.roleRaw}". Must be teacher or staff`,
       };
     }
-    role = row.roleRaw;
-  } else if (hasEmail) {
-    role = "parent";
-  } else if (hasParent) {
-    role = "student";
-  } else {
-    return {
-      error:
-        "Unable to determine role: provide an email (parent) or parent1/parent2 (student)",
-    };
+    role = csvRoleToRole(row.roleRaw);
   }
 
-  if (role === "student") {
-    if (!hasParent) {
-      return {
-        error: "At least one of parent1 or parent2 is required for students",
-      };
-    }
-    if (row.parent1 && !looksLikeEmail(row.parent1)) {
-      return { error: "parent1 must be an email address" };
-    }
-    if (row.parent2 && !looksLikeEmail(row.parent2)) {
-      return { error: "parent2 must be an email address" };
-    }
-  } else {
-    if (!hasEmail) {
-      return { error: "email is required for non-student roles" };
-    }
-    if (!looksLikeEmail(row.email)) {
-      return { error: `Invalid email "${row.email}"` };
-    }
-  }
-
-  return { row: { ...row, role } };
+  return {
+    record: {
+      email: row.email,
+      firstName: row.firstName,
+      lastName: row.lastName,
+      role,
+    },
+  };
 };
 
-const findUserByEmailOrUsername = async (
-  email: string,
+/**
+ * Match users by username/email only when they have parent, teacher, or staff
+ * at the school (admins/principals/etc. are never treated as parent/staff matches).
+ */
+const findFactsRoleUserByUsername = async (
+  username: string,
+  schoolId: number,
 ): Promise<UserEntity | null> => {
-  const userRepository = AppDataSource.getRepository(UserEntity);
-  return userRepository
+  return AppDataSource.getRepository(UserEntity)
     .createQueryBuilder("user")
-    .leftJoinAndSelect("user.userStatuses", "userStatus")
-    .leftJoinAndSelect("userStatus.school", "school")
-    .where("LOWER(user.userName) = :email", { email })
-    .orWhere("LOWER(user.email) = :email", { email })
+    .innerJoinAndSelect("user.userStatuses", "userStatus")
+    .innerJoinAndSelect("userStatus.school", "school")
+    .where("LOWER(user.userName) = :username", { username })
+    .andWhere("school.id = :schoolId", { schoolId })
+    .andWhere("userStatus.role IN (:...roles)", {
+      roles: [...FACTS_USER_ROLES],
+    })
     .getOne();
 };
 
-const findMatchingStudent = async (
+const ensureParentForSchool = async (
+  email: string,
+  school: SchoolEntity,
+  emailToUser: Map<string, UserEntity>,
+): Promise<{ user: UserEntity; created: boolean }> => {
+  const cached = emailToUser.get(email);
+  if (cached) {
+    const statusAtSchool = cached.userStatuses?.find(
+      (status) =>
+        status.school?.id === school.id && isFactsUserRole(status.role),
+    );
+    if (!statusAtSchool) {
+      await ensureUserStatus(cached, school, { role: Role.PARENT });
+    }
+    return { user: cached, created: false };
+  }
+
+  let user = await findFactsRoleUserByUsername(email, school.id);
+  if (!user) {
+    const existingByUserName = await AppDataSource.getRepository(
+      UserEntity,
+    ).findOne({ where: { userName: email } });
+    if (existingByUserName) {
+      throw new Error(
+        `Email "${email}" matches an existing account that is not a parent, teacher, or staff`,
+      );
+    }
+    user = await createUserWithStatus({
+      id: undefined,
+      userName: email,
+      email,
+      firstName: "",
+      lastName: "",
+      name: "",
+      phone: "",
+      pwd: "",
+      school,
+      role: Role.PARENT,
+      accountStatus: AccountStatus.PENDING,
+    });
+    emailToUser.set(email, user);
+    return { user, created: true };
+  }
+
+  const statusAtSchool = user.userStatuses?.find(
+    (status) =>
+      status.school?.id === school.id && isFactsUserRole(status.role),
+  );
+  if (!statusAtSchool) {
+    await ensureUserStatus(user, school, { role: Role.PARENT });
+  }
+  emailToUser.set(email, user);
+  return { user, created: false };
+};
+
+export const findMatchingStudentByNameAndParents = async (
   school: SchoolEntity,
   firstName: string,
   lastName: string,
   parentEmails: string[],
+  options?: { requireNullFactsId?: boolean },
 ): Promise<StudentEntity | null> => {
   if (parentEmails.length === 0) {
     return null;
@@ -259,168 +285,220 @@ const findMatchingStudent = async (
     .createQueryBuilder("student")
     .innerJoin("student.enrollments", "enrollment")
     .innerJoin("enrollment.user", "user")
+    .innerJoin("user.userStatuses", "userStatus")
+    .innerJoin("userStatus.school", "parentStatusSchool")
     .innerJoin("student.school", "school")
     .where("LOWER(student.firstName) = LOWER(:firstName)", { firstName })
     .andWhere("LOWER(student.lastName) = LOWER(:lastName)", { lastName })
-    .andWhere(
-      "(LOWER(user.userName) IN (:...parentEmails) OR LOWER(user.email) IN (:...parentEmails))",
-      { parentEmails },
-    );
+    .andWhere("LOWER(user.userName) IN (:...parentEmails)", {
+      parentEmails,
+    })
+    .andWhere("userStatus.role IN (:...roles)", {
+      roles: [...FACTS_USER_ROLES],
+    });
+
+  if (options?.requireNullFactsId) {
+    qb.andWhere("student.factsId IS NULL");
+  }
 
   if (districtId) {
-    qb.andWhere("school.schoolDistrictId = :districtId", { districtId });
+    qb.andWhere("school.schoolDistrictId = :districtId", { districtId }).andWhere(
+      "parentStatusSchool.schoolDistrictId = :districtId",
+      { districtId },
+    );
   } else {
-    qb.andWhere("school.id = :schoolId", { schoolId: school.id });
+    qb.andWhere("school.id = :schoolId", { schoolId: school.id }).andWhere(
+      "parentStatusSchool.id = :schoolId",
+      { schoolId: school.id },
+    );
   }
 
   return qb.getOne();
 };
 
-export const importUsersFromCsv = async (
+/**
+ * Import staff/teachers from CSV.
+ * Columns: email, firstName, lastName (required); role optional (teacher|staff, default staff).
+ * Elevates parent→staff→teacher only; never downgrades; does not change enrollments or existing user profile fields.
+ */
+export const importStaffFromCsv = async (
   buffer: Buffer,
   school: SchoolEntity,
-  schoolYear: SchoolYearEntity,
-): Promise<CsvImportResult> => {
-  const rows = await parseCsvBuffer(buffer);
+): Promise<StaffCsvImportResult> => {
+  const rows = await parseCsvRows(
+    buffer,
+    STAFF_REQUIRED_HEADERS,
+    "email,firstName,lastName (role optional)",
+    (raw, rowNumber) => ({
+      rowNumber,
+      email: normalizeEmail(raw.email ?? ""),
+      firstName: normalizeName(raw.firstname ?? ""),
+      lastName: normalizeName(raw.lastname ?? ""),
+      roleRaw: (raw.role ?? "").trim().toLowerCase(),
+    }),
+  );
   if (rows.length === 0) {
     throw new CsvImportValidationError("CSV file contains no data rows");
   }
 
-  const result: CsvImportResult = {
+  const result: StaffCsvImportResult = {
     createdUsersCount: 0,
     updatedUsersCount: 0,
-    createdStudentsCount: 0,
-    updatedStudentsCount: 0,
-    enrollmentLinksCount: 0,
+    unchangedUsersCount: 0,
     rowErrors: [],
   };
 
-  const adultMap = new Map<string, AdultRecord>();
-  const validStudentRows: ResolvedCsvRow[] = [];
+  const staffMap = new Map<string, StaffRecord>();
 
   for (const row of rows) {
-    const resolved = resolveRow(row);
-    if ("skip" in resolved) {
-      result.rowErrors.push({ row: row.rowNumber, message: resolved.skip });
-      continue;
-    }
+    const resolved = resolveStaffRow(row);
     if ("error" in resolved) {
       result.rowErrors.push({ row: row.rowNumber, message: resolved.error });
       continue;
     }
 
-    const resolvedRow = resolved.row;
-    if (resolvedRow.role === "student") {
-      validStudentRows.push(resolvedRow);
-      continue;
-    }
-
-    const role = csvRoleToRole(resolvedRow.role);
-    const existing = adultMap.get(resolvedRow.email);
+    const existing = staffMap.get(resolved.record.email);
     if (!existing) {
-      adultMap.set(resolvedRow.email, {
-        email: resolvedRow.email,
-        firstName: resolvedRow.firstName,
-        lastName: resolvedRow.lastName,
-        role,
-        sourceRowNumbers: [resolvedRow.rowNumber],
+      staffMap.set(resolved.record.email, {
+        ...resolved.record,
+        sourceRowNumbers: [row.rowNumber],
       });
     } else {
-      existing.role = higherRole(existing.role, role);
-      existing.firstName = resolvedRow.firstName || existing.firstName;
-      existing.lastName = resolvedRow.lastName || existing.lastName;
-      existing.sourceRowNumbers.push(resolvedRow.rowNumber);
+      existing.role = higherRole(existing.role, resolved.record.role);
+      existing.sourceRowNumbers.push(row.rowNumber);
     }
   }
 
-  const userRepository = AppDataSource.getRepository(UserEntity);
-  const studentRepository = AppDataSource.getRepository(StudentEntity);
-  const emailToUser = new Map<string, UserEntity>();
-
-  for (const adult of adultMap.values()) {
-    let user = await findUserByEmailOrUsername(adult.email);
-    const fullName = `${adult.firstName} ${adult.lastName}`.trim();
+  for (const staff of staffMap.values()) {
+    const user = await findFactsRoleUserByUsername(
+      staff.email,
+      school.id,
+    );
 
     if (!user) {
-      user = await createUserWithStatus({
+      const existingByUserName = await AppDataSource.getRepository(
+        UserEntity,
+      ).findOne({ where: { userName: staff.email } });
+      if (existingByUserName) {
+        // Username taken by a non-FACTS-role account; do not reuse it.
+        result.unchangedUsersCount++;
+        continue;
+      }
+      const fullName = `${staff.firstName} ${staff.lastName}`.trim();
+      await createUserWithStatus({
         id: undefined,
-        userName: adult.email,
-        email: adult.email,
-        firstName: adult.firstName,
-        lastName: adult.lastName,
+        userName: staff.email,
+        email: staff.email,
+        firstName: staff.firstName,
+        lastName: staff.lastName,
         name: fullName,
         phone: "",
         pwd: "",
         school,
-        role: adult.role,
+        role: staff.role,
         accountStatus: AccountStatus.PENDING,
       });
       result.createdUsersCount++;
-    } else {
-      user.firstName = adult.firstName;
-      user.lastName = adult.lastName;
-      user.name = fullName;
-      user.email = adult.email;
-      user.userName = adult.email;
-      await userRepository.save(user);
-
-      const existingStatus = user.userStatuses?.find(
-        (status) => status.school?.id === school.id,
-      );
-      const existingRole = existingStatus?.role;
-      const roleToApply =
-        existingRole === Role.TEACHER ||
-        existingRole === Role.STAFF ||
-        existingRole === Role.PARENT
-          ? higherRole(existingRole, adult.role)
-          : adult.role;
-
-      await ensureUserStatus(user, school, { role: roleToApply });
-      result.updatedUsersCount++;
+      continue;
     }
 
-    emailToUser.set(adult.email, user);
+    const existingStatus = user.userStatuses?.find(
+      (status) => status.school?.id === school.id,
+    );
+
+    if (!existingStatus) {
+      await ensureUserStatus(user, school, { role: staff.role });
+      result.updatedUsersCount++;
+      continue;
+    }
+
+    if (!canElevateFrom(existingStatus.role)) {
+      result.unchangedUsersCount++;
+      continue;
+    }
+
+    const roleToApply = higherRole(existingStatus.role, staff.role);
+    if (roleToApply === existingStatus.role) {
+      result.unchangedUsersCount++;
+      continue;
+    }
+
+    await ensureUserStatus(user, school, { role: roleToApply });
+    result.updatedUsersCount++;
   }
 
-  const resolveParent = async (
-    email: string,
-  ): Promise<UserEntity | null> => {
-    if (!email) {
-      return null;
-    }
-    const fromCsv = emailToUser.get(email);
-    if (fromCsv) {
-      return fromCsv;
-    }
-    const fromDb = await findUserByEmailOrUsername(email);
-    if (fromDb) {
-      emailToUser.set(email, fromDb);
-    }
-    return fromDb;
+  return result;
+};
+
+/**
+ * Import students (and ensure parents) from CSV.
+ * Columns: firstName, lastName, email (required); altEmail optional.
+ * email/altEmail are parent emails. Match students by name + parent within district.
+ */
+export const importStudentsFromCsv = async (
+  buffer: Buffer,
+  school: SchoolEntity,
+  schoolYear: SchoolYearEntity,
+): Promise<StudentCsvImportResult> => {
+  const rows = await parseCsvRows(
+    buffer,
+    STUDENT_REQUIRED_HEADERS,
+    "firstName,lastName,email (altEmail optional)",
+    (raw, rowNumber): ParsedStudentCsvRow => ({
+      rowNumber,
+      firstName: normalizeName(raw.firstname ?? ""),
+      lastName: normalizeName(raw.lastname ?? ""),
+      email: normalizeEmail(raw.email ?? ""),
+      altEmail: normalizeEmail(raw.altemail ?? ""),
+    }),
+  );
+  if (rows.length === 0) {
+    throw new CsvImportValidationError("CSV file contains no data rows");
+  }
+
+  const result: StudentCsvImportResult = {
+    createdUsersCount: 0,
+    createdStudentsCount: 0,
+    matchedStudentsCount: 0,
+    enrollmentLinksCount: 0,
+    rowErrors: [],
   };
 
-  for (const row of validStudentRows) {
-    try {
-      const parentEmails = [row.parent1, row.parent2].filter(Boolean);
-      const parents: UserEntity[] = [];
+  const studentRepository = AppDataSource.getRepository(StudentEntity);
+  const emailToUser = new Map<string, UserEntity>();
 
-      for (const parentEmail of parentEmails) {
-        const parent = await resolveParent(parentEmail);
-        if (!parent) {
-          throw new Error(
-            `Parent "${parentEmail}" was not found in the CSV or database`,
-          );
-        }
-        const statusAtSchool = parent.userStatuses?.find(
-          (status) => status.school?.id === school.id,
-        );
-        if (!statusAtSchool) {
-          await ensureUserStatus(parent, school, { role: Role.PARENT });
-        }
-        parents.push(parent);
+  for (const row of rows) {
+    try {
+      if (!row.firstName || !row.lastName) {
+        throw new Error("firstName and lastName are required");
       }
 
-      let student = await findMatchingStudent(
+      const parentEmails = [
+        ...new Set([row.email, row.altEmail].filter(Boolean)),
+      ];
+      if (parentEmails.length === 0) {
+        throw new Error("At least one of email or altEmail is required");
+      }
+      for (const parentEmail of parentEmails) {
+        if (!looksLikeEmail(parentEmail)) {
+          throw new Error(`Invalid parent email "${parentEmail}"`);
+        }
+      }
+
+      const parents: UserEntity[] = [];
+      for (const parentEmail of parentEmails) {
+        const { user, created } = await ensureParentForSchool(
+          parentEmail,
+          school,
+          emailToUser,
+        );
+        if (created) {
+          result.createdUsersCount++;
+        }
+        parents.push(user);
+      }
+
+      const student = await findMatchingStudentByNameAndParents(
         school,
         row.firstName,
         row.lastName,
@@ -430,12 +508,9 @@ export const importUsersFromCsv = async (
       const fullName = `${row.firstName} ${row.lastName}`.trim();
       let savedStudent: StudentEntity;
       if (student) {
-        student.firstName = row.firstName;
-        student.lastName = row.lastName;
-        student.name = fullName;
         student.school = school;
         savedStudent = await studentRepository.save(student);
-        result.updatedStudentsCount++;
+        result.matchedStudentsCount++;
       } else {
         savedStudent = await studentRepository.save({
           id: undefined,

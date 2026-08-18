@@ -14,6 +14,8 @@ import GradeLunchTimeEntity from "../entity/GradeLunchTimeEntity";
 import { GradeLevel } from "../models/GradeLevel";
 import TeacherLunchTimeEntity from "../entity/TeacherLunchTimeEntity";
 import UserEntity from "../entity/UserEntity";
+import UserStatusEntity from "../entity/UserStatusEntity";
+import SurveyEntity from "../entity/SurveyEntity";
 import { getAdminSession, SessionInfo } from "./SessionRouter";
 import { Not, IsNull } from "typeorm";
 import StudentLunchTimeEntity from "../entity/StudentLunchTimeEntity";
@@ -247,19 +249,28 @@ SchoolYearRouter.post<{}, CreateSchoolYearResponse | string, SchoolYear, {}>(
               return;
             }
 
-            const importError = await FactsService.captureSchoolYearTestData(
-              school,
-              schoolYear,
-              999,
-              5,
-              (message) => updateFactsJobMessage(job.id, message),
-            );
-
-            // const importError = await FactsService.importSchoolYear(
+            // const importError = await FactsService.captureSchoolYearTestData(
             //   school,
             //   schoolYear,
+            //   999,
+            //   5,
             //   (message) => updateFactsJobMessage(job.id, message),
             // );
+
+            await AppDataSource.getRepository(SurveyEntity).update(
+              { school: { id: school.id } },
+              { active: false },
+            );
+            await AppDataSource.getRepository(UserStatusEntity).update(
+              { school: { id: school.id } },
+              { surveyCompleted: false },
+            );
+
+            const importError = await FactsService.synchronizeSchoolYear(
+              school,
+              schoolYear,
+              (message) => updateFactsJobMessage(job.id, message),
+            );
             if (importError) {
               failFactsJob(job.id, importError);
               return;

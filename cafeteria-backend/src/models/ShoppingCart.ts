@@ -9,6 +9,7 @@ export interface ShoppingCart {
 
 export interface ShoppingCartItem {
   studentId?: number;
+  staffMemberId?: number;
   time?: string;
   dailyMenuId: number;
   isDrinkOnly: boolean;

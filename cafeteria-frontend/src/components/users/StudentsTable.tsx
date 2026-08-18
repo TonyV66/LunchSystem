@@ -28,12 +28,14 @@ import User, { Role, AccountStatus } from "../../models/User";
 import Student from "../../models/Student";
 import StudentMealsDialog from "../meals/StudentMealsDialog";
 import EditStudentDialog from "./EditStudentDialog";
+import ManageParentsDialog from "./ManageParentsDialog";
 import { DateTimeUtils } from "../../DateTimeUtils";
 
 interface StudentMenuProps {
   anchor: HTMLElement;
   onEdit?: () => void;
   onShowMeals: () => void;
+  onManageParents?: () => void;
   onClose: () => void;
 }
 
@@ -41,9 +43,10 @@ const StudentMenu: React.FC<StudentMenuProps> = ({
   anchor,
   onEdit,
   onShowMeals,
+  onManageParents,
   onClose,
 }) => {
-  const { currentSchoolYear } = useContext(AppContext);
+  const { currentSchoolYear, user } = useContext(AppContext);
 
   return (
     <PulldownMenu
@@ -67,6 +70,14 @@ const StudentMenu: React.FC<StudentMenuProps> = ({
       <MuiMenuItem onClick={onShowMeals} disabled={!currentSchoolYear.id}>
         Upcoming Meals
       </MuiMenuItem>
+      {user.role === Role.ADMIN && onManageParents && (
+        <MuiMenuItem
+          onClick={onManageParents}
+          disabled={!currentSchoolYear.id}
+        >
+          Manage Parents
+        </MuiMenuItem>
+      )}
     </PulldownMenu>
   );
 };
@@ -167,7 +178,7 @@ interface StudentsTableProps {
   includePendingStudents?: boolean;
 }
 
-type MenuAction = "edit" | "meals";
+type MenuAction = "edit" | "meals" | "parents";
 
 const StudentsTable: React.FC<StudentsTableProps> = ({
   user,
@@ -272,6 +283,11 @@ const StudentsTable: React.FC<StudentsTableProps> = ({
 
   const handleEditStudent = () => {
     setAction("edit");
+    setPulldownMenuAnchor(null);
+  };
+
+  const handleManageParents = () => {
+    setAction("parents");
     setPulldownMenuAnchor(null);
   };
 
@@ -393,9 +409,6 @@ const StudentsTable: React.FC<StudentsTableProps> = ({
     // Get all parents for this student
     const studentParents: User[] = [];
     if (student.parents && student.parents.length > 0) {
-      if (student.id === 21) {
-        console.log(student.parents);
-      }
       student.parents.forEach((parentId) => {
         const parent = users.find((u) => u.id === parentId);
         if (parent) {
@@ -613,6 +626,9 @@ const StudentsTable: React.FC<StudentsTableProps> = ({
           anchor={pulldownMenuAnchor!}
           onEdit={canEdit ? handleEditStudent : undefined}
           onShowMeals={() => handleShowMeals()}
+          onManageParents={
+            loggedInUser.role === Role.ADMIN ? handleManageParents : undefined
+          }
           onClose={handleCloseMenu}
         />
       ) : (
@@ -628,6 +644,14 @@ const StudentsTable: React.FC<StudentsTableProps> = ({
       )}
       {action === "meals" && targetStudent ? (
         <StudentMealsDialog
+          student={targetStudent}
+          onClose={handleActionComplete}
+        />
+      ) : (
+        <></>
+      )}
+      {action === "parents" && targetStudent ? (
+        <ManageParentsDialog
           student={targetStudent}
           onClose={handleActionComplete}
         />

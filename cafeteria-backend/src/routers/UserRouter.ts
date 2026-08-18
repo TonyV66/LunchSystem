@@ -12,6 +12,7 @@ import { Client, Environment } from "square";
 import { GiftCard } from "../models/GiftCard";
 import { randomUUID } from "crypto";
 import Student from "../models/Student";
+import StudentEntity from "../entity/StudentEntity";
 import {
   sendInvitationEmail,
   sendSchoolAccessGrantedEmail,
@@ -25,14 +26,20 @@ import {
   requireUserStatus,
   saveUserStatus,
 } from "../utils/UserStatusUtils";
-import { getStudentsForUserInSchoolYear } from "../utils/EnrollmentUtils";
+import {
+  ensureEnrollment,
+  getStudentsForUserInSchoolYear,
+  getStudentsWithEnrollmentHistoryForUserAtSchool,
+  removeEnrollment,
+} from "../utils/EnrollmentUtils";
 import {
   meetsPasswordRequirements,
   PASSWORD_REQUIREMENTS_ERROR,
 } from "../utils/PasswordUtils";
 import {
   CsvImportValidationError,
-  importUsersFromCsv,
+  importStaffFromCsv,
+  importStudentsFromCsv,
 } from "../services/CsvImportService";
 
 const UserRouter: Router = express.Router();
@@ -356,6 +363,14 @@ UserRouter.get<Empty, Empty, SavedCards[], Empty>(
   "/cards",
   authorizeUserWithRole(),
   async (req, res) => {
+    if (req.userStatus.role === Role.ADMIN) {
+      res.send({
+        creditCards: [],
+        giftCards: [],
+      });
+      return;
+    }
+
     const { cardsApi } = new Client({
       accessToken: req.school.squareAppAccessToken,
       environment: req.school.squareAppId.startsWith("sandbox")
@@ -386,6 +401,188 @@ UserRouter.get<Empty, Empty, SavedCards[], Empty>(
     }
 
     res.send(savedCards);
+  },
+);
+
+interface UserChildEnrollment {
+  student: Student;
+  enrolled: boolean;
+}
+
+interface UpdateUserEnrollmentsRequest {
+  enrollments: Array<{ studentId: number; enrolled: boolean }>;
+}
+
+const toUserChildEnrollments = (
+  students: StudentEntity[],
+  userId: number,
+): UserChildEnrollment[] => {
+  const byStudentId = new Map<number, UserChildEnrollment>();
+  for (const student of students) {
+    if (byStudentId.has(student.id)) {
+      continue;
+    }
+    byStudentId.set(student.id, {
+      student: new Student(student),
+      enrolled:
+        student.enrollments?.some(
+          (enrollment) => enrollment.user?.id === userId,
+        ) ?? false,
+    });
+  }
+
+  return Array.from(byStudentId.values()).sort((a, b) =>
+    `${a.student.firstName} ${a.student.lastName}`.localeCompare(
+      `${b.student.firstName} ${b.student.lastName}`,
+    ),
+  );
+};
+
+const requireFactsUserAtSchool = async (
+  userId: number,
+  schoolId: number,
+): Promise<UserEntity | string> => {
+  const user = await AppDataSource.getRepository(UserEntity).findOne({
+    where: { id: userId },
+    relations: {
+      userStatuses: {
+        school: true,
+      },
+    },
+  });
+
+  if (!user) {
+    return "User not found.";
+  }
+
+  const status = user.userStatuses?.find(
+    (userStatus) => userStatus.school?.id === schoolId,
+  );
+  if (!status || !isFactsUserRole(status.role)) {
+    return "User is not a parent, teacher, or staff member at this school.";
+  }
+
+  return user;
+};
+
+UserRouter.get<
+  { userId: string },
+  UserChildEnrollment[] | string,
+  Empty,
+  Empty
+>(
+  "/:userId/enrollments",
+  authorizeUserWithRole(Role.ADMIN),
+  async (req, res) => {
+    const userId = parseInt(req.params.userId);
+    const targetUser = await requireFactsUserAtSchool(userId, req.school.id);
+    if (typeof targetUser === "string") {
+      res.status(targetUser === "User not found." ? 404 : 400).send(targetUser);
+      return;
+    }
+
+    const students = await getStudentsWithEnrollmentHistoryForUserAtSchool(
+      userId,
+      req.school.id,
+      req.schoolYear?.id,
+    );
+
+    res.send(toUserChildEnrollments(students, userId));
+  },
+);
+
+UserRouter.put<
+  { userId: string },
+  UserChildEnrollment[] | string,
+  UpdateUserEnrollmentsRequest,
+  Empty
+>(
+  "/:userId/enrollments",
+  authorizeUserWithRole(Role.ADMIN),
+  async (req, res) => {
+    const userId = parseInt(req.params.userId);
+    const targetUser = await requireFactsUserAtSchool(userId, req.school.id);
+    if (typeof targetUser === "string") {
+      res.status(targetUser === "User not found." ? 404 : 400).send(targetUser);
+      return;
+    }
+
+    const currentSchoolYear = req.schoolYear;
+    if (!currentSchoolYear) {
+      res.status(400).send("No current school year found.");
+      return;
+    }
+
+    if (!Array.isArray(req.body.enrollments)) {
+      res.status(400).send("enrollments is required.");
+      return;
+    }
+
+    const historyStudents =
+      await getStudentsWithEnrollmentHistoryForUserAtSchool(
+        userId,
+        req.school.id,
+        currentSchoolYear.id,
+      );
+    const studentsById = new Map(
+      historyStudents.map((student) => [student.id, student]),
+    );
+
+    const unseenStudentIds = [
+      ...new Set(
+        req.body.enrollments
+          .map((enrollment) => enrollment.studentId)
+          .filter((studentId) => !studentsById.has(studentId)),
+      ),
+    ];
+    if (unseenStudentIds.length > 0) {
+      const extraStudents = await AppDataSource.getRepository(
+        StudentEntity,
+      ).find({
+        where: {
+          id: In(unseenStudentIds),
+          school: { id: req.school.id },
+        },
+      });
+      for (const student of extraStudents) {
+        studentsById.set(student.id, student);
+      }
+    }
+
+    const seenStudentIds = new Set<number>();
+    for (const enrollment of req.body.enrollments) {
+      if (seenStudentIds.has(enrollment.studentId)) {
+        res.status(400).send("Duplicate student in enrollment list.");
+        return;
+      }
+      seenStudentIds.add(enrollment.studentId);
+
+      const student = studentsById.get(enrollment.studentId);
+      if (!student) {
+        res.status(400).send("Student is not associated with this school.");
+        return;
+      }
+
+      const currentlyEnrolled =
+        student.enrollments?.some(
+          (existing) => existing.user?.id === userId,
+        ) ?? false;
+
+      if (enrollment.enrolled && !currentlyEnrolled) {
+        await ensureEnrollment(targetUser, student, currentSchoolYear);
+      } else if (!enrollment.enrolled && currentlyEnrolled) {
+        await removeEnrollment(targetUser, student, currentSchoolYear);
+      }
+    }
+
+    const updatedStudents =
+      await getStudentsWithEnrollmentHistoryForUserAtSchool(
+        userId,
+        req.school.id,
+        currentSchoolYear.id,
+      );
+
+    res.send(toUserChildEnrollments(updatedStudents, userId));
   },
 );
 
@@ -435,20 +632,35 @@ const upload = multer({
 });
 
 UserRouter.post(
-  "/import-csv",
+  "/import-staff-csv",
   authorizeUserWithRole(),
   upload.single("file"),
   async (req, res) => {
     try {
-      if (req.school.factsApiKey?.trim()) {
-        res
-          .status(400)
-          .send(
-            "CSV import is not available for FACTS schools. Use FACTS synchronization instead.",
-          );
+      if (!req.file) {
+        res.status(400).send("No file uploaded");
         return;
       }
 
+      const result = await importStaffFromCsv(req.file.buffer, req.school);
+      res.send(result);
+    } catch (error) {
+      if (error instanceof CsvImportValidationError) {
+        res.status(400).send(error.message);
+        return;
+      }
+      console.error("Error importing staff CSV:", error);
+      res.status(500).send("Error processing CSV file");
+    }
+  },
+);
+
+UserRouter.post(
+  "/import-students-csv",
+  authorizeUserWithRole(),
+  upload.single("file"),
+  async (req, res) => {
+    try {
       if (!req.file) {
         res.status(400).send("No file uploaded");
         return;
@@ -460,7 +672,7 @@ UserRouter.post(
         return;
       }
 
-      const result = await importUsersFromCsv(
+      const result = await importStudentsFromCsv(
         req.file.buffer,
         req.school,
         currentSchoolYear,
@@ -471,7 +683,7 @@ UserRouter.post(
         res.status(400).send(error.message);
         return;
       }
-      console.error("Error importing CSV:", error);
+      console.error("Error importing students CSV:", error);
       res.status(500).send("Error processing CSV file");
     }
   },

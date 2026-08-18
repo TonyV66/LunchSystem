@@ -14,6 +14,112 @@ import SchoolYear from "../../models/SchoolYear";
 import { ReportData } from "../meals/MealReport";
 import PrintableMealReport from "../meals/PrintableMealReport";
 
+export type CohortGroupKind = "teacher" | "grade" | "staff" | "unassigned";
+
+export interface CohortGroup {
+  id: string;
+  kind: CohortGroupKind;
+  teacherId?: number;
+  grade?: GradeLevel;
+  grades?: GradeLevel[];
+  selectsTeachers?: boolean;
+  label: string;
+}
+
+interface TaggedReportData extends ReportData {
+  teacherId?: number;
+  grade?: GradeLevel;
+}
+
+const getTeacherDisplayName = (teacher: User) => {
+  if (teacher.name) {
+    return teacher.name;
+  }
+  if (teacher.firstName && teacher.lastName) {
+    return `${teacher.firstName} ${teacher.lastName}`;
+  }
+  return teacher.userName;
+};
+
+export const getAvailableCohortGroups = (
+  schoolYear: SchoolYear,
+  users: SchoolUser[],
+): CohortGroup[] => {
+  const teacherIds = Array.from(
+    new Set(schoolYear.teacherLunchTimes.map((tlt) => tlt.teacherId)),
+  );
+  const teachers = teacherIds
+    .map((id) => users.find((user) => user.id === id))
+    .filter((user): user is SchoolUser => !!user)
+    .sort((a, b) => {
+      const aGrade = schoolYear.teacherLunchTimes.find(
+        (tlt) => tlt.teacherId === a.id,
+      )?.grades?.[0];
+      const bGrade = schoolYear.teacherLunchTimes.find(
+        (tlt) => tlt.teacherId === b.id,
+      )?.grades?.[0];
+      if (aGrade && bGrade) {
+        const gradeDiff = gradeOrder.indexOf(aGrade) - gradeOrder.indexOf(bGrade);
+        if (gradeDiff !== 0) {
+          return gradeDiff;
+        }
+      } else if (aGrade && !bGrade) {
+        return -1;
+      } else if (!aGrade && bGrade) {
+        return 1;
+      }
+      return getTeacherDisplayName(a)
+        .toLowerCase()
+        .localeCompare(getTeacherDisplayName(b).toLowerCase());
+    });
+
+  const teacherGroups: CohortGroup[] = teachers.map((teacher) => {
+    const teacherGrades = Array.from(
+      new Set(
+        schoolYear.teacherLunchTimes
+          .filter((tlt) => tlt.teacherId === teacher.id)
+          .flatMap((tlt) => tlt.grades ?? []),
+      ),
+    );
+    return {
+      id: `teacher-${teacher.id}`,
+      kind: "teacher",
+      teacherId: teacher.id,
+      grades: teacherGrades,
+      label: getTeacherDisplayName(teacher),
+    };
+  });
+
+  const grades = Array.from(
+    new Set([
+      ...schoolYear.gradeLunchTimes.map((glt) => glt.grade),
+      ...schoolYear.gradesAssignedByClass,
+      ...schoolYear.teacherLunchTimes.flatMap((tlt) => tlt.grades ?? []),
+    ]),
+  )
+    .filter((grade) => grade !== GradeLevel.UNKNOWN)
+    .sort((a, b) => gradeOrder.indexOf(a) - gradeOrder.indexOf(b));
+
+  const gradeGroups: CohortGroup[] = grades.map((grade) => ({
+    id: `grade-${grade}`,
+    kind: "grade",
+    grade,
+    selectsTeachers: schoolYear.gradesAssignedByClass.includes(grade),
+    label: getGradeName(grade),
+  }));
+
+  return [
+    ...gradeGroups,
+    {
+      id: "unassigned",
+      kind: "unassigned",
+      label: "Unassigned Students",
+    },
+    { id: "staff", kind: "staff", label: "Staff Lunches" },
+    ...teacherGroups,
+  ];
+};
+
 const gradeOrder = [
   GradeLevel.PRE_K2,
   GradeLevel.PRE_K3,
@@ -119,11 +225,11 @@ const buildGradeLevelReportData = (
   gradeLevelMap: Map<GradeLevel, Student[]>,
   date: string,
   currentSchoolYear: SchoolYear
-): ReportData[] => {
+): TaggedReportData[] => {
   const gradeLevelLunchTimes = getGradeLevelLunchTimes(currentSchoolYear, date);
 
   const dayOfWeek = DateTimeUtils.toDate(date).getDay();
-  const reportDataArray: ReportData[] = [];
+  const reportDataArray: TaggedReportData[] = [];
 
   for (const gradeLevel of gradeOrder) {
     if (!gradeLevelMap.has(gradeLevel)) {
@@ -148,11 +254,12 @@ const buildGradeLevelReportData = (
     }
 
     // Create grade level data
-    const reportData: ReportData = {
+    const reportData: TaggedReportData = {
       title: "Grade: " + getGradeName(gradeLevel),
       time: gradeLunchTime?.times[0] ? gradeLunchTime.times[0] : undefined,
       date: date,
       customers: [],
+      grade: gradeLevel,
     };
 
     // Add students and their meals
@@ -182,9 +289,9 @@ const buildClassroomReportData = (
   classroomTeachers: User[],
   date: string,
   currentSchoolYear: SchoolYear
-): ReportData[] => {
+): TaggedReportData[] => {
   const dayOfWeek = DateTimeUtils.toDate(date).getDay();
-  const reportDataArray: ReportData[] = [];
+  const reportDataArray: TaggedReportData[] = [];
 
   const teacherLunchTimes = getTeacherLunchTimes(currentSchoolYear, date);
 
@@ -262,11 +369,12 @@ const buildClassroomReportData = (
     }
 
     // Create classroom data
-    const reportData: ReportData = {
+    const reportData: TaggedReportData = {
       title: title,
       time: teacherLunchTime?.times[0] ? teacherLunchTime.times[0] : undefined,
       date: date,
       customers: [],
+      teacherId: teacher.id,
     };
 
     // Add students and their meals
@@ -305,6 +413,7 @@ const buildClassroomReportData = (
 interface ReportProps {
   date: string;
   teacherId?: number;
+  cohorts?: CohortGroup[];
 }
 
 const getMealsBeingServed = (orders: Order[], date: string) => {
@@ -479,7 +588,8 @@ const getDailyReportData = (
   students: Student[],
   users: SchoolUser[],
   currentSchoolYear: SchoolYear,
-  date: string
+  date: string,
+  cohorts?: CohortGroup[],
 ) => {
   const mealsBeingServed = getMealsBeingServed(orders, date);
 
@@ -554,7 +664,7 @@ const getDailyReportData = (
     date
   );
 
-  // Find staff members who are being served meals but not in classroomTeachers array
+  // Staff with meals, including classroom teachers so they also appear in Staff Lunches
   const staffMeals = mealsBeingServed.filter((meal) => meal.staffMemberId);
   const staffBeingServed = staffMeals
     .map((meal) => users.find((user) => user.id === meal.staffMemberId)!)
@@ -569,13 +679,41 @@ const getDailyReportData = (
     date
   );
 
-  return classroomReportData
+  const allReports = classroomReportData
     .concat(gradeLevelReportData)
     .concat(otherStudentsReportData)
     .concat(staffReportData);
+
+  if (!cohorts) {
+    return allReports;
+  }
+
+  const selectedReports: ReportData[] = [];
+  for (const cohort of cohorts) {
+    if (cohort.kind === "teacher") {
+      selectedReports.push(
+        ...classroomReportData.filter(
+          (report) => report.teacherId === cohort.teacherId,
+        ),
+      );
+    } else if (cohort.kind === "grade") {
+      selectedReports.push(
+        ...gradeLevelReportData.filter((report) => report.grade === cohort.grade),
+      );
+    } else if (cohort.kind === "unassigned") {
+      selectedReports.push(...otherStudentsReportData);
+    } else if (cohort.kind === "staff") {
+      selectedReports.push(...staffReportData);
+    }
+  }
+  return selectedReports;
 };
 
-const PrintableCohortsReport: React.FC<ReportProps> = ({ teacherId, date }) => {
+const PrintableCohortsReport: React.FC<ReportProps> = ({
+  teacherId,
+  date,
+  cohorts,
+}) => {
   const { students, orders, users, currentSchoolYear } =
     React.useContext(AppContext);
 
@@ -587,7 +725,14 @@ const PrintableCohortsReport: React.FC<ReportProps> = ({ teacherId, date }) => {
         currentSchoolYear,
         date
       )
-    : getDailyReportData(orders, students, users, currentSchoolYear, date);
+    : getDailyReportData(
+        orders,
+        students,
+        users,
+        currentSchoolYear,
+        date,
+        cohorts,
+      );
 
   return (
     <Box>

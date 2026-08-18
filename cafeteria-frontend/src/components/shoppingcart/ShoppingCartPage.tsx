@@ -64,6 +64,10 @@ const ShoppingCartPage: React.FC = () => {
       }
     };
 
+    if (user.role === Role.ADMIN) {
+      return;
+    }
+
     if (
       shoppingCart.items
         .filter((item) => item.studentId)
@@ -116,23 +120,18 @@ const ShoppingCartPage: React.FC = () => {
   const handleThankYouClose = () => {
     setShoppingCart({ items: [] });
     setShowThankYou(false);
-    navigate(MEALS_URL);
+    navigate(user.role === Role.ADMIN ? CALENDAR_URL : MEALS_URL);
   };
 
   const handlePaymentChanged = (nextPaymentMethod: string) => {
     if (nextPaymentMethod !== "creditcard") {
       setSaveCard(false);
     }
-    setPaymentMethod(nextPaymentMethod);
-  };
-
-  const handleDonationChange = (checked: boolean) => {
-    if (checked) {
-      setPaymentMethod("donate");
-      setSaveCard(false);
-    } else {
-      setPaymentMethod("creditcard");
+    if (nextPaymentMethod === "donate") {
+      setSendEmail(false);
+      setUseCredits(false);
     }
+    setPaymentMethod(nextPaymentMethod);
   };
 
   const handleUseCreditsChange = (checked: boolean) => {
@@ -166,23 +165,6 @@ const ShoppingCartPage: React.FC = () => {
 
       <Stack direction="column" gap={4} alignItems="center">
         <Stack>
-          {user.role === Role.ADMIN && (
-            <FormControlLabel
-              control={
-                <Checkbox
-                  checked={paymentMethod === "donate"}
-                  onChange={(e) => handleDonationChange(e.target.checked)}
-                  color="primary"
-                />
-              }
-              label={
-                <Typography variant="body2" color="text.secondary">
-                  This meal is being donated
-                </Typography>
-              }
-            />
-          )}
-
           {user.availableCredits > 0 && (
             <FormControlLabel
               control={
@@ -202,7 +184,7 @@ const ShoppingCartPage: React.FC = () => {
           )}
         </Stack>
 
-        {paymentMethod === "donate" || total === 0 ? (
+        {total === 0 ? (
           <Button
             variant="contained"
             onClick={() => handleCheckout(paymentMethod)}
@@ -219,9 +201,12 @@ const ShoppingCartPage: React.FC = () => {
             sendEmail={sendEmail}
             savedCreditCards={savedCreditCards}
             savedGiftCards={savedGiftCards}
+            showDonateOption={user.role === Role.ADMIN}
             onCardSelected={handlePaymentChanged}
             onSaveCardChange={setSaveCard}
-            onSendEmailChange={setSendEmail}
+            onSendEmailChange={
+              user.role === Role.ADMIN ? undefined : setSendEmail
+            }
             onPayWithSavedCard={handleCheckout}
             onTokenReceived={(tokenResult, buyer) => {
               const result = tokenResult as { status: string; token?: string };
@@ -242,12 +227,21 @@ const ShoppingCartPage: React.FC = () => {
           onOk={handleThankYouClose}
           hideCancelButton={true}
           onCancel={handleThankYouClose}
-          title="Thank You For Your Order"
-        >
+          title={
+            user.role === Role.ADMIN
+              ? "Order Submitted"
+              : "Thank You For Your Order"
+          }
+        >{user.role === Role.ADMIN ? (
+          <Typography>
+            Your order has been successfully placed. Click OK to return to the calendar.
+          </Typography>
+        ) : (
           <Typography>
             Your order has been successfully placed. Click OK to view your
             upcoming ordered meals.
           </Typography>
+        )}
         </ConfirmDialog>
       )}
     </Box>

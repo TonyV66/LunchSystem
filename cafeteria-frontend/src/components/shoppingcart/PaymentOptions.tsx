@@ -1,6 +1,7 @@
 import React from "react";
 import {
   Box,
+  Button,
   Checkbox,
   FormControlLabel,
   List,
@@ -18,21 +19,25 @@ import { GiftCard as SavedGiftCard } from "../../models/GiftCard";
 interface PaymentOptionsProps {
   onCardSelected: (selectedCard: string) => void;
   onSendEmail?: (save: boolean) => void;
+  onDonate?: () => void;
   sendEmail: boolean;
   selectedCard: string;
   savedGiftCards: SavedGiftCard[];
   savedCreditCards: SavedCreditCard[];
   disabled?: boolean;
+  showDonateOption?: boolean;
 }
 
 const PaymentOptions: React.FC<PaymentOptionsProps> = ({
   onCardSelected,
   onSendEmail,
+  onDonate,
   sendEmail,
   selectedCard,
   savedCreditCards,
   savedGiftCards,
-  disabled
+  disabled,
+  showDonateOption,
 }) => {
 
   return (
@@ -140,8 +145,43 @@ const PaymentOptions: React.FC<PaymentOptionsProps> = ({
             />
           </ListItemButton>
         </ListItem>
+        {showDonateOption ? (
+          <ListItem disablePadding>
+            <ListItemButton
+              role={undefined}
+              onClick={() => onCardSelected("donate")}
+            >
+              <ListItemIcon sx={{ minWidth: "0px" }}>
+                <Radio
+                  sx={{
+                    paddingLeft: "0px",
+                    paddingTop: "0px",
+                    paddingBottom: "0px",
+                  }}
+                  size="small"
+                  checked={selectedCard === "donate"}
+                  tabIndex={-1}
+                  disableRipple
+                  inputProps={{ "aria-labelledby": "donateLabel" }}
+                />
+              </ListItemIcon>
+              <ListItemText
+                id="donateLabel"
+                primary="Free Meal"
+              />
+            </ListItemButton>
+          </ListItem>
+        ) : null}
       </List>
-      {onSendEmail ? (
+      {selectedCard === "donate" ? (
+        <Button
+          sx={{ mt: 1, alignSelf: "flex-start" }}
+          variant="contained"
+          onClick={onDonate}
+        >
+          Process Donation
+        </Button>
+      ) : onSendEmail ? (
         <FormControlLabel
           sx={{ mt: 1 }}
           label={<Typography variant="subtitle2">Email Receipt</Typography>}

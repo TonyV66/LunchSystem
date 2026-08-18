@@ -2,20 +2,21 @@ import React from "react";
 import { Stack } from "@mui/material";
 import CardCheckoutForm from "./CardCheckoutForm";
 import School from "../../models/School";
-import User from "../../models/User";
+import SchoolUser from "../../models/SchoolUser";
 import { CreditCard as SavedCreditCard } from "../../models/CreditCard";
 import { GiftCard as SavedGiftCard } from "../../models/GiftCard";
 import PaymentOptions from "./PaymentOptions";
 
 interface CheckoutFormProps {
   school: School;
-  user: User;
+  user: SchoolUser;
   selectedCard: string;
   total: number;
   saveCard: boolean;
   sendEmail: boolean;
   savedCreditCards: SavedCreditCard[];
   savedGiftCards: SavedGiftCard[];
+  showDonateOption?: boolean;
   onCardSelected: (selectedCard: string) => void;
   onSaveCardChange: (save: boolean) => void;
   onSendEmailChange?: (send: boolean) => void;
@@ -32,6 +33,7 @@ const CheckoutForm: React.FC<CheckoutFormProps> = ({
   sendEmail,
   savedCreditCards,
   savedGiftCards,
+  showDonateOption,
   onCardSelected,
   onSaveCardChange,
   onSendEmailChange,
@@ -50,22 +52,26 @@ const CheckoutForm: React.FC<CheckoutFormProps> = ({
         sendEmail={sendEmail}
         disabled={total <= 0}
         onSendEmail={onSendEmailChange}
+        onDonate={() => onPayWithSavedCard("donate")}
         onCardSelected={onCardSelected}
         savedCreditCards={savedCreditCards}
         savedGiftCards={savedGiftCards}
         selectedCard={selectedCard}
+        showDonateOption={showDonateOption}
       />
 
-      <CardCheckoutForm
-        school={school}
-        user={user}
-        selectedCard={selectedCard}
-        total={total}
-        saveCard={saveCard}
-        onSaveCardChange={onSaveCardChange}
-        onTokenReceived={onTokenReceived}
-        onPayWithSavedCard={onPayWithSavedCard}
-      />
+      {selectedCard !== "donate" ? (
+        <CardCheckoutForm
+          school={school}
+          user={user}
+          selectedCard={selectedCard}
+          total={total}
+          saveCard={saveCard}
+          onSaveCardChange={onSaveCardChange}
+          onTokenReceived={onTokenReceived}
+          onPayWithSavedCard={onPayWithSavedCard}
+        />
+      ) : null}
     </Stack>
   );
 };

@@ -47,6 +47,7 @@ import OrderMealDialog from "../shoppingcart/OrderMealDialog";
 import { Role } from "../../models/User";
 import CafeteriaDialog from "../cafeteria/CafeteriaDialog";
 import MealReportDialog from "../meals/MealReportDialog";
+import ConfirmDialog from "../ConfirmDialog";
 import { AxiosError } from "axios";
 import OrderDatesDialog from "./OrderDatesDialog";
 import CalendarNoteDialog from "./CalendarNoteDialog";
@@ -122,18 +123,11 @@ const DAILY_BACKGROUND_IMAGES = [
 const PrincipalMealButtons: React.FC<PrincipalMealButtonProps> = ({
   menuOrDate,
 }) => {
-  const { user, orders, shoppingCart } = useContext(AppContext);
+  const { orders } = useContext(AppContext);
   const menu =
     typeof menuOrDate === "string" ? undefined : (menuOrDate as DailyMenu);
   const [showCafeteriaReport, setShowCafeteriaReport] = useState(false);
   const [showClassroomReport, setShowClassroomReport] = useState(false);
-  const [addToCart, setAddToCart] = useState(false);
-  const [showOrderedMeals, setShowOrderedMeals] = useState(false);
-  const [hasMealsInCart, setHasMealsInCart] = useState(
-    shoppingCart.items.find((item) => item.dailyMenuId === menu?.id)
-      ? true
-      : false,
-  );
 
   const dateStr = menu?.date ?? (menuOrDate as string);
   const today = DateTimeUtils.toString(DateTimeUtils.getCurrentDate());
@@ -152,16 +146,6 @@ const PrincipalMealButtons: React.FC<PrincipalMealButtonProps> = ({
     setPulldownMenuAnchor(null);
   };
 
-  const handleAddToCart = () => {
-    setPulldownMenuAnchor(null);
-    setAddToCart(true);
-  };
-
-  const handleShowOrderedMeals = () => {
-    setPulldownMenuAnchor(null);
-    setShowOrderedMeals(true);
-  };
-
   const handleShowCafeteriaReport = () => {
     setPulldownMenuAnchor(null);
     setShowCafeteriaReport(true);
@@ -174,11 +158,6 @@ const PrincipalMealButtons: React.FC<PrincipalMealButtonProps> = ({
 
   const handleShowMenu = (event: React.MouseEvent<HTMLButtonElement>) => {
     setPulldownMenuAnchor(event.currentTarget);
-  };
-
-  const handleMealAddedToCart = () => {
-    setAddToCart(false);
-    setHasMealsInCart(true);
   };
 
   return (
@@ -238,17 +217,6 @@ const PrincipalMealButtons: React.FC<PrincipalMealButtonProps> = ({
           >
             Cafeteria Report
           </MuiMenuItem>
-          <Divider />
-          <ListSubheader>For My Family</ListSubheader>
-          <MuiMenuItem disabled={today > dateStr} onClick={handleAddToCart}>
-            Order A Meal
-          </MuiMenuItem>
-          <MuiMenuItem
-            disabled={!hasOrderedMeals && !hasMealsInCart}
-            onClick={handleShowOrderedMeals}
-          >
-            Show Ordered Meals
-          </MuiMenuItem>
         </PulldownMenu>
       )}
       {showCafeteriaReport ? (
@@ -263,24 +231,6 @@ const PrincipalMealButtons: React.FC<PrincipalMealButtonProps> = ({
         <MealReportDialog
           date={menu!.date}
           onClose={() => setShowClassroomReport(false)}
-        />
-      ) : (
-        <></>
-      )}
-      {addToCart ? (
-        <OrderMealDialog
-          onClose={() => setAddToCart(false)}
-          onAddedToCart={handleMealAddedToCart}
-          date={menu!.date}
-        />
-      ) : (
-        <></>
-      )}
-      {showOrderedMeals ? (
-        <DailyMealsDialog
-          user={user}
-          onClose={() => setShowOrderedMeals(false)}
-          date={menu!.date}
         />
       ) : (
         <></>
@@ -317,6 +267,7 @@ const AdminMealButtons: React.FC<AdminMealButtonProps> = ({
   const [showNoteDialog, setShowNoteDialog] = useState(false);
   const [showBlockedLunchTimesDialog, setShowBlockedLunchTimesDialog] =
     useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [hasMealsInCart, setHasMealsInCart] = useState(
     shoppingCart.items.find((item) => item.dailyMenuId === menu?.id)
       ? true
@@ -441,10 +392,22 @@ const AdminMealButtons: React.FC<AdminMealButtonProps> = ({
     }
   };
 
-  const handleDeleteClicked = async () => {
+  const handleDeleteClicked = () => {
     setPulldownMenuAnchor(null);
+    setConfirmDelete(true);
+  };
+
+  const handleCancelDelete = () => {
+    setConfirmDelete(false);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!menu) {
+      return;
+    }
+    setConfirmDelete(false);
     try {
-      await deleteDailyMenu(menu!.id);
+      await deleteDailyMenu(menu.id);
       setScheduledMenus(scheduledMenus.filter((sm) => sm !== menu));
       setMenu(undefined);
       onMenuChanged(undefined);
@@ -767,6 +730,26 @@ const AdminMealButtons: React.FC<AdminMealButtonProps> = ({
           date={dateStr}
           onClose={() => setShowBlockedLunchTimesDialog(false)}
         />
+      ) : (
+        <></>
+      )}
+      {confirmDelete ? (
+        <ConfirmDialog
+          title="Delete Menu"
+          open={true}
+          okLabel="Delete"
+          onOk={handleConfirmDelete}
+          onCancel={handleCancelDelete}
+        >
+          <Typography>
+            Are you sure you want to remove the menu for{" "}
+            {DateTimeUtils.toString(
+              dateStr,
+              DateTimeFormat.SHORT_DAY_OF_WEEK_DESC,
+            )}{" "}
+            from the schedule?
+          </Typography>
+        </ConfirmDialog>
       ) : (
         <></>
       )}
@@ -1132,13 +1115,6 @@ const MealPlan: React.FC<MealPlanProps> = ({ menuOrDate, clipboardMenu }) => {
   }, [menuOrDate]);
 
   const today = DateTimeUtils.toString(DateTimeUtils.getCurrentDate());
-
-  if (typeof date !== "string") {
-    const testDate = date as Date;
-    if (!testDate.getFullYear) {
-      console.log("date is not a date", date);
-    }
-  }
 
   const backgroundImage = "/m.png";
   const handleMenuChanged = (menu?: DailyMenu) => {

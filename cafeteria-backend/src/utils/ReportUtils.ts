@@ -783,7 +783,7 @@ export const getDailyReport = async (
     pantryById
   );
 
-  // Find staff members who are being served meals but not in classroomTeachers array
+  // Staff with meals, including classroom teachers so they also appear in Staff Lunches
   const staffMeals = mealsBeingServed.filter((meal) => meal.staffMember);
   const staffBeingServed = staffMeals
     .map((meal) => meal.staffMember!)
