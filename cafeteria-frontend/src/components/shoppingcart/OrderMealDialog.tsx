@@ -40,6 +40,42 @@ import SchoolUser from "../../models/SchoolUser";
 
 type TypeOfOrder = "meal" | "drink";
 type DinerType = "student" | "staff";
+type ConfirmDialogType = "duplicate" | "blocked-admin";
+
+const isStudentOrderingBlocked = (
+  schoolYear: SchoolYear,
+  studentId: number,
+  date: string,
+): boolean => {
+  const dayOfWeek = DateTimeUtils.toDate(date).getDay();
+  const studentLunchTime = schoolYear.studentLunchTimes.find(
+    (slt) => slt.studentId === studentId && slt.dayOfWeek === dayOfWeek,
+  );
+
+  if (!studentLunchTime) {
+    return false;
+  }
+
+  const gradeBlocked =
+    !!studentLunchTime.grade &&
+    schoolYear.gradeLunchTimes.some(
+      (glt) =>
+        glt.grade === studentLunchTime.grade &&
+        glt.dayOfWeek === dayOfWeek &&
+        (glt.blockedDates ?? []).includes(date),
+    );
+
+  const teacherBlocked =
+    !!studentLunchTime.teacherId &&
+    schoolYear.teacherLunchTimes.some(
+      (tlt) =>
+        tlt.teacherId === studentLunchTime.teacherId &&
+        tlt.dayOfWeek === dayOfWeek &&
+        (tlt.blockedDates ?? []).includes(date),
+    );
+
+  return gradeBlocked || teacherBlocked;
+};
 
 interface DialogProps {
   date: string;
@@ -79,6 +115,9 @@ const OrderMealDialog: React.FC<DialogProps> = ({
   const [typeOfOrder, setTypeOfOrder] = useState<TypeOfOrder>("meal");
   const [isAddToCartEnabled, setIsAddToCartEnabled] = useState(false);
   const [confirmDialogMsg, setConfirmDialogMsg] = useState<string>();
+  const [confirmDialogType, setConfirmDialogType] =
+    useState<ConfirmDialogType>("duplicate");
+  const [blockedInfoMsg, setBlockedInfoMsg] = useState<string>();
   const [showNewStudentDialog, setShowNewStudentDialog] = useState(false);
   const [showStudentLunchTimeDialog, setShowStudentLunchTimeDialog] =
     useState(false);
@@ -197,7 +236,44 @@ const OrderMealDialog: React.FC<DialogProps> = ({
     setTypeOfOrder(type);
   };
 
-  const handleAddToCart = (confirmed: boolean) => {
+  const handleAddToCart = (confirmed: boolean, overrideBlocked = false) => {
+    if (!confirmed && !overrideBlocked && selectedStudent) {
+      const isBlocked = isStudentOrderingBlocked(
+        currentSchoolYear,
+        selectedStudent.id,
+        menu.date,
+      );
+
+      if (isBlocked) {
+        const formattedDate = DateTimeUtils.toString(
+          menu.date,
+          DateTimeFormat.SHORT_DAY_OF_WEEK_DESC,
+        );
+        const studentName =
+          selectedStudent.firstName + " " + selectedStudent.lastName;
+
+        if (user.role === Role.ADMIN) {
+          setConfirmDialogType("blocked-admin");
+          setConfirmDialogMsg(
+            "Ordering is blocked for " +
+              studentName +
+              "'s grade or teacher on " +
+              formattedDate +
+              ". Do you want to add this meal to the cart anyway?",
+          );
+        } else {
+          setBlockedInfoMsg(
+            "Ordering is not available for " +
+              studentName +
+              " on " +
+              formattedDate +
+              ". Orders are blocked for their grade or teacher.",
+          );
+        }
+        return;
+      }
+    }
+
     if (!confirmed) {
       const mealsOrdered = orders
         .map((order) =>
@@ -238,6 +314,7 @@ const OrderMealDialog: React.FC<DialogProps> = ({
           ? selectedStaffMember.firstName + " " + selectedStaffMember.lastName
           : "you";
       if (hasMealInCart) {
+        setConfirmDialogType("duplicate");
         setConfirmDialogMsg(
           "A meal / drink is already in your cart for " +
             dinerName +
@@ -250,6 +327,7 @@ const OrderMealDialog: React.FC<DialogProps> = ({
         );
         return;
       } else if (isMealOrdered) {
+        setConfirmDialogType("duplicate");
         setConfirmDialogMsg(
           "A meal / drink has already been ordered for " +
             dinerName +
@@ -264,6 +342,7 @@ const OrderMealDialog: React.FC<DialogProps> = ({
       }
     } else {
       setConfirmDialogMsg(undefined);
+      setConfirmDialogType("duplicate");
     }
 
     const newCartItem: ShoppingCartItem = {
@@ -436,9 +515,7 @@ const OrderMealDialog: React.FC<DialogProps> = ({
 
       setStudents(students.concat(updatedStudent));
       setUsers(
-        users.concat(
-          parents.filter((p) => !users.some((u) => u.id === p.id)),
-        ),
+        users.concat(parents.filter((p) => !users.some((u) => u.id === p.id))),
       );
       setOrders(
         orders
@@ -709,10 +786,33 @@ const OrderMealDialog: React.FC<DialogProps> = ({
         ) : (
           <ConfirmDialog
             open={true}
+            title={
+              confirmDialogType === "blocked-admin"
+                ? "Ordering Blocked"
+                : undefined
+            }
             onCancel={() => setConfirmDialogMsg(undefined)}
-            onOk={() => handleAddToCart(true)}
+            onOk={() =>
+              confirmDialogType === "blocked-admin"
+                ? handleAddToCart(false, true)
+                : handleAddToCart(true)
+            }
           >
             <Typography>{confirmDialogMsg}</Typography>
+          </ConfirmDialog>
+        )}
+        {!blockedInfoMsg ? (
+          <></>
+        ) : (
+          <ConfirmDialog
+            open={true}
+            title="Ordering Not Available"
+            hideCancelButton={true}
+            okLabel="OK"
+            onCancel={() => setBlockedInfoMsg(undefined)}
+            onOk={() => setBlockedInfoMsg(undefined)}
+          >
+            <Typography>{blockedInfoMsg}</Typography>
           </ConfirmDialog>
         )}
       </DialogContent>

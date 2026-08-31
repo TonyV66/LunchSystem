@@ -199,8 +199,16 @@ const getParentSession = async (
   const pantryRepository = AppDataSource.getRepository(PantryItemEntity);
   const notificationRepository =
     AppDataSource.getRepository(NotificationEntity);
+  const calendarNoteRepository =
+    AppDataSource.getRepository(CalendarNoteEntity);
 
   const notifications = await notificationRepository.find({
+    where: {
+      school: { id: school.id },
+    },
+  });
+
+  const calendarNotes = await calendarNoteRepository.find({
     where: {
       school: { id: school.id },
     },
@@ -378,7 +386,7 @@ const getParentSession = async (
     ingredients: [],
     unitsOfMeasure: [],
     notifications,
-    calendarNotes: [],
+    calendarNotes: calendarNotes.map((n) => new CalendarNote(n)),
     school: new School(school),
     schoolYears: currentSchoolYear.id
       ? [{ ...new SchoolYear(currentSchoolYear), studentLunchTimes }]
@@ -521,9 +529,10 @@ export const getCafeteriaSession = async (
   }
 
   const schoolYears = allSchoolYears.map((sy) => new SchoolYear(sy));
-  if (currentSchoolYear.id) {
+  const activeSchoolYearId = currentSchoolYear.id;
+  if (activeSchoolYearId) {
     schoolYears.find(
-      (sy) => sy.id === currentSchoolYear.id,
+      (sy) => sy.id === activeSchoolYearId,
     )!.studentLunchTimes = studentLunchTimes;
   }
 
